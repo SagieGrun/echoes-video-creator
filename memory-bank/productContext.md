@@ -1,0 +1,61 @@
+# Product Context - Echoes Video Creator
+
+## Problem Statement
+- Static photos lack emotional impact in digital sharing
+- Creating video content from photos is technically complex
+- Existing solutions are either too expensive or low quality
+- No simple way to create personalized video gifts from memories
+
+## Solution
+An AI-powered platform that transforms static photos into animated clips and compiles them into emotional videos with music.
+
+## User Journey
+
+### Free User Flow (No Signup)
+1. **Landing Page**: Emotional messaging + "Try a free animated clip"
+2. **Upload**: Single photo upload (drag/drop)
+3. **Generation**: AI creates 5-second animated clip
+4. **Preview**: Watermarked result with original image intro (0.5s)
+5. **Conversion Points**: 
+   - Download requires signup
+   - Share for credits requires signup
+   - Full video creation requires signup
+
+### Paid User Flow (Post-Signup)
+1. **Project Wizard**: Upload multiple photos (up to 40)
+2. **Generation**: AI creates clips for each photo
+3. **Editing**: Reorder/Delete/Regenerate (3 max per project)
+4. **Music**: Choose from royalty-free tracks
+5. **Preview**: Full video with music
+6. **Payment**: Stripe checkout if insufficient credits
+7. **Download**: Final MP4 without watermark
+
+## Key Features
+
+### Core MVP Features
+- Google OAuth authentication
+- Photo upload with drag/drop interface
+- AI clip generation with status tracking
+- Watermarked preview for free users
+- Credit system with balance tracking
+- Music selection from curated tracks
+- Video preview and final export
+- Regeneration system (3 max per project)
+
+### PLG Mechanics
+- **Referral System**: Unique codes, +5 credits for both parties
+- **Share-to-Earn**: +1 credit for social sharing with tag
+- **Free Hook**: High-quality free clip to demonstrate value
+
+### Pricing Strategy
+- **Starter Pack**: 5 credits — $15 (~$3.00/credit)
+- **Standard Pack**: 20 credits — $45 (~$2.25/credit)  
+- **Premium Pack**: 40 credits — $80 (~$2.00/credit)
+- **Top-ups**: Available post-purchase at discounted rates
+
+## User Experience Principles
+- **Emotional First**: Every interaction should feel magical
+- **Mobile Optimized**: Smooth experience on mobile devices
+- **Instant Gratification**: Show progress and results quickly
+- **Minimal Friction**: Reduce steps to value realization
+- **Trust Building**: Professional quality and reliable generation 
