@@ -1,4 +1,15 @@
+'use client'
+
+import { useRouter } from 'next/navigation'
+import { getAppUrl } from '@/lib/utils'
+
 export function HowItWorks() {
+  const router = useRouter()
+
+  const handleTryFree = () => {
+    const appUrl = getAppUrl()
+    router.push(`/login?redirect=${encodeURIComponent(appUrl)}`)
+  }
   const steps = [
     {
       number: '01',
@@ -8,7 +19,7 @@ export function HowItWorks() {
     },
     {
       number: '02', 
-      icon: '✨',
+      icon: '🤖',
       title: 'AI Magic Happens',
       description: 'Our advanced AI creates natural, lifelike animation that brings your photo to life with gentle, realistic movement.'
     },
@@ -65,7 +76,10 @@ export function HowItWorks() {
 
         {/* CTA */}
         <div className="text-center mt-16">
-          <button className="bg-gradient-to-r from-coral-400 to-rose-300 hover:from-coral-500 hover:to-rose-400 text-white font-semibold text-lg px-8 py-4 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+          <button 
+            onClick={handleTryFree}
+            className="bg-gradient-to-r from-coral-400 to-rose-300 hover:from-coral-500 hover:to-rose-400 text-white font-semibold text-lg px-8 py-4 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+          >
             Start Creating Now
           </button>
         </div>

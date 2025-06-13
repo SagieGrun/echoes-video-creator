@@ -5,6 +5,12 @@ import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 
+// Helper function to get app URL based on environment
+const getAppUrl = () => {
+  const isDevelopment = process.env.NODE_ENV === 'development'
+  return isDevelopment ? '/create' : 'https://app.get-echoes.com'
+}
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -24,6 +30,7 @@ export default function ClipPage({ params }: { params: { id: string } }) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const appUrl = getAppUrl()
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -70,7 +77,7 @@ export default function ClipPage({ params }: { params: { id: string } }) {
         <div className="text-center">
           <p className="text-red-500 mb-4">{error || 'Clip not found'}</p>
           <Link
-            href="/create"
+            href={appUrl}
             className="inline-flex items-center text-orange-600 hover:text-orange-700"
           >
             <ArrowLeft className="h-5 w-5 mr-2" />
@@ -86,7 +93,7 @@ export default function ClipPage({ params }: { params: { id: string } }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
           <Link
-            href="/create"
+            href={appUrl}
             className="inline-flex items-center text-gray-600 hover:text-gray-900"
           >
             <ArrowLeft className="h-5 w-5 mr-2" />
@@ -109,7 +116,7 @@ export default function ClipPage({ params }: { params: { id: string } }) {
             <div className="text-center py-12">
               <p className="text-red-500 mb-4">Failed to generate clip</p>
               <Link
-                href="/create"
+                href={appUrl}
                 className="inline-flex items-center text-orange-600 hover:text-orange-700"
               >
                 Try Again

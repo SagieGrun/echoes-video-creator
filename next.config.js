@@ -8,10 +8,24 @@ const nextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/:path*',
+        destination: '/create/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'app.get-echoes.com',
+          },
+        ],
+      },
+    ];
+  },
   async headers() {
     return [
       {
-        source: '/(.*)',
+        source: '/((?!_next/static|_next/image|favicon.ico).*)',
         headers: [
           {
             key: 'X-Frame-Options',

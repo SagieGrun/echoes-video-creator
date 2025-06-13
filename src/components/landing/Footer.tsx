@@ -1,4 +1,15 @@
+'use client'
+
+import { useRouter } from 'next/navigation'
+import { getAppUrl } from '@/lib/utils'
+
 export function Footer() {
+  const router = useRouter()
+
+  const handleTryFree = () => {
+    const appUrl = getAppUrl()
+    router.push(`/login?redirect=${encodeURIComponent(appUrl)}`)
+  }
   return (
     <footer className="bg-gradient-to-br from-orange-300 via-rose-300 to-purple-300 py-12 px-4">
       <div className="max-w-6xl mx-auto">
@@ -43,7 +54,10 @@ export function Footer() {
           </p>
           
           {/* Final CTA */}
-          <button className="bg-gradient-to-r from-coral-400 to-rose-300 hover:from-coral-500 hover:to-rose-400 text-white font-semibold px-6 py-3 rounded-full transition-all duration-300 transform hover:scale-105">
+          <button 
+            onClick={handleTryFree}
+            className="bg-gradient-to-r from-coral-400 to-rose-300 hover:from-coral-500 hover:to-rose-400 text-white font-semibold px-6 py-3 rounded-full transition-all duration-300 transform hover:scale-105"
+          >
             Start Creating
           </button>
         </div>

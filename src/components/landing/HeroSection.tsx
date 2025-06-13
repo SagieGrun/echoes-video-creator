@@ -3,12 +3,14 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { getAppUrl } from '@/lib/utils'
 
 export function HeroSection() {
   const router = useRouter()
 
   const handleTryFree = () => {
-    router.push('/login?redirect=/create')
+    const appUrl = getAppUrl()
+    router.push(`/login?redirect=${encodeURIComponent(appUrl)}`)
   }
 
   return (
@@ -29,14 +31,6 @@ export function HeroSection() {
           
           {/* Left Side - Main Content */}
           <div className="text-center lg:text-left">
-            {/* Logo/Brand */}
-            <div className="mb-8">
-              <h1 className="text-2xl font-bold text-orange-800 mb-2">
-                ECHOES
-              </h1>
-              <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-coral-400 to-transparent mx-auto lg:mx-0"></div>
-            </div>
-
             {/* Main Headline */}
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-orange-900 mb-6 leading-tight">
               Bring Your 
@@ -48,11 +42,11 @@ export function HeroSection() {
             {/* Subheadline */}
             <p className="text-xl md:text-2xl text-rose-700 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
               Transform your cherished photos into magical AI-animated videos. 
-              Perfect for creating heartfelt gifts that bring tears of joy.
+              Perfect for creating heartfelt gifts.
             </p>
 
             {/* Primary CTA */}
-            <div className="mb-8">
+            <div className="mb-8 text-center lg:text-left">
               <button 
                 onClick={handleTryFree}
                 className="inline-block bg-gradient-to-r from-coral-400 to-rose-300 hover:from-coral-500 hover:to-rose-400 text-white font-semibold text-lg px-8 py-4 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl mb-4"
@@ -60,24 +54,24 @@ export function HeroSection() {
                 Try Your First Clip FREE
               </button>
               
-              <p className="text-rose-600 text-sm">
-                ✨ No signup required • Ready in 2 minutes
+              <p className="text-rose-700 text-base font-medium">
+                🚀 Ready in 2 minutes
               </p>
             </div>
 
             {/* Trust indicators */}
-            <div className="flex flex-wrap justify-center lg:justify-start items-center gap-6 text-rose-600 text-sm">
-              <div className="flex items-center gap-2">
-                <span className="text-coral-500">🔒</span>
-                <span>Privacy-first</span>
+            <div className="flex flex-wrap justify-center lg:justify-start items-center gap-8 text-orange-800 text-base">
+              <div className="flex items-center gap-3">
+                <span className="text-orange-600 text-lg">🔒</span>
+                <span className="font-medium">Privacy-first</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-coral-500">📱</span>
-                <span>Works on any device</span>
+              <div className="flex items-center gap-3">
+                <span className="text-orange-600 text-lg">📱</span>
+                <span className="font-medium">Works on any device</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-coral-500">⚡</span>
-                <span>Professional quality</span>
+              <div className="flex items-center gap-3">
+                <span className="text-orange-600 text-lg">⚡</span>
+                <span className="font-medium">Professional quality</span>
               </div>
             </div>
           </div>
@@ -86,7 +80,7 @@ export function HeroSection() {
           <div className="lg:order-last">
             <div className="bg-white/60 backdrop-blur-sm rounded-3xl p-8 border border-rose-200 relative">
               <h3 className="text-xl font-semibold text-orange-800 mb-6 text-center">
-                Watch the Magic Happen ✨
+                Watch the Magic Happen 🎬
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -103,7 +97,7 @@ export function HeroSection() {
                         priority
                       />
                       {/* Static indicator */}
-                      <div className="absolute top-3 right-3 bg-orange-600 text-white text-xs px-2 py-1 rounded-full">
+                      <div className="absolute top-3 right-3 bg-orange-600 text-white text-sm px-3 py-1 rounded-full font-medium">
                         Static
                       </div>
                     </div>
@@ -124,7 +118,7 @@ export function HeroSection() {
                         className="w-full h-full object-cover"
                       />
                       {/* Animated indicator */}
-                      <div className="absolute top-3 right-3 bg-coral-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                      <div className="absolute top-3 right-3 bg-coral-500 text-white text-sm px-3 py-1 rounded-full flex items-center gap-2 font-medium">
                         <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                         Live
                       </div>
@@ -144,7 +138,7 @@ export function HeroSection() {
               </div>
 
               <div className="text-center mt-6">
-                <p className="text-rose-600 text-sm">
+                <p className="text-orange-800 text-base font-medium">
                   🎬 Real family memories brought to life with gentle, natural animation
                 </p>
               </div>
@@ -154,22 +148,22 @@ export function HeroSection() {
 
         {/* Social Proof - moved to bottom */}
         <div className="text-center mt-16">
-          <div className="flex justify-center items-center gap-1 mb-2">
+          <div className="flex justify-center items-center gap-1 mb-3">
             {[1,2,3,4,5].map((star) => (
-              <span key={star} className="text-coral-400 text-lg">★</span>
+              <span key={star} className="text-orange-400 text-xl">★</span>
             ))}
           </div>
-          <p className="text-rose-600 text-sm">
+          <p className="text-orange-800 text-base font-medium">
             Loved by 1,000+ families worldwide
           </p>
         </div>
       </div>
 
       {/* Scroll indicator */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-rose-600 animate-bounce">
+      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-orange-800 animate-bounce">
         <div className="flex flex-col items-center gap-2">
-          <span className="text-xs">See how it works</span>
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <span className="text-sm font-medium">See how it works</span>
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
           </svg>
         </div>

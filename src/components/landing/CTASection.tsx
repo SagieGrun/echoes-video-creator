@@ -1,12 +1,14 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { getAppUrl } from '@/lib/utils'
 
 export function CTASection() {
   const router = useRouter()
 
   const handleTryFree = () => {
-    router.push('/login?redirect=/create')
+    const appUrl = getAppUrl()
+    router.push(`/login?redirect=${encodeURIComponent(appUrl)}`)
   }
 
   return (

@@ -3,13 +3,15 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { getAppUrl } from '@/lib/utils'
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const router = useRouter()
 
   const handleTryFree = () => {
-    router.push('/login?redirect=/create')
+    const appUrl = getAppUrl()
+    router.push(`/login?redirect=${encodeURIComponent(appUrl)}`)
   }
 
   return (
@@ -21,7 +23,7 @@ export function Header() {
             <Link href="/" className="text-xl font-bold text-orange-800">
               ECHOES
             </Link>
-            <span className="ml-2 text-coral-500 text-sm">✨</span>
+                            <span className="ml-2 text-orange-600 text-sm">🚀</span>
           </div>
 
           {/* Desktop Navigation */}

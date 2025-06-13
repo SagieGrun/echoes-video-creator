@@ -1,12 +1,14 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { getAppUrl } from '@/lib/utils'
 
 export function ExampleGallery() {
   const router = useRouter()
 
   const handleTryFree = () => {
-    router.push('/login?redirect=/create')
+    const appUrl = getAppUrl()
+    router.push(`/login?redirect=${encodeURIComponent(appUrl)}`)
   }
 
   return (
@@ -15,7 +17,7 @@ export function ExampleGallery() {
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-orange-800 mb-6">
-            See the Magic ✨
+                            See the Magic 🎬
           </h2>
           <p className="text-xl text-rose-700 max-w-2xl mx-auto">
             Watch ordinary photos transform into extraordinary memories

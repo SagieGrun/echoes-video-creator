@@ -48,5 +48,10 @@ export async function GET(request: Request) {
   }
 
   console.log('Session exchange successful, redirecting to create page')
-  return NextResponse.redirect(new URL('/create', request.url))
+  const isDevelopment = process.env.NODE_ENV === 'development'
+  const redirectUrl = isDevelopment 
+    ? new URL('/create', request.url)
+    : 'https://app.get-echoes.com'
+  
+  return NextResponse.redirect(redirectUrl)
 } 

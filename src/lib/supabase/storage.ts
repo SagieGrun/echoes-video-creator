@@ -1,29 +1,70 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+import { createSupabaseBrowserClient } from '@/lib/supabase'
 
 console.log('Storage initialization:', { 
-  hasUrl: !!supabaseUrl, 
-  hasKey: !!supabaseAnonKey,
-  urlLength: supabaseUrl?.length,
-  keyLength: supabaseAnonKey?.length
+  hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL, 
+  hasKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  urlLength: process.env.NEXT_PUBLIC_SUPABASE_URL?.length,
+  keyLength: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.length
 })
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Create or get a default project for the user
+async function getOrCreateDefaultProject(userId: string) {
+  const supabase = createSupabaseBrowserClient()
+  
+  // First, try to get an existing project
+  const { data: existingProject, error: fetchError } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('status', 'in_progress')
+    .limit(1)
+    .single()
 
-// Test Supabase connection
-supabase.auth.onAuthStateChange((event, session) => {
-  console.log('Supabase auth state:', event, session?.user?.id || 'no user')
-})
+  if (existingProject && !fetchError) {
+    return existingProject.id
+  }
 
-export async function uploadPhoto(file: File, userId: string, projectId: string) {
+  // If no project exists, create a new one
+  const { data: newProject, error: createError } = await supabase
+    .from('projects')
+    .insert({
+      user_id: userId
+    })
+    .select('id')
+    .single()
+
+  if (createError) {
+    console.error('Error creating project:', createError)
+    throw new Error('Failed to create project')
+  }
+
+  return newProject.id
+}
+
+export async function uploadPhoto(file: File) {
+  const supabase = createSupabaseBrowserClient()
+  
   try {
     console.log('Upload started:', {
       fileName: file.name,
       fileSize: file.size,
       fileType: file.type
     })
+
+    // Check authentication
+    const { data: { session }, error: authError } = await supabase.auth.getSession()
+    
+    if (authError || !session?.user) {
+      console.error('Authentication error:', authError)
+      throw new Error('You must be logged in to upload photos')
+    }
+
+    const userId = session.user.id
+    console.log('Authenticated user:', userId)
+
+    // Get or create a project for this user
+    const projectId = await getOrCreateDefaultProject(userId)
+    console.log('Using project:', projectId)
 
     const fileExt = file.name.split('.').pop()
     const fileName = `${userId}/${projectId}/${Date.now()}.${fileExt}`
@@ -58,7 +99,8 @@ export async function uploadPhoto(file: File, userId: string, projectId: string)
 
     return {
       path: fileName,
-      url: data.signedUrl
+      url: data.signedUrl,
+      projectId: projectId
     }
   } catch (error) {
     console.error('Upload process error:', error)
@@ -74,6 +116,8 @@ export async function uploadPhoto(file: File, userId: string, projectId: string)
 }
 
 export async function deletePhoto(path: string) {
+  const supabase = createSupabaseBrowserClient()
+  
   try {
     const { error } = await supabase.storage
       .from('private-photos')
@@ -90,6 +134,8 @@ export async function deletePhoto(path: string) {
 }
 
 export async function getSignedUrl(path: string, expiresIn = 3600) {
+  const supabase = createSupabaseBrowserClient()
+  
   try {
     const { data, error } = await supabase.storage
       .from('private-photos')

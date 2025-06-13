@@ -1,19 +1,36 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { PhotoUpload } from '@/components/upload/PhotoUpload'
 import { uploadPhoto } from '@/lib/supabase/storage'
 import { useRouter } from 'next/navigation'
+import { createSupabaseBrowserClient } from '@/lib/supabase'
 
 export default function CreatePage() {
   const router = useRouter()
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
-  const [uploadedPhoto, setUploadedPhoto] = useState<{ path: string; url: string } | null>(null)
+  const [uploadedPhoto, setUploadedPhoto] = useState<{ path: string; url: string; projectId: string } | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [generationError, setGenerationError] = useState<string | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const supabase = createSupabaseBrowserClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      setIsAuthenticated(!!session)
+      
+      if (!session) {
+        // Redirect to login if not authenticated
+        router.push('/login')
+      }
+    }
+
+    checkAuth()
+  }, [router])
 
   const handlePhotoSelected = async (file: File) => {
     try {
@@ -23,7 +40,16 @@ export default function CreatePage() {
       setUploadedPhoto(result)
     } catch (error) {
       console.error('Error uploading photo:', error)
-      setUploadError('Failed to upload photo. Please try again.')
+      if (error instanceof Error) {
+        if (error.message.includes('logged in')) {
+          setUploadError('Please log in to upload photos.')
+          router.push('/login')
+        } else {
+          setUploadError(error.message || 'Failed to upload photo. Please try again.')
+        }
+      } else {
+        setUploadError('Failed to upload photo. Please try again.')
+      }
     } finally {
       setIsUploading(false)
     }
@@ -43,6 +69,7 @@ export default function CreatePage() {
         },
         body: JSON.stringify({
           photoUrl: uploadedPhoto.url,
+          projectId: uploadedPhoto.projectId,
         }),
       })
 
@@ -58,6 +85,23 @@ export default function CreatePage() {
     } finally {
       setIsGenerating(false)
     }
+  }
+
+  // Show loading while checking authentication
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-100 via-orange-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render the main content if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null
   }
 
   return (
@@ -85,6 +129,12 @@ export default function CreatePage() {
                 maxSize={5 * 1024 * 1024} // 5MB
                 acceptedTypes={['image/jpeg', 'image/png']}
               />
+              {isUploading && (
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
+                  <p className="text-gray-600">Uploading your photo...</p>
+                </div>
+              )}
               {uploadError && (
                 <p className="text-red-500 text-sm">{uploadError}</p>
               )}
