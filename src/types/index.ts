@@ -27,8 +27,10 @@ export interface Clip {
   prompt?: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
   runway_job_id?: string
+  generation_job_id?: string
   error_message?: string
   regen_count: number
+  clip_order: number
   created_at: string
   completed_at?: string
 }

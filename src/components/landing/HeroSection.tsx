@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { getAppUrl } from '@/lib/utils'
@@ -88,13 +87,10 @@ export function HeroSection() {
                 <div className="text-center">
                   <div className="bg-white rounded-2xl p-2 shadow-lg mb-4">
                     <div className="aspect-square relative overflow-hidden rounded-xl">
-                      <Image
+                      <img
                         src="/examples/family-photo.jpg"
                         alt="Beautiful family memory - grandparents with baby"
-                        fill
-                        sizes="(max-width: 768px) 100vw, 50vw"
-                        className="object-cover"
-                        priority
+                        className="w-full h-full object-cover"
                       />
                       {/* Static indicator */}
                       <div className="absolute top-3 right-3 bg-orange-600 text-white text-sm px-3 py-1 rounded-full font-medium">

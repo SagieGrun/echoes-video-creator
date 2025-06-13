@@ -24,7 +24,7 @@
 -- Users (handled by Supabase Auth)
 create table public.user_profiles (
   id uuid references auth.users primary key,
-  credit_balance integer not null default 1,
+  credit_balance integer not null default 1, -- 1 free credit upon signup
   referral_code text unique,
   referred_by uuid references auth.users,
   created_at timestamp with time zone default timezone('utc'::text, now())

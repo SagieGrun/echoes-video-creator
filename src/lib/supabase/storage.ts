@@ -11,7 +11,10 @@ console.log('Storage initialization:', {
 async function getOrCreateDefaultProject(userId: string) {
   const supabase = createSupabaseBrowserClient()
   
-  // First, try to get an existing project
+  console.log('Getting/creating project for user:', userId)
+  
+  // Since we're auth-first, user profile should already exist from auth callback
+  // Just try to get an existing project
   const { data: existingProject, error: fetchError } = await supabase
     .from('projects')
     .select('id')
@@ -21,9 +24,11 @@ async function getOrCreateDefaultProject(userId: string) {
     .single()
 
   if (existingProject && !fetchError) {
+    console.log('Found existing project:', existingProject.id)
     return existingProject.id
   }
 
+  console.log('Creating new project for user...')
   // If no project exists, create a new one
   const { data: newProject, error: createError } = await supabase
     .from('projects')
@@ -38,6 +43,7 @@ async function getOrCreateDefaultProject(userId: string) {
     throw new Error('Failed to create project')
   }
 
+  console.log('Created new project:', newProject.id)
   return newProject.id
 }
 

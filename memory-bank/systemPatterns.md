@@ -90,11 +90,11 @@ const ACTIVE_PROVIDER = process.env.ACTIVE_AI_PROVIDER || 'runway'
 
 ### Auth-First Flow
 ```
-Landing Page → Google OAuth → Upload Wizard
+Landing Page → Google OAuth → Upload Wizard (1 Free Credit)
      ↓
 Credit Check → Generate Clip → Preview & Approve
      ↓
-Add to Project → Continue or Complete
+Add to Project → Continue or Purchase More Credits
 ```
 
 ### Clip Generation Flow

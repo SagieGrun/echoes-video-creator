@@ -47,7 +47,59 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/auth-error`)
   }
 
-  console.log('Session exchange successful, redirecting to create page')
+  console.log('Session exchange successful, checking/creating user profile')
+  
+  // Get the user session to access user details
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (user) {
+    console.log('User found:', { id: user.id, email: user.email })
+    
+    // Check if user profile exists in our users table
+    const { data: existingUser, error: fetchError } = await supabase
+      .from('users')
+      .select('id, email, credit_balance')
+      .eq('id', user.id)
+      .single()
+    
+    if (fetchError && fetchError.code === 'PGRST116') {
+      // User doesn't exist, create them with 1 free credit
+      console.log('Creating new user profile with 1 free credit')
+      
+      const { data: newUser, error: createError } = await supabase
+        .from('users')
+        .insert({
+          id: user.id,
+          email: user.email || '',
+          credit_balance: 1,
+          referral_code: Math.random().toString(36).substring(2, 10).toUpperCase()
+        })
+        .select()
+        .single()
+      
+      if (createError) {
+        console.error('Error creating user profile:', createError)
+      } else {
+        console.log('User profile created successfully:', newUser)
+        
+        // Log the initial free credit transaction
+        await supabase
+          .from('credit_transactions')
+          .insert({
+            user_id: user.id,
+            amount: 1,
+            type: 'referral', // Using 'referral' type for signup bonus
+            reference_id: 'signup_bonus'
+          })
+      }
+    } else if (existingUser) {
+      console.log('Existing user found:', existingUser)
+    } else {
+      console.error('Error fetching user:', fetchError)
+    }
+  }
+  
+  console.log('Redirecting to create page')
   const isDevelopment = process.env.NODE_ENV === 'development'
   const redirectUrl = isDevelopment 
     ? new URL('/create', request.url)

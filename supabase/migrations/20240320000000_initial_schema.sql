@@ -27,7 +27,7 @@ create table if not exists public.clips (
   prompt text,
   status text not null default 'generating' check (status in ('generating', 'ready', 'error')),
   approved boolean default false,
-  order integer not null,
+  clip_order integer not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -75,6 +75,10 @@ alter table public.referrals enable row level security;
 create policy "Users can view their own data"
   on public.users for select
   using (auth.uid() = id);
+
+create policy "Users can insert their own data"
+  on public.users for insert
+  with check (auth.uid() = id);
 
 create policy "Users can update their own data"
   on public.users for update
@@ -168,4 +172,44 @@ $$ language plpgsql security definer;
 -- Create trigger for new user signup
 create trigger on_auth_user_created
   after insert on auth.users
-  for each row execute procedure public.handle_new_user(); 
+  for each row execute procedure public.handle_new_user();
+
+-- Create storage bucket for private photos (if not exists)
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'private-photos',
+  'private-photos',
+  false,
+  52428800, -- 50MB limit
+  array['image/jpeg', 'image/png', 'image/webp']
+)
+on conflict (id) do nothing;
+
+-- Storage policies for private-photos bucket
+create policy "Users can upload their own photos"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'private-photos' 
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+create policy "Users can view their own photos"
+  on storage.objects for select
+  using (
+    bucket_id = 'private-photos' 
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+create policy "Users can update their own photos"
+  on storage.objects for update
+  using (
+    bucket_id = 'private-photos' 
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+create policy "Users can delete their own photos"
+  on storage.objects for delete
+  using (
+    bucket_id = 'private-photos' 
+    and auth.uid()::text = (storage.foldername(name))[1]
+  ); 

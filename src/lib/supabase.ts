@@ -7,9 +7,14 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 // Server-side client
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
-// Browser client for client components
+// Browser client for client components (singleton pattern)
+let browserClient: ReturnType<typeof createBrowserClient> | null = null
+
 export function createSupabaseBrowserClient() {
-  return createBrowserClient(supabaseUrl, supabaseKey)
+  if (!browserClient) {
+    browserClient = createBrowserClient(supabaseUrl, supabaseKey)
+  }
+  return browserClient
 }
 
 // Types for database tables
@@ -76,8 +81,10 @@ export interface Database {
           prompt: string | null
           status: 'pending' | 'processing' | 'completed' | 'failed'
           runway_job_id: string | null
+          generation_job_id: string | null
           error_message: string | null
           regen_count: number
+          clip_order: number
           created_at: string
           completed_at: string | null
         }
@@ -89,8 +96,10 @@ export interface Database {
           prompt?: string | null
           status?: 'pending' | 'processing' | 'completed' | 'failed'
           runway_job_id?: string | null
+          generation_job_id?: string | null
           error_message?: string | null
           regen_count?: number
+          clip_order: number
           created_at?: string
           completed_at?: string | null
         }
@@ -98,8 +107,10 @@ export interface Database {
           video_url?: string | null
           status?: 'pending' | 'processing' | 'completed' | 'failed'
           runway_job_id?: string | null
+          generation_job_id?: string | null
           error_message?: string | null
           regen_count?: number
+          clip_order?: number
           completed_at?: string | null
         }
       }

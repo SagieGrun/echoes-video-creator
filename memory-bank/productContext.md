@@ -11,15 +11,16 @@ An AI-powered platform that transforms static photos into animated clips and com
 
 ## User Journey
 
-### Free User Flow (No Signup)
+### Free User Flow (Auth-First)
 1. **Landing Page**: Emotional messaging + "Try a free animated clip"
-2. **Upload**: Single photo upload (drag/drop)
-3. **Generation**: AI creates 5-second animated clip
-4. **Preview**: Watermarked result with original image intro (0.5s)
-5. **Conversion Points**: 
-   - Download requires signup
-   - Share for credits requires signup
-   - Full video creation requires signup
+2. **Sign Up**: Google OAuth authentication required
+3. **Upload**: Single photo upload (drag/drop) 
+4. **Generation**: AI creates 5-second animated clip (uses 1 free credit)
+5. **Preview**: Full quality result with original image intro (0.5s)
+6. **Conversion Points**: 
+   - Create more clips requires credit purchase
+   - Full video creation unlocked
+   - Referral system for additional credits
 
 ### Paid User Flow (Post-Signup)
 1. **Project Wizard**: Upload multiple photos (up to 40)
@@ -45,7 +46,7 @@ An AI-powered platform that transforms static photos into animated clips and com
 ### PLG Mechanics
 - **Referral System**: Unique codes, +5 credits for both parties
 - **Share-to-Earn**: +1 credit for social sharing with tag
-- **Free Hook**: High-quality free clip to demonstrate value
+- **Free Hook**: 1 free credit upon signup to demonstrate value
 
 ### Pricing Strategy
 - **Starter Pack**: 5 credits — $15 (~$3.00/credit)
