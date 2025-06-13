@@ -2,19 +2,38 @@
 
 ## Architecture Overview
 
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Next.js PWA   │    │    Supabase      │    │  External APIs  │
-│                 │    │                  │    │                 │
-│ • React + TS    ├────┤ • PostgreSQL     ├────┤ • Runway API    │
-│ • Tailwind CSS  │    │ • Auth + Storage │    │ • Stripe        │
-│ • Service Worker│    │ • Edge Functions │    │                 │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
+```mermaid
+flowchart TD
+    A[Next.js Frontend] --> B[Supabase]
+    B --> C[AI Provider]
+    B --> D[Stripe]
+    
+    subgraph Frontend
+        A1[Auth Guard]
+        A2[Upload Wizard]
+        A3[Clip Player]
+    end
+    
+    subgraph Backend
+        B1[Google OAuth]
+        B2[Private Storage]
+        B3[Edge Functions]
+    end
 ```
 
 ## Core Design Patterns
 
-### 1. Credit System Pattern
+### 1. Auth-First Pattern
+```typescript
+// All routes protected by default
+export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
+  const { user } = useUser()
+  if (!user) return <RedirectToLogin />
+  return children
+}
+```
+
+### 2. Credit System Pattern
 ```typescript
 interface CreditTransaction {
   user_id: string
@@ -24,79 +43,67 @@ interface CreditTransaction {
 }
 ```
 
-**Implementation**: 
-- All credit changes go through audit log
-- Balance calculated from transaction sum
-- Prevents race conditions and provides audit trail
-
-### 2. Async Job Pattern (AI Generation)
+### 3. Clip Approval Pattern
 ```typescript
-interface ClipJob {
-  status: 'pending' | 'processing' | 'completed' | 'failed'
-  runway_job_id?: string
-  error_message?: string
-  created_at: timestamp
-  completed_at?: timestamp
+interface Clip {
+  id: string
+  project_id: string
+  image_url: string
+  video_url: string
+  status: 'generating' | 'ready' | 'error'
+  approved: boolean    // User must approve each clip
+  order: number       // Maintain sequence
 }
 ```
 
-**Flow**:
-1. Create clip record with 'pending' status
-2. Edge Function calls Runway API, updates to 'processing'
-3. Frontend polls status every 5 seconds
-4. Webhook or polling updates to 'completed'/'failed'
-
-### 3. Pluggable AI Model Pattern
+### 4. Sequential Player Pattern
 ```typescript
-interface AIVideoProvider {
-  generateClip(imageUrl: string, prompt: string): Promise<JobId>
+interface Project {
+  id: string
+  clips: Clip[]       // Ordered by clip.order
+  music_url?: string
+  status: 'in_progress' | 'completed'
+}
+
+// No video stitching - play clips in sequence
+class SequentialPlayer {
+  playClips(clips: Clip[]) {
+    // Play approved clips in order
+    // Handle transitions
+    // Sync with music
+  }
+}
+```
+
+### 5. Pluggable AI Pattern
+```typescript
+interface AIProvider {
+  generateClip(imageUrl: string, prompt: string): Promise<string>
   getJobStatus(jobId: string): Promise<JobStatus>
-  getResultUrl(jobId: string): Promise<string>
 }
 
-class RunwayProvider implements AIVideoProvider {
-  // Implementation specific to Runway API
-}
-```
-
-**Benefits**: Easy to swap AI providers without changing application logic
-
-### 4. Progressive Enhancement Pattern
-```typescript
-// Works without JavaScript (basic upload)
-// Enhanced with JavaScript (drag/drop, previews, real-time status)
-// PWA features (offline viewing, install prompt)
-```
-
-### 5. Mobile-First Responsive Pattern
-```css
-/* Mobile base styles */
-.upload-zone { /* mobile styles */ }
-
-/* Desktop enhancements */
-@media (min-width: 768px) {
-  .upload-zone { /* desktop additions */ }
-}
+// Configurable via admin
+const ACTIVE_PROVIDER = process.env.ACTIVE_AI_PROVIDER || 'runway'
 ```
 
 ## Data Flow Patterns
 
-### Free Clip Generation Flow
+### Auth-First Flow
 ```
-User Upload → Supabase Storage → Edge Function → Runway API
+Landing Page → Google OAuth → Upload Wizard
      ↓
-Generate Status Updates → Frontend Polling → Display Result
+Credit Check → Generate Clip → Preview & Approve
      ↓
-Watermark Overlay → Download/Share CTA → Signup Required
+Add to Project → Continue or Complete
 ```
 
-### Paid Project Flow
+### Clip Generation Flow
 ```
-Auth Required → Credit Check → Multiple Uploads → Batch Generation
+Upload → Private Storage → Edge Function → AI Provider
      ↓
-Edit Interface → Reorder/Delete/Regenerate → Music Selection
+Status Updates → Frontend Polling → Preview & Approve
      ↓
-Final Assembly → Payment (if needed) → Download Without Watermark
+Add to Sequence → Update Project Order
 ```
 
 ### Payment Flow
@@ -106,88 +113,48 @@ Stripe Checkout → Webhook → Credit Addition → Transaction Log
 Real-time Balance Update → UI Refresh → Feature Unlock
 ```
 
-## Component Architecture
-
-### Page-Level Components
-- `HomePage`: Landing page with free clip CTA
-- `FreeTryPage`: Single photo upload and generation
-- `ProjectPage`: Multi-photo project creation
-- `DashboardPage`: User projects and credit balance
-
-### Feature Components
-- `PhotoUpload`: Drag/drop with preview
-- `ClipPreview`: Video player with watermark overlay
-- `CreditBalance`: Real-time balance display
-- `GenerationStatus`: Progress indicator with polling
-- `MusicSelector`: Track selection with preview
-- `VideoAssembly`: Final compilation interface
-
-### Utility Patterns
-- `useCredits()`: Hook for credit balance and transactions
-- `useGeneration()`: Hook for job status polling
-- `useAuth()`: Supabase auth wrapper
-- `useStorage()`: File upload utilities
-
 ## Security Patterns
 
 ### Row Level Security (RLS)
 ```sql
 -- Users can only access their own data
-CREATE POLICY user_isolation ON projects
+CREATE POLICY "auth_only" ON storage.objects
+  FOR ALL USING (auth.role() = 'authenticated');
+
+-- Users can only access their own clips
+CREATE POLICY "user_clips" ON clips
   FOR ALL USING (auth.uid() = user_id);
-
--- Admins can access everything
-CREATE POLICY admin_access ON projects
-  FOR ALL USING (auth.jwt() ->> 'role' = 'admin');
 ```
 
-### File Access Control
+### Storage Security
 ```typescript
-// Generate signed URLs for temporary access
+// All storage is private, accessed via signed URLs
 const { data } = await supabase.storage
-  .from('clips')
-  .createSignedUrl(filePath, 3600) // 1 hour expiry
-```
-
-### API Security
-```typescript
-// Edge Functions validate user and credits
-const { data: user } = await supabase.auth.getUser(jwt)
-if (!user || user.credit_balance < 1) {
-  return new Response('Insufficient credits', { status: 402 })
-}
+  .from('private')
+  .createSignedUrl(filePath, 3600)
 ```
 
 ## Error Handling Patterns
 
 ### Progressive Error Recovery
-1. **Network Errors**: Retry with exponential backoff
-2. **Generation Failures**: Allow regeneration (up to 3 times)
-3. **Payment Failures**: Clear error messages + retry options
-4. **File Upload Errors**: Compress and retry, fallback options
-
-### User-Friendly Error Messages
-```typescript
-const errorMessages = {
-  'insufficient_credits': 'You need more credits to generate this clip',
-  'generation_failed': 'Something went wrong. Try regenerating this clip',
-  'upload_failed': 'Upload failed. Please check your connection and try again'
-}
-```
+1. **Auth Errors**: Redirect to login
+2. **Upload Errors**: Retry with smaller chunks
+3. **Generation Errors**: Clear error state, allow new upload
+4. **Payment Errors**: Maintain cart state, retry
 
 ## Performance Patterns
 
 ### Lazy Loading
 - Components loaded on demand
-- Images with blur placeholders
-- Progressive video loading
+- Clips loaded sequentially
+- Music preloaded for smooth playback
 
 ### Caching Strategy
-- Static assets cached aggressively
-- API responses cached for 5 minutes
-- Generated clips cached until cleanup
+- Auth state cached
+- Approved clips cached
+- Project metadata cached
 
 ### Mobile Optimization
 - Image compression before upload
-- Progressive video streaming
-- Offline viewing for generated content 
+- Progressive loading
+- Touch-friendly controls 

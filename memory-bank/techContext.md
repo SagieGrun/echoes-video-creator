@@ -1,93 +1,203 @@
 # Technical Context - Echoes Video Creator
 
-## Technology Stack
+## Stack Overview
 
 ### Frontend
-- **Framework**: Next.js 14 with TypeScript
-- **Styling**: Tailwind CSS
-- **PWA**: Service worker + manifest for mobile app experience
-- **State Management**: React hooks + Context API
-- **UI Components**: Headless UI + custom components
+- Next.js 14 (App Router)
+- TypeScript
+- Tailwind CSS
+- Supabase Auth UI
 
 ### Backend
-- **Database**: Supabase PostgreSQL
-- **Authentication**: Supabase Auth with Google OAuth
-- **File Storage**: Supabase Storage
-- **API**: Supabase Edge Functions
-- **Real-time**: Supabase subscriptions for status updates
+- Supabase (PostgreSQL + Auth + Storage)
+- Edge Functions (Deno)
+- Stripe (Payments)
 
-### External Services
-- **AI Video Generation**: Runway Gen-3 Alpha API
-- **Payments**: Stripe (USD, credit cards)
-- **Deployment**: Vercel (frontend) + Supabase (backend)
-- **Analytics**: Built-in Supabase analytics (simple)
+### AI Provider
+- Pluggable architecture
+- Starting with Runway
+- Easy to swap providers
 
-## Architecture Decisions
+## Database Schema
 
-### AI Service Choice: Runway Gen-3 Alpha
-- **Cost**: ~$0.05-0.10 per 4-second clip (under $0.25 target)
-- **Quality**: Production-ready photo animation
-- **Integration**: REST API with webhook support
-- **Generation Time**: 60-120 seconds (acceptable for async)
+```sql
+-- Users (handled by Supabase Auth)
+create table public.user_profiles (
+  id uuid references auth.users primary key,
+  credit_balance integer not null default 1,
+  referral_code text unique,
+  referred_by uuid references auth.users,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
 
-### Video Processing: Browser-Based
-- **Approach**: Client-side video assembly using Web APIs
-- **Benefits**: No server-side FFmpeg, reduced complexity
-- **Implementation**: MediaRecorder API + Canvas for compilation
-- **Format**: MP4 export via blob URLs
+-- Projects
+create table public.projects (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references auth.users not null,
+  title text,
+  music_url text,
+  status text not null default 'in_progress',
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now())
+);
 
-### Queue System: Database Polling
-- **Method**: Supabase Edge Functions + status columns
-- **Polling**: Frontend checks generation status every 5 seconds
-- **Benefits**: No external queue service, simple to debug
-- **Scalability**: Sufficient for MVP, can upgrade later
+-- Clips
+create table public.clips (
+  id uuid primary key default uuid_generate_v4(),
+  project_id uuid references public.projects not null,
+  image_url text not null,
+  video_url text,
+  status text not null default 'generating',
+  approved boolean default false,
+  order integer not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now())
+);
 
-### File Management
-- **Storage**: Supabase Storage with signed URLs
-- **Cleanup**: 7-day TTL via database triggers
-- **Organization**: User folders with UUID-based file names
-- **Protection**: Watermarked previews, signed download URLs
+-- Credit Transactions
+create table public.credit_transactions (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references auth.users not null,
+  amount integer not null,
+  type text not null,
+  reference_id text,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
 
-## Development Environment
-
-### Required Environment Variables
+-- Payments
+create table public.payments (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references auth.users not null,
+  stripe_session_id text unique not null,
+  amount_cents integer not null,
+  credits_purchased integer not null,
+  status text not null default 'pending',
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now())
+);
 ```
+
+## Storage Structure
+
+```
+private/
+  ├── images/
+  │   └── {user_id}/
+  │       └── {project_id}/
+  │           └── {clip_id}.{ext}
+  └── clips/
+      └── {user_id}/
+          └── {project_id}/
+              └── {clip_id}.mp4
+```
+
+## Environment Variables
+
+```bash
+# Supabase
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-RUNWAY_API_KEY=
+
+# Stripe
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
+
+# AI Provider
+RUNWAY_API_KEY=
+ACTIVE_AI_PROVIDER=runway
 ```
 
-### Database Schema
-- **users**: id, email, credit_balance, referral_code, created_at
-- **projects**: id, user_id, created_at, status, music_id, title
-- **clips**: id, project_id, image_url, video_url, prompt, status, regen_count
-- **payments**: user_id, stripe_id, credits_purchased, created_at
-- **referrals**: referrer_id, referred_id, status, credits_awarded
+## API Routes
 
-### Deployment Strategy
-- **Frontend**: Vercel with automatic GitHub deployments
-- **Database**: Supabase managed PostgreSQL
-- **Edge Functions**: Deployed via Supabase CLI
-- **Domain**: Custom domain setup for production
+### Authentication
+- POST /auth/google/callback
+- GET /auth/user
 
-## Performance Targets (MVP)
-- **Page Load**: < 3 seconds on mobile
-- **Upload Speed**: Progressive upload with compression
-- **Generation Status**: Real-time updates via polling
-- **Video Preview**: Smooth playback on mobile devices
+### Projects
+- GET /api/projects
+- POST /api/projects
+- GET /api/projects/:id
+- PUT /api/projects/:id
 
-## Security Considerations
-- **RLS Policies**: Row-level security for all user data
-- **File Access**: Signed URLs with expiration
-- **API Keys**: Server-side only, never exposed to client
-- **Payment Security**: Stripe handles all card processing
-- **Watermark Protection**: Canvas overlay, disabled right-click
+### Clips
+- POST /api/clips
+- GET /api/clips/:id
+- PUT /api/clips/:id/approve
+- DELETE /api/clips/:id
 
-## Scalability Path
-- **Current**: Supports 50 concurrent users easily
-- **Phase 2**: Add Redis queue, CDN for video delivery
-- **Phase 3**: Separate video processing service
-- **Phase 4**: Multi-region deployment 
+### Credits
+- GET /api/credits/balance
+- POST /api/credits/purchase
+- POST /api/credits/redeem-referral
+
+## Security Measures
+
+### Row Level Security
+```sql
+-- All tables have RLS enabled
+alter table public.projects enable row level security;
+alter table public.clips enable row level security;
+alter table public.credit_transactions enable row level security;
+alter table public.payments enable row level security;
+
+-- Users can only access their own data
+create policy "users can access own data"
+  on public.projects
+  for all
+  using (auth.uid() = user_id);
+```
+
+### Storage Security
+- All buckets are private
+- Signed URLs for temporary access
+- User-specific folders
+
+## Performance Considerations
+
+### Frontend
+- Image optimization
+- Lazy loading components
+- Sequential clip loading
+- Preload next clip
+
+### Backend
+- Edge Functions for low latency
+- Efficient polling intervals
+- Caching strategies
+- Connection pooling
+
+## Development Setup
+
+### Prerequisites
+- Node.js 18+
+- pnpm
+- Supabase CLI
+- Stripe CLI (optional)
+
+### Local Development
+```bash
+# Install dependencies
+pnpm install
+
+# Set up environment
+cp .env.example .env.local
+
+# Start development server
+pnpm dev
+```
+
+## Deployment
+
+### Production Requirements
+- Vercel/Netlify for frontend
+- Supabase project
+- Stripe account
+- AI provider account
+
+### CI/CD
+- GitHub Actions
+- Automated testing
+- Environment promotion
+- Database migrations 

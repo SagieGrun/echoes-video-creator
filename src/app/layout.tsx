@@ -1,18 +1,15 @@
-import type { Metadata } from 'next'
+import { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Echoes - Bring Your Photos to Life',
-  description: 'Transform static photos into animated video memories with AI',
-  keywords: ['video', 'ai', 'memories', 'animation', 'photos'],
-  authors: [{ name: 'Echoes Team' }],
-  viewport: 'width=device-width, initial-scale=1',
-  themeColor: '#f97316',
-  manifest: '/manifest.json',
-  icons: {
-    icon: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
-  },
+  title: 'Echoes - Transform Photos into Animated Clips',
+  description: 'Create beautiful animated clips from your photos with Echoes.',
+}
+
+export const viewport: Viewport = {
+  themeColor: '#ffffff',
+  width: 'device-width',
+  initialScale: 1,
 }
 
 export default function RootLayout({

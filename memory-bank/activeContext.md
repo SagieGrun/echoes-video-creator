@@ -3,7 +3,7 @@
 ## Current Phase: Phase 0 - Setup & Foundation
 
 ### Current Focus
-Setting up the foundational infrastructure for the Echoes Video Creator MVP, including project initialization, external service configuration, and development environment.
+Setting up the foundational infrastructure for the Echoes Video Creator MVP, with a focus on auth-first approach and simplified video handling.
 
 ## Immediate Tasks (Phase 0)
 
@@ -16,57 +16,61 @@ Setting up the foundational infrastructure for the Echoes Video Creator MVP, inc
 - Basic project structure created
 - TypeScript interfaces defined
 - Supabase client configuration
-- Development environment tested
-- README with setup instructions
+- **Google OAuth implementation and debugging**
+  - Fixed login page to use centralized Supabase client
+  - Implemented proper OAuth callback handling
+  - Configured post-login redirect to `/create` page
+  - Tested end-to-end authentication flow
 
 ### 🚧 In Progress
-- External services setup (user action required)
+- Database schema implementation
+- Storage bucket configuration (private only)
 
 ### ⏭️ Next Up (Phase 1)
-- Homepage + Upload UI implementation
-- Clip preview & generation UX
-- Signup enforcement flow
+- Implement auth-first flow
+- Upload wizard with clip approval
+- Sequential clip player
 
 ## Key Decisions Made
 
 ### Technical Architecture
-- **Frontend**: Next.js 14 + TypeScript + Tailwind CSS (PWA)
+- **Frontend**: Next.js 14 + TypeScript + Tailwind CSS
 - **Backend**: Supabase (all-in-one solution)
-- **AI Model**: Runway Gen-3 Alpha API (~$0.05-0.10/clip)
+- **AI Model**: Pluggable provider (start with Runway)
 - **Payments**: Stripe (USD only)
-- **Auth**: Google OAuth only
-- **Video Processing**: Browser-based assembly (simple)
-- **Queue**: Database polling (no external service)
+- **Auth**: Google OAuth only (required first)
+- **Video Handling**: Sequential playlist (no stitching)
+- **Storage**: Private buckets only (auth required)
 
 ### Business Constraints
-- **Maximum Simplicity**: Choose simple over complex
+- **Maximum Simplicity**: Auth-first, no temporary states
 - **English + USD Only**: Global expansion later
 - **Mobile-First**: PWA with offline capabilities
 - **Low Scale Initially**: <50 users in MVP phase
 - **Cost Target**: $0.25 per clip generation
 
 ### Development Approach
-- **Phased Development**: Following the 6-phase plan
-- **MVP Focus**: Only essential features for validation
-- **Quick Iteration**: Architecture supports rapid changes
+- **Auth-First**: All features behind login
+- **Clip Approval**: Manual confirmation for each clip
+- **Simple Playback**: Sequential playlist instead of stitching
 - **Clean Setup**: Comprehensive documentation and tooling
 
 ## Current Blockers
-None - proceeding with Phase 0 setup tasks.
+- Need to set up Google OAuth in Supabase
+- Need to update database schema for clip approval
 
 ## Environment Setup Status
 
 ### Required Accounts
-- [ ] Supabase project
+- [ ] Supabase project + Google OAuth
 - [ ] Stripe account  
 - [ ] Runway API access
 - [ ] Vercel/Netlify deployment
 
-### Development Environment
-- [ ] Next.js project initialized
-- [ ] Environment variables configured
-- [ ] Local development workflow
-- [ ] Basic deployment pipeline
+### Database Schema Updates
+- [ ] Add `approved` boolean to clips table
+- [ ] Update RLS policies for auth-first approach
+- [ ] Create referral tracking tables
 
 ## Next Phase Preview (Phase 1)
 
@@ -87,4 +91,12 @@ Will focus on the core user experience:
 - Keep focus on simplicity throughout implementation
 - Test each service integration before moving to next phase  
 - Document any issues or decisions in this file
-- Update progress.md after Phase 0 completion 
+- Update progress.md after Phase 0 completion
+
+## Recent Work (December 2024)
+- **Authentication System Completed**: Google OAuth fully working
+  - Fixed client initialization issues in login page
+  - Implemented proper callback handling with error logging
+  - Configured correct post-login redirect flow to `/create`
+- **User Flow Optimized**: Login now redirects directly to image upload
+- **Code Quality**: Standardized Supabase client usage across components 
