@@ -1,11 +1,11 @@
 # Active Context - Echoes Video Creator
 
-## Current Phase: Phase 0 - Setup & Foundation
+## Current Phase: Phase 1 - Core Features Implementation
 
 ### Current Focus
-Setting up the foundational infrastructure for the Echoes Video Creator MVP, with a focus on auth-first approach and simplified video handling.
+Admin panel completed! Foundation is solid with authentication, file upload, and admin configuration. Moving to core clip generation workflow.
 
-## Immediate Tasks (Phase 0)
+## Phase 0 - Foundation ✅ COMPLETED
 
 ### ✅ Completed
 - Memory bank documentation setup
@@ -21,15 +21,35 @@ Setting up the foundational infrastructure for the Echoes Video Creator MVP, wit
   - Implemented proper OAuth callback handling
   - Configured post-login redirect to `/create` page
   - Tested end-to-end authentication flow
+- **File Upload System with Authentication**
+  - Updated storage.ts to use centralized Supabase client
+  - Added proper authentication checks before upload
+  - Implemented auto-creation of projects for users
+  - Fixed project creation database compatibility issues
+  - Added authentication state management to create page
+  - Added proper error handling for auth failures
+  - File paths now properly include userId/projectId structure
+  - Upload working with full user authentication and project management
+- **Admin Panel Implementation**
+  - Password-protected admin access at `/admin`
+  - System prompt management with database persistence
+  - AI model configuration display (Runway ML)
+  - Credit pack editor with original pricing strategy
+  - Stats dashboard with real-time analytics
+  - `admin_config` table for flexible configuration storage
+  - All admin features fully functional and tested
+
+## Immediate Tasks (Phase 1)
 
 ### 🚧 In Progress
-- Database schema implementation
-- Storage bucket configuration (private only)
+- Clip generation API endpoint
+- AI integration with Runway
 
-### ⏭️ Next Up (Phase 1)
-- Implement auth-first flow
-- Upload wizard with clip approval
-- Sequential clip player
+### ⏭️ Next Up
+- Add clip approval workflow UI
+- Create sequential clip player
+- Implement credit system integration
+- Connect system prompt to AI generation
 
 ## Key Decisions Made
 
@@ -37,6 +57,7 @@ Setting up the foundational infrastructure for the Echoes Video Creator MVP, wit
 - **Frontend**: Next.js 14 + TypeScript + Tailwind CSS
 - **Backend**: Supabase (all-in-one solution)
 - **AI Model**: Pluggable provider (start with Runway)
+- **Admin Panel**: Password-protected configuration management
 - **Payments**: Stripe (USD only)
 - **Auth**: Google OAuth only (required first)
 - **Video Handling**: Sequential playlist (no stitching)
@@ -51,52 +72,64 @@ Setting up the foundational infrastructure for the Echoes Video Creator MVP, wit
 
 ### Development Approach
 - **Auth-First**: All features behind login
+- **Admin-Configurable**: System prompts and pricing via admin panel
 - **Clip Approval**: Manual confirmation for each clip
 - **Simple Playback**: Sequential playlist instead of stitching
 - **Clean Setup**: Comprehensive documentation and tooling
 
-## Current Blockers
-- Need to set up Google OAuth in Supabase
-- Need to update database schema for clip approval
+## Admin Panel Configuration
+
+### System Prompt
+- Editable AI prompt for video generation
+- Stored in database, affects all future generations
+- Default focused on cinematic, emotional movements
+
+### Credit Packs (Active)
+- **Starter Pack**: 5 credits - $15.00 ($3.00/credit)
+- **Standard Pack**: 20 credits - $45.00 ($2.25/credit)
+- **Premium Pack**: 40 credits - $80.00 ($2.00/credit)
+
+### Model Configuration
+- Currently: Runway ML Gen-3
+- Ready for future provider additions
+- Connection testing available
 
 ## Environment Setup Status
 
 ### Required Accounts
-- [ ] Supabase project + Google OAuth
+- [x] Supabase project + Google OAuth
+- [x] Admin panel access configured
 - [ ] Stripe account  
 - [ ] Runway API access
 - [ ] Vercel/Netlify deployment
 
 ### Database Schema Updates
+- [x] `admin_config` table created and populated
 - [ ] Add `approved` boolean to clips table
 - [ ] Update RLS policies for auth-first approach
 - [ ] Create referral tracking tables
 
-## Next Phase Preview (Phase 1)
+## Phase 1 Focus: Core User Experience
 
-### Phase 1: Free Clip Flow
-Will focus on the core user experience:
-1. **Homepage + Upload UI**: Emotional landing page with photo upload
-2. **Clip Preview & Generation**: AI integration with status tracking
-3. **Signup Enforcement**: Google Auth for download/share
+### Priority Implementation Order
+1. **Clip Generation API**: Connect system prompt to Runway
+2. **Clip Approval UI**: User can approve/reject generated clips
+3. **Sequential Player**: Play approved clips in order
+4. **Credit Integration**: Deduct credits per generation
 
-### Success Criteria for Phase 0
-- [ ] Project fully initialized and running locally
-- [ ] All external services configured and tested
-- [ ] Database schema deployed and functional
-- [ ] Authentication working end-to-end
-- [ ] Development workflow documented and tested
-
-## Notes for Next Session
-- Keep focus on simplicity throughout implementation
-- Test each service integration before moving to next phase  
-- Document any issues or decisions in this file
-- Update progress.md after Phase 0 completion
+### Success Criteria for Phase 1
+- [ ] Users can generate AI clips from photos
+- [ ] System prompt from admin affects generation
+- [ ] Approval workflow functional
+- [ ] Credits properly deducted
+- [ ] Sequential playback working
 
 ## Recent Work (December 2024)
-- **Authentication System Completed**: Google OAuth fully working
-  - Fixed client initialization issues in login page
-  - Implemented proper callback handling with error logging
-  - Configured correct post-login redirect flow to `/create`
-- **User Flow Optimized**: Login now redirects directly to image upload
-- **Code Quality**: Standardized Supabase client usage across components 
+- **Admin Panel Completed**: Full configuration management
+  - Password-protected access with session management
+  - System prompt editor with database persistence
+  - Credit pack management with original pricing
+  - Model configuration with connection testing
+  - Real-time stats dashboard
+- **Database Structure**: `admin_config` table for flexible storage
+- **Ready for Phase 1**: Foundation solid, moving to core features 
