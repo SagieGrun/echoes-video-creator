@@ -1,5 +1,128 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: false
 ---
+# Echoes Video Creator - Project Rules
+
+## Project Intelligence
+
+### Core Philosophy
+- **Simplicity Over Complexity**: Always choose the simpler solution
+- **MVP Focus**: Only build what's needed for validation
+- **Mobile-First**: Design and develop for mobile experience first
+- **Clean Architecture**: Maintain pluggable, testable patterns
+
+### Technical Patterns
+
+#### Supabase Integration
+- Use Edge Functions for AI API integration
+- Implement RLS policies for all user data
+- Store files with 7-day TTL cleanup
+- Use signed URLs for secure file access
+
+#### Credit System Implementation
+```typescript
+// Always use transaction log pattern
+interface CreditTransaction {
+  user_id: string
+  amount: number // positive = credit, negative = debit
+  type: 'purchase' | 'referral' | 'generation' | 'share'
+  reference_id?: string
+}
+```
+
+#### AI Model Integration
+- Abstract AI providers behind interface
+- Always track job status in database
+- Use polling for status updates (5-second intervals)
+- Handle failures gracefully with retry options
+
+#### PWA Requirements
+- Service worker for offline viewing
+- Install prompt for mobile users
+- Progressive image loading
+- Offline storage for generated clips
+
+### User Experience Patterns
+
+#### Emotional Messaging
+- Use warm, family-focused copy
+- Emphasize "bringing memories to life"
+- Clear progress indicators during generation
+- Celebrate successful clip creation
+
+#### Mobile Optimization
+- Touch-friendly upload zones
+- Compress images before upload
+- Smooth video playback on mobile
+- Quick access to sharing features
+
+### Development Workflow
+
+#### File Organization
+```
+/app - Next.js app router pages
+/components - Reusable UI components
+/lib - Utilities and external service clients
+/hooks - Custom React hooks
+/types - TypeScript interfaces
+/supabase - Database functions and migrations
+```
+
+#### Environment Management
+- Local development with Supabase local stack
+- Staging environment for testing integrations
+- Production with custom domain
+
+### Code Quality Standards
+
+#### TypeScript
+- Strict mode enabled
+- Interfaces for all data structures
+- No `any` types in production code
+- Proper error handling with typed responses
+
+#### Component Patterns
+- Custom hooks for complex state
+- Props interfaces for all components
+- Tailwind for styling (no custom CSS)
+- Headless UI for accessible components
+
+### External Service Integration
+
+#### Runway API
+- Always handle rate limits gracefully
+- Cache successful responses when possible
+- Provide clear error messages for failures
+- Track generation costs for monitoring
+
+#### Stripe Integration
+- Use webhooks for payment confirmation
+- Handle failed payments gracefully
+- Provide clear pricing information
+- Log all payment attempts for debugging
+
+### Security Considerations
+- Never expose API keys to client
+- Use RLS for all database access
+- Validate file uploads (type, size)
+- Implement rate limiting on generation
+
+### Performance Targets
+- Page load < 3 seconds on mobile
+- Image upload with progress indication
+- Video generation status updates every 5 seconds
+- Smooth animations and transitions
+
+### Deployment Strategy
+- Vercel for frontend hosting
+- Supabase for backend services
+- Environment-specific configurations
+- Automated testing before deployment
+
+## User Preferences
+- Provide terminal commands rather than manual steps
+- Keep implementations clean and simple
+- Document decisions in memory bank
+- Focus on mobile user experience

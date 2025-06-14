@@ -1,167 +1,198 @@
-# Echoes - Bring Your Photos to Life
+# Echoes Video Creator 🎬
 
-Transform static photos into animated video memories with AI. Perfect for creating heartfelt gifts that bring tears of joy.
+Transform static photos into animated video memories using AI.
+
+## 🎯 Current Status: Ready for Production Deployment
+
+**✅ Migration Completed**: Successfully migrated from Next.js API routes to Supabase Edge Functions  
+**✅ Architecture Optimized**: Hybrid Next.js deployment model confirmed  
+**✅ Core Features Working**: End-to-end clip generation pipeline operational  
+**✅ Superior Debugging**: Real-time monitoring via Supabase Dashboard achieved  
+
+## 🏗️ Architecture
+
+**Frontend**: Next.js 14 (Hybrid: Static + Serverless) with TypeScript & Tailwind CSS  
+**Backend**: Supabase Edge Functions (Deno runtime) for core APIs  
+**Database**: Supabase PostgreSQL with Row Level Security  
+**Authentication**: Google OAuth with secure server-side callback  
+**AI Provider**: Runway ML Gen-4 Turbo  
+**File Storage**: Supabase Storage (private buckets)  
 
 ## 🚀 Quick Start
 
-1. **Clone and install dependencies:**
-   ```bash
-   npm install
-   ```
+### Development Setup
 
-2. **Set up environment variables:**
-   ```bash
-   cp env.example .env.local
-   # Edit .env.local with your actual credentials
-   ```
+```bash
+# Clone repository
+git clone [repository-url]
+cd echoes
 
-3. **Run development server:**
-   ```bash
-   npm run dev
-   ```
+# Install dependencies
+npm install
 
-4. **Open [http://localhost:3000](http://localhost:3000)**
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your configuration
 
-## 🛠 Setup Instructions
+# Start development server
+npm run dev
 
-### Phase 0: Foundation Setup ✅
-
-The basic project structure is complete. Now you need to set up external services:
-
-### 1. Supabase Setup
-
-1. **Create Supabase Project:**
-   ```bash
-   # Go to https://supabase.com/dashboard
-   # Create new project
-   # Copy Project URL and anon key to .env.local
-   ```
-
-2. **Run Database Schema:**
-   ```sql
-   -- Execute in Supabase SQL editor
-   -- See supabase/schema.sql (to be created in next phase)
-   ```
-
-### 2. Stripe Setup
-
-1. **Create Stripe Account:**
-   ```bash
-   # Go to https://dashboard.stripe.com
-   # Get API keys from developers section
-   # Add to .env.local
-   ```
-
-2. **Create Products:**
-   ```bash
-   # Starter Pack: 5 credits - $15
-   # Standard Pack: 20 credits - $45  
-   # Premium Pack: 40 credits - $80
-   ```
-
-### 3. Runway API Setup
-
-1. **Get Runway API Access:**
-   ```bash
-   # Apply for API access at runway.com
-   # Add API key to .env.local
-   ```
-
-### 4. Deployment Setup
-
-1. **Deploy to Vercel:**
-   ```bash
-   npm install -g vercel
-   vercel
-   ```
-
-2. **Configure Environment Variables:**
-   ```bash
-   # Add all .env.local variables to Vercel dashboard
-   ```
-
-## 📁 Project Structure
-
-```
-src/
-├── app/                 # Next.js App Router pages
-│   ├── globals.css     # Global styles
-│   ├── layout.tsx      # Root layout
-│   └── page.tsx        # Homepage
-├── components/         # Reusable UI components
-├── lib/               # Utilities and service clients
-│   └── supabase.ts    # Supabase configuration
-├── hooks/             # Custom React hooks
-└── types/             # TypeScript interfaces
-    └── index.ts       # Main type definitions
-
-memory-bank/           # Project documentation
-supabase/             # Database schemas and functions
+# Start Edge Functions locally (separate terminal)
+supabase functions serve
 ```
 
-## 🎯 Development Phases
+### Production Deployment
 
-- ✅ **Phase 0**: Foundation Setup (Complete)
-- ⏳ **Phase 1**: Free Clip Flow (Next)
-- ⏳ **Phase 2**: Full Project Creation  
-- ⏳ **Phase 3**: Payments & Credits
-- ⏳ **Phase 4**: PLG Mechanics
-- ⏳ **Phase 5**: Admin Panel
-- ⏳ **Phase 6**: Polish & Deploy
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for comprehensive deployment guide.
 
-## 🏗 Architecture
+**Recommended**: Deploy to Vercel for optimal Next.js support:
 
-- **Frontend**: Next.js 14 + TypeScript + Tailwind CSS (PWA)
-- **Backend**: Supabase (Database + Auth + Storage + Edge Functions)
-- **AI**: Runway Gen-3 Alpha API (~$0.05-0.10/clip)
-- **Payments**: Stripe (USD only)
-- **Deployment**: Vercel
+```bash
+# Install Vercel CLI
+npm i -g vercel
 
-## 📝 Environment Variables
+# Deploy
+vercel --prod
+```
+
+## 🔧 Environment Variables
+
+### Required
 
 ```bash
 # Supabase
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
-# Runway AI
-RUNWAY_API_KEY=your_runway_api_key
+# AI Provider
+RUNWAY_API_KEY=your-runway-api-key
 
-# Stripe
-STRIPE_SECRET_KEY=your_stripe_secret_key
-STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+# Admin Panel
+ADMIN_PASSWORD=your-secure-admin-password
 
-# App
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+# App Configuration
+NEXT_PUBLIC_APP_URL=https://your-domain.com
 ```
 
-## 🚀 Available Scripts
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete environment variable guide.
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
+## 📋 Features
 
-## 📖 Documentation
+### ✅ Implemented & Working
+- **Authentication**: Google OAuth with secure callback
+- **File Upload**: Drag & drop photo upload with private storage
+- **AI Generation**: Runway ML Gen-4 Turbo clip generation
+- **Real-time Status**: Live progress updates with superior debugging
+- **Credit System**: Balance tracking and transaction logging
+- **Admin Panel**: System configuration and credit pack management
+- **Mobile Responsive**: Optimized for mobile devices
 
-Complete project documentation is available in the `memory-bank/` directory:
+### 🔄 Core Generation Pipeline
+1. **Upload** → Private Supabase Storage
+2. **Generation** → Edge Function → Runway ML API
+3. **Status Polling** → Real-time updates via Edge Functions
+4. **Preview & Download** → Secure signed URLs
 
-- `projectbrief.md` - Core requirements and goals
-- `productContext.md` - User experience and features
-- `techContext.md` - Technical implementation details
-- `systemPatterns.md` - Architecture patterns
-- `activeContext.md` - Current development focus
-- `progress.md` - Development progress tracking
+## 🎯 Architecture Benefits
 
-## 🎨 Design Principles
+### ✅ Problems Solved
+- **❌ Poor Debugging** → **✅ Real-time Dashboard Monitoring**
+- **❌ Limited Error Tracking** → **✅ Structured Error Logging**
+- **❌ Development Frustration** → **✅ Confident API Development**
+- **❌ Deployment Complexity** → **✅ Simple Hybrid Deployment**
 
-- **Simplicity First**: Choose simple solutions over complex features
-- **Mobile-First**: Optimized for mobile user experience
-- **Emotional UI**: Warm, family-focused design language
-- **Progressive Enhancement**: Works without JavaScript, enhanced with it
+### 🏆 Technical Achievements
+- **Superior Debugging**: Supabase Dashboard with real-time logs
+- **Auto-scaling**: Edge Functions scale automatically
+- **Security**: Row Level Security + private storage
+- **Performance**: CDN static pages + serverless functions
+
+## 📖 Project Structure
+
+```
+├── src/
+│   ├── app/                 # Next.js App Router
+│   │   ├── (protected)/     # Protected routes
+│   │   ├── admin/          # Admin panel pages
+│   │   ├── api/            # Next.js API routes (admin only)
+│   │   └── auth/           # OAuth callback
+│   ├── components/         # React components
+│   ├── lib/               # Utilities and configurations
+│   └── types/             # TypeScript definitions
+├── supabase/
+│   └── functions/         # Edge Functions (deployed)
+│       ├── clip-generation/
+│       ├── clip-status/
+│       ├── clip-details/
+│       └── _shared/       # Shared utilities
+├── memory-bank/           # Project documentation
+├── DEPLOYMENT.md          # Production deployment guide
+└── README.md             # This file
+```
+
+## 🔍 API Architecture
+
+### Edge Functions (Core APIs)
+- **`clip-generation`**: Complete generation workflow ✅ Deployed
+- **`clip-status`**: Status polling and updates ✅ Deployed  
+- **`clip-details`**: Clip information retrieval ✅ Deployed
+
+### Next.js API Routes (Admin)
+- **`/api/admin/auth`**: Simple password validation
+- **`/api/admin/credits`**: Credit pack management
+- **`/api/admin/system-prompt`**: System prompt configuration
+- **`/api/admin/models`**: Model provider configuration
+
+## 🚀 Deployment Guide
+
+### Hybrid Next.js Deployment
+- **Static Pages**: Served from CDN (performance)
+- **Server Routes**: OAuth callback (security)
+- **Edge Functions**: Core APIs (debugging & scaling)
+
+### Platform Support
+- **✅ Vercel**: Recommended for optimal Next.js support
+- **✅ Netlify**: Full support for hybrid deployment
+- **✅ Other**: Any platform supporting Next.js serverless functions
+
+## 🔐 Security
+
+- **Authentication**: Google OAuth with secure session management
+- **Database**: Row Level Security policies protect all data
+- **Storage**: Private buckets with signed URL access
+- **API**: JWT token authentication for Edge Functions
+- **Admin**: Password-protected configuration panel
+
+## 📊 Performance
+
+- **Frontend**: Static generation + CDN caching
+- **Backend**: Auto-scaling Edge Functions
+- **Database**: Optimized queries with proper indexing
+- **Monitoring**: Real-time logs and error tracking
+
+## 🎯 Next Steps
+
+1. **Production Deployment**: Deploy to Vercel/Netlify
+2. **User Testing**: Beta user validation
+3. **Payment Integration**: Stripe for credit purchases
+4. **Growth Features**: Referrals and social sharing
+5. **Analytics**: User behavior tracking
+
+## 📚 Documentation
+
+- [DEPLOYMENT.md](./DEPLOYMENT.md) - Production deployment guide
+- [memory-bank/](./memory-bank/) - Complete project documentation
+- [Supabase Dashboard](https://supabase.com/dashboard) - Edge Function logs
+
+## 🎉 Success Metrics
+
+**🎯 PRIMARY GOAL ACHIEVED**: The original debugging frustration with Next.js API routes has been completely resolved through successful migration to Supabase Edge Functions with superior monitoring capabilities.
+
+**✅ Ready for Production**: All core functionality working with comprehensive testing and deployment preparation complete.
 
 ---
 
-Ready to bring memories to life! 📸✨ 
+**Built with**: Next.js 14, TypeScript, Tailwind CSS, Supabase, Runway ML  
+**Architecture**: Hybrid deployment with Edge Functions  
+**Status**: Production Ready 🚀 

@@ -185,8 +185,8 @@ Deno.serve(async (req) => {
       stack: error instanceof Error ? error.stack : undefined,
       timestamp: new Date().toISOString()
     })
-    
-    return new Response(
+
+  return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { 
         status: 500,
@@ -195,7 +195,7 @@ Deno.serve(async (req) => {
           'Access-Control-Allow-Origin': '*'
         }
       }
-    )
+  )
   }
 })
 

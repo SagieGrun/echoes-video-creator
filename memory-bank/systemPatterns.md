@@ -1,25 +1,33 @@
 # System Patterns - Echoes Video Creator
 
-## Architecture Overview (Updated - Edge Functions)
+## Architecture Overview (Hybrid Deployment Model) ✅ COMPLETED
 
 ```mermaid
 flowchart TD
-    A[Next.js Frontend] --> B[Supabase Edge Functions]
+    A[Next.js Hybrid App] --> B[Supabase Edge Functions]
     B --> C[Runway API]
     B --> D[Supabase Database]
     B --> E[Supabase Storage]
     A --> F[Supabase Auth]
+    A --> G[Next.js API Routes]
+    G --> D
     
-    subgraph Frontend
-        A1[React Components]
-        A2[Static Site Generation]
-        A3[Client-side Routing]
+    subgraph "Frontend (Hybrid)"
+        A1[Static Pages - CDN]
+        A2[Server Routes - OAuth]
+        A3[React Components]
     end
     
-    subgraph "Edge Functions (Deno)"
-        B1[clip-generation]
-        B2[clip-status]
-        B3[clip-details]
+    subgraph "Edge Functions (Deployed)"
+        B1[clip-generation ✅]
+        B2[clip-status ✅]
+        B3[clip-details ✅]
+    end
+    
+    subgraph "Next.js API (Simple)"
+        G1[admin/auth]
+        G2[admin/credits]
+        G3[admin/system-prompt]
     end
     
     subgraph "Supabase Services"
@@ -29,7 +37,7 @@ flowchart TD
     end
 ```
 
-### Architecture Decision: Edge Functions vs Next.js API Routes
+### Architecture Decision: Completed Migration ✅
 
 **❌ Why Next.js API Routes Failed:**
 - Poor debugging experience (console.log in terminal only)
@@ -43,6 +51,26 @@ flowchart TD
 - Automatic scaling and reliability
 - Integrated with Supabase ecosystem
 - Deno runtime with modern JavaScript features
+
+**✅ Migration Results:**
+- **3 Edge Functions deployed**: clip-generation, clip-status, clip-details
+- **Superior debugging achieved**: Real-time dashboard monitoring
+- **Frontend integration complete**: ClipGeneration.tsx updated
+- **Authentication working**: JWT tokens properly passed
+- **Build process verified**: TypeScript compilation successful
+
+### Deployment Strategy: Hybrid Next.js Model
+
+**❌ Why Not Static Export:**
+- OAuth callback `/auth/callback` requires server-side execution
+- Session management needs secure cookie handling
+- Authentication security cannot be compromised
+
+**✅ Why Hybrid Deployment:**
+- Static pages served from CDN (performance)
+- Server routes for secure operations (security) 
+- Platform-optimized deployment (Vercel/Netlify)
+- Best of both worlds: speed + functionality
 
 ## Core Design Patterns
 

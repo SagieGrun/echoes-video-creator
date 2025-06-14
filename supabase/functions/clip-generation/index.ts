@@ -371,8 +371,8 @@ Deno.serve(async (req) => {
       totalDuration_ms: totalDuration,
       timestamp: new Date().toISOString()
     })
-    
-    return new Response(
+
+  return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { 
         status: 500,
@@ -381,7 +381,7 @@ Deno.serve(async (req) => {
           'Access-Control-Allow-Origin': '*'
         }
       }
-    )
+  )
   }
 })
 
