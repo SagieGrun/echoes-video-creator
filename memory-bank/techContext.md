@@ -1,22 +1,26 @@
 # Technical Context - Echoes Video Creator
 
-## Stack Overview
+## Stack Overview (Updated - Edge Functions Architecture)
 
-### Frontend
-- Next.js 14 (App Router)
+### Frontend (Static Site)
+- Next.js 14 (Static Site Generation)
 - TypeScript
 - Tailwind CSS
-- Supabase Auth UI
+- React Components
 
-### Backend
-- Supabase (PostgreSQL + Auth + Storage)
-- Edge Functions (Deno)
+### Backend (Serverless)
+- Supabase Edge Functions (Deno runtime)
+- Supabase PostgreSQL + RLS
+- Supabase Auth (Google OAuth)
+- Supabase Storage (Private buckets)
+
+### External Services
+- Runway ML API (Gen-4 Turbo)
 - Stripe (Payments)
 
-### AI Provider
-- Pluggable architecture
-- Starting with Runway
-- Easy to swap providers
+### Key Migration: Next.js API Routes → Edge Functions
+**Problem Solved**: Debugging and monitoring difficulties with Next.js API routes
+**Solution**: Supabase Edge Functions with built-in logging and error tracking
 
 ## Database Schema
 
@@ -109,28 +113,27 @@ RUNWAY_API_KEY=
 ACTIVE_AI_PROVIDER=runway
 ```
 
-## API Routes
+## API Architecture (Updated - Edge Functions)
 
-### Authentication
-- POST /auth/google/callback
-- GET /auth/user
+### Supabase Edge Functions
+- `clip-generation` - Generate clips using Runway API
+- `clip-status` - Check generation progress and status
+- `clip-details` - Retrieve clip information and metadata
 
-### Projects
-- GET /api/projects
-- POST /api/projects
-- GET /api/projects/:id
-- PUT /api/projects/:id
+### Frontend Direct API Calls
+- Supabase Auth - Authentication handled client-side
+- Supabase Database - Direct queries with RLS protection
+- Supabase Storage - File uploads and downloads
 
-### Clips
-- POST /api/clips
-- GET /api/clips/:id
-- PUT /api/clips/:id/approve
-- DELETE /api/clips/:id
+### Removed Next.js API Routes
+- ❌ `/api/clips/generate` → ✅ Edge Function `clip-generation`
+- ❌ `/api/clips/[id]/status` → ✅ Edge Function `clip-status`  
+- ❌ `/api/clips/[id]` → ✅ Edge Function `clip-details`
 
-### Credits
-- GET /api/credits/balance
-- POST /api/credits/purchase
-- POST /api/credits/redeem-referral
+### Admin Panel
+- Remains in Next.js frontend (no API routes needed)
+- Direct Supabase client operations for configuration
+- Password protection via client-side logic
 
 ## Security Measures
 
@@ -168,13 +171,13 @@ create policy "users can access own data"
 - Caching strategies
 - Connection pooling
 
-## Development Setup
+## Development Setup (Updated - Edge Functions)
 
 ### Prerequisites
 - Node.js 18+
 - pnpm
-- Supabase CLI
-- Stripe CLI (optional)
+- Supabase CLI (required for Edge Functions)
+- Deno (for Edge Function development)
 
 ### Local Development
 ```bash
@@ -184,9 +187,31 @@ pnpm install
 # Set up environment
 cp .env.example .env.local
 
-# Start development server
+# Start frontend development server
 pnpm dev
+
+# Start Edge Functions locally (separate terminal)
+supabase functions serve
+
+# Deploy Edge Functions
+supabase functions deploy clip-generation
+supabase functions deploy clip-status
+supabase functions deploy clip-details
 ```
+
+### Development Experience Improvements
+**Before (Next.js API Routes):**
+- ❌ Limited debugging (console.log only)
+- ❌ No real-time error tracking
+- ❌ Difficult to monitor API performance
+- ❌ Complex deployment requirements
+
+**After (Supabase Edge Functions):**
+- ✅ Real-time logging dashboard
+- ✅ Structured error tracking with stack traces
+- ✅ Performance monitoring and metrics
+- ✅ Simple deployment with CLI
+- ✅ Auto-scaling and reliability
 
 ## Deployment
 

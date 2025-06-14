@@ -1,9 +1,18 @@
 # Active Context - Echoes Video Creator
 
-## Current Phase: Phase 1 - Core Features Implementation ✅ MOSTLY COMPLETED
+## Current Phase: Phase 1 - Architecture Migration & Final Implementation
 
 ### Current Focus
-**Database Schema Fixes & Final Testing**: Runway integration and UI are complete! Currently resolving final database constraint issues to enable end-to-end testing.
+**CRITICAL ARCHITECTURAL DECISION**: Migrating from Next.js API routes to Supabase Edge Functions for all backend operations. This decision was made due to:
+- **Debugging Difficulties**: Next.js API routes lack proper logging visibility
+- **Development Frustration**: Going in circles without understanding API failures
+- **Superior Edge Functions**: Built-in logging, error tracking, and debugging capabilities
+
+### Migration in Progress
+- Moving clip generation API from Next.js to Supabase Edge Functions
+- Refactoring authentication and database operations for Deno runtime
+- Updating frontend to consume Edge Function endpoints
+- Converting image processing from Node.js (Sharp) to Deno-compatible libraries
 
 ## Phase 0 - Foundation ✅ COMPLETED
 
@@ -129,16 +138,24 @@
 
 ## Key Decisions Made
 
-### Technical Architecture
-- **Frontend**: Next.js 14 + TypeScript + Tailwind CSS
-- **Backend**: Supabase (all-in-one solution)
-- **AI Model**: Runway ML Gen-4 Turbo (official SDK)
-- **Image Processing**: Sharp package for aspect ratio handling
-- **Admin Panel**: Password-protected configuration management
+### Technical Architecture (UPDATED - Edge Functions Migration)
+- **Frontend**: Next.js 14 (Static Site) + TypeScript + Tailwind CSS
+- **Backend**: Supabase Edge Functions (Deno runtime)
+- **AI Integration**: Runway ML Gen-4 Turbo (migrated to Edge Functions)
+- **Image Processing**: Deno-compatible image processing (migrating from Sharp)
+- **Admin Panel**: Next.js frontend only (no API routes)
+- **Database**: Supabase PostgreSQL with RLS
+- **Auth**: Supabase Auth (Google OAuth)
+- **Storage**: Supabase Storage (private buckets)
 - **Payments**: Stripe (USD only)
-- **Auth**: Google OAuth only (required first)
 - **Video Handling**: Sequential playlist (no stitching)
-- **Storage**: Private buckets only (auth required)
+
+### Architecture Decision: Why Edge Functions Over Next.js API Routes
+- **Debugging**: Edge Functions provide real-time logs, error tracking, structured logging
+- **Development Experience**: Built-in monitoring dashboard vs terminal debugging
+- **Scalability**: Auto-scaling serverless functions vs Next.js server deployment
+- **Simplicity**: Static frontend deployment vs full-stack application
+- **Cost**: Pay-per-execution vs always-on server costs
 
 ### Business Constraints
 - **Maximum Simplicity**: Auth-first, no anonymous usage

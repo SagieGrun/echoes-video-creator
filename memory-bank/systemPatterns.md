@@ -1,25 +1,48 @@
 # System Patterns - Echoes Video Creator
 
-## Architecture Overview
+## Architecture Overview (Updated - Edge Functions)
 
 ```mermaid
 flowchart TD
-    A[Next.js Frontend] --> B[Supabase]
-    B --> C[AI Provider]
-    B --> D[Stripe]
+    A[Next.js Frontend] --> B[Supabase Edge Functions]
+    B --> C[Runway API]
+    B --> D[Supabase Database]
+    B --> E[Supabase Storage]
+    A --> F[Supabase Auth]
     
     subgraph Frontend
-        A1[Auth Guard]
-        A2[Upload Wizard]
-        A3[Clip Player]
+        A1[React Components]
+        A2[Static Site Generation]
+        A3[Client-side Routing]
     end
     
-    subgraph Backend
-        B1[Google OAuth]
-        B2[Private Storage]
-        B3[Edge Functions]
+    subgraph "Edge Functions (Deno)"
+        B1[clip-generation]
+        B2[clip-status]
+        B3[clip-details]
+    end
+    
+    subgraph "Supabase Services"
+        D[PostgreSQL + RLS]
+        E[File Storage]
+        F[Authentication]
     end
 ```
+
+### Architecture Decision: Edge Functions vs Next.js API Routes
+
+**❌ Why Next.js API Routes Failed:**
+- Poor debugging experience (console.log in terminal only)
+- Difficult error tracking and monitoring
+- Server deployment complexity
+- Serverless function limitations (timeouts, memory)
+
+**✅ Why Supabase Edge Functions Are Better:**
+- Built-in logging dashboard with real-time monitoring
+- Structured error tracking and stack traces
+- Automatic scaling and reliability
+- Integrated with Supabase ecosystem
+- Deno runtime with modern JavaScript features
 
 ## Core Design Patterns
 

@@ -303,9 +303,15 @@
 - Build clip approval interface
 - Test end-to-end clip creation flow 
 
-## Current Status 🚀
+## Current Status 🚧
 
-**PHASE 1 COMPLETE** - Full end-to-end clip generation working:
+**ARCHITECTURE MIGRATION IN PROGRESS** - Moving from Next.js API routes to Supabase Edge Functions:
+
+### Critical Architectural Decision
+**Problem**: Next.js API routes provided poor debugging experience, making development frustrating
+**Solution**: Migrating to Supabase Edge Functions for superior logging and monitoring capabilities
+
+**Previous Status**: PHASE 1 COMPLETE - Full end-to-end clip generation working (Next.js)
 
 ### ✅ Authentication Flow
 - Google OAuth required for all features
@@ -363,17 +369,48 @@
 - Subscription plans
 - Affiliate program
 
+## Lessons Learned 📚
+
+### Next.js API Routes vs Supabase Edge Functions
+**Major Lesson**: Next.js API routes are NOT suitable for complex backend operations when debugging visibility is critical.
+
+**What Went Wrong with Next.js API Routes:**
+- ❌ Poor debugging experience (terminal console.log only)
+- ❌ No structured error tracking or monitoring
+- ❌ Difficult to trace request flows and identify issues
+- ❌ Limited visibility into API performance and bottlenecks
+- ❌ Complex deployment and scaling requirements
+
+**Why Supabase Edge Functions Are Superior:**
+- ✅ Built-in logging dashboard with real-time monitoring
+- ✅ Structured error tracking with full stack traces
+- ✅ Request/response tracing and performance metrics
+- ✅ Automatic scaling and reliability
+- ✅ Simple deployment with Supabase CLI
+- ✅ Integrated with Supabase ecosystem (auth, database, storage)
+
+**Key Takeaway**: For any future projects requiring backend API operations, prioritize platforms with superior debugging and monitoring capabilities over developer familiarity.
+
 ## Known Issues 🐛
 
 - Credit purchase simulated (needs Stripe integration)
-- Error handling could be more granular
-- Video poster images not implemented
-- No video compression/optimization
+- Architecture migration in progress (Edge Functions)
+- Image processing needs Deno-compatible solution
+- Frontend API calls need updating for Edge Functions
 
 ## Environment Setup ⚙️
 
-- ✅ Next.js 14 with TypeScript
+### Current Stack (Edge Functions Migration)
+- ✅ Next.js 14 with TypeScript (Frontend only)
 - ✅ Supabase (production) with proper schema
-- ✅ Runway ML API key configured
-- ✅ Development server running on localhost:3000
-- ✅ All dependencies resolved and working 
+- ✅ Supabase CLI installed for Edge Functions
+- 🚧 Deno runtime for Edge Function development
+- ✅ Runway ML API key configured  
+- 🚧 Edge Functions development environment
+- ✅ Frontend development server running on localhost:3000
+
+### Migration Requirements
+- 🚧 Convert Node.js imports to Deno imports
+- 🚧 Migrate Sharp image processing to Deno-compatible solution
+- 🚧 Update frontend API calls to Edge Function endpoints
+- 🚧 Deploy Edge Functions to Supabase production 
