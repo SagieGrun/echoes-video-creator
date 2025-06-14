@@ -140,11 +140,21 @@ export function ClipGeneration() {
         message: 'Starting AI generation...'
       })
 
-      // Start clip generation
-      const response = await fetch('/api/clips/generate', {
+      // Get the user's auth token
+      const supabase = createSupabaseBrowserClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        throw new Error('Authentication required')
+      }
+
+      // Start clip generation using Edge Function
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/clip-generation`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         },
         body: JSON.stringify({
           image_url: result.url,
@@ -191,7 +201,20 @@ export function ClipGeneration() {
   const startStatusPolling = (clipId: string) => {
     const poll = async () => {
       try {
-        const response = await fetch(`/api/clips/${clipId}/status`)
+        // Get the user's auth token
+        const supabase = createSupabaseBrowserClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (!session) {
+          throw new Error('Authentication required')
+        }
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/clip-status?clip_id=${clipId}`, {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          }
+        })
         
         if (!response.ok) {
           throw new Error('Failed to check status')

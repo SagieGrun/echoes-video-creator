@@ -1,5 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Exclude Supabase Edge Functions from Next.js compilation
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+    }
+    return config
+  },
+  // Ignore Edge Functions directory
+  experimental: {
+    serverComponentsExternalPackages: ['@supabase/supabase-js'],
+  },
+  transpilePackages: [],
   images: {
     remotePatterns: [
       {

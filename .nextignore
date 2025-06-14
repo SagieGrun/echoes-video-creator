@@ -1,0 +1,4 @@
+# Exclude Supabase Edge Functions from Next.js compilation
+supabase/functions/
+supabase/functions/**
+**/_shared/ 
