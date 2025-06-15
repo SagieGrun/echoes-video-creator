@@ -190,7 +190,7 @@ Deno.serve(async (req) => {
 
         if (result.status === 'completed' && result.video_url) {
           updateData.video_url = result.video_url
-          updateData.completed_at = new Date().toISOString()
+          // Note: completed_at column doesn't exist in schema, so we skip it
         }
 
         if (result.status === 'failed' && result.error_message) {

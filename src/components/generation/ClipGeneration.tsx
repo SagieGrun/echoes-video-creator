@@ -463,9 +463,17 @@ export function ClipGeneration() {
               Download Video
             </LoadingButton>
             <LoadingButton
+              onClick={() => window.location.href = '/dashboard'}
+              variant="secondary"
+              size="lg"
+            >
+              View All Clips
+            </LoadingButton>
+            <LoadingButton
               onClick={handleNewClip}
               variant="secondary"
               size="lg"
+              className="border border-gray-300"
             >
               Create Another
             </LoadingButton>

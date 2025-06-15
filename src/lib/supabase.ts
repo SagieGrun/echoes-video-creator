@@ -11,8 +11,20 @@ export const supabase = createClient(supabaseUrl, supabaseKey)
 let browserClient: ReturnType<typeof createBrowserClient> | null = null
 
 export function createSupabaseBrowserClient() {
+  // Only create client on browser side
+  if (typeof window === 'undefined') {
+    throw new Error('createSupabaseBrowserClient should only be called on the client side')
+  }
+
   if (!browserClient) {
-    browserClient = createBrowserClient(supabaseUrl, supabaseKey)
+    browserClient = createBrowserClient(supabaseUrl, supabaseKey, {
+      auth: {
+        storage: window.localStorage,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true
+      }
+    })
   }
   return browserClient
 }

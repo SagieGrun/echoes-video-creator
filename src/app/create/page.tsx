@@ -46,7 +46,7 @@ export default function CreatePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-100 via-orange-50 to-purple-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="mb-8">
+        <div className="mb-8 flex items-center justify-between">
           <Link
             href="/"
             className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors"
@@ -54,100 +54,37 @@ export default function CreatePage() {
             <ArrowLeft className="h-5 w-5 mr-2" />
             Back to Home
           </Link>
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+          >
+            My Clips
+          </Link>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Main Generation Section */}
+        {/* Main Generation Section - Full Width */}
+        <div className="max-w-2xl mx-auto">
           <div className="bg-white rounded-2xl shadow-xl p-8">
-            <div className="flex items-center mb-6">
+            <div className="flex items-center justify-center mb-6">
               <Sparkles className="h-8 w-8 text-orange-500 mr-3" />
               <h2 className="text-3xl font-bold text-gray-900">
-                Create Your Free Clip
+                Create Your Video Clip
               </h2>
             </div>
             
             <ClipGeneration />
           </div>
 
-          {/* Information Panel */}
-          <div className="space-y-8">
-            {/* What You'll Get */}
-            <div className="bg-white rounded-2xl shadow-xl p-8">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                What You'll Get
-              </h3>
-              <ul className="space-y-4">
-                <li className="flex items-start">
-                  <span className="flex-shrink-0 h-6 w-6 text-orange-500 font-bold">✓</span>
-                  <span className="ml-3 text-gray-600">
-                    Beautiful AI-animated clip from your photo
-                  </span>
-                </li>
-                <li className="flex items-start">
-                  <span className="flex-shrink-0 h-6 w-6 text-orange-500 font-bold">✓</span>
-                  <span className="ml-3 text-gray-600">
-                    High-quality 5-second video
-                  </span>
-                </li>
-                <li className="flex items-start">
-                  <span className="flex-shrink-0 h-6 w-6 text-orange-500 font-bold">✓</span>
-                  <span className="ml-3 text-gray-600">
-                    Download and share instantly
-                  </span>
-                </li>
-                <li className="flex items-start">
-                  <span className="flex-shrink-0 h-6 w-6 text-orange-500 font-bold">✓</span>
-                  <span className="ml-3 text-gray-600">
-                    1 free credit to get started
-                  </span>
-                </li>
-              </ul>
-            </div>
-
-            {/* How It Works */}
-            <div className="bg-white rounded-2xl shadow-xl p-8">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                How It Works
-              </h3>
-              <ol className="space-y-4">
-                <li className="flex items-start">
-                  <span className="flex-shrink-0 h-6 w-6 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center font-medium text-sm">
-                    1
-                  </span>
-                  <span className="ml-3 text-gray-600">
-                    Upload your favorite photo (JPG or PNG)
-                  </span>
-                </li>
-                <li className="flex items-start">
-                  <span className="flex-shrink-0 h-6 w-6 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center font-medium text-sm">
-                    2
-                  </span>
-                  <span className="ml-3 text-gray-600">
-                    Our AI creates a beautiful animated clip
-                  </span>
-                </li>
-                <li className="flex items-start">
-                  <span className="flex-shrink-0 h-6 w-6 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center font-medium text-sm">
-                    3
-                  </span>
-                  <span className="ml-3 text-gray-600">
-                    Download and share your magical video
-                  </span>
-                </li>
-              </ol>
-            </div>
-
-            {/* Tips */}
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                💡 Pro Tips
-              </h3>
-              <ul className="text-sm text-gray-600 space-y-2">
-                <li>• Use high-quality photos for best results</li>
-                <li>• Clear, well-lit images work better</li>
-                <li>• Generation takes about 20-30 seconds</li>
-                <li>• Each clip costs 1 credit</li>
-              </ul>
+          {/* Compact Tips Section */}
+          <div className="mt-8 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 text-center">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">
+              💡 Quick Tips
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
+              <div>High-quality photos work best</div>
+              <div>Clear, well-lit images</div>
+              <div>~30 second generation</div>
+              <div>1 credit per clip</div>
             </div>
           </div>
         </div>
