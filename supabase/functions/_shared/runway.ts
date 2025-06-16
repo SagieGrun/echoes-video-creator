@@ -69,12 +69,17 @@ class RunwayService {
 
       console.log(`[${requestId}] API Request:`, {
         url: `${this.baseUrl}/image_to_video`,
-        body: requestBody,
+        body: {
+          ...requestBody,
+          promptImage: requestBody.promptImage.substring(0, 100) + '...' // Truncate for logging
+        },
         headers: {
           'Authorization': 'Bearer [REDACTED]',
           'X-Runway-Version': this.apiVersion
         }
       })
+      
+      console.log(`[${requestId}] Full promptImage URL:`, requestBody.promptImage)
 
       const response = await fetch(`${this.baseUrl}/image_to_video`, {
         method: 'POST',

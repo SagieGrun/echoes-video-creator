@@ -180,7 +180,7 @@
 
 ### Credit Pack Configuration
 - **Starter Pack**: 5 credits - $15.00 ($3.00/credit)
-- **Standard Pack**: 20 credits - $45.00 ($2.25/credit)
+- **Standard Pack**: 20 credits - $45.00 ($2.25/credit)  
 - **Premium Pack**: 40 credits - $80.00 ($2.00/credit)
 - Full CRUD operations (Create, Read, Update, Delete)
 - Active/inactive status management

@@ -23,6 +23,7 @@ export interface Clip {
   id: string
   project_id: string
   image_url: string
+  image_file_path: string
   video_url?: string
   prompt?: string
   status: 'pending' | 'processing' | 'completed' | 'failed'

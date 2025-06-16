@@ -157,7 +157,8 @@ export function ClipGeneration() {
           'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         },
         body: JSON.stringify({
-          image_url: result.url,
+          image_url: result.url,        // Signed URL for immediate use
+          image_file_path: result.path, // File path for storage
           project_id: result.projectId,
         }),
       })
@@ -334,19 +335,10 @@ export function ClipGeneration() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Create Your Video Clip</h1>
-          <p className="text-gray-600 text-lg">
-            Transform your photo into a cinematic moment. Your first clip is free!
-          </p>
-        </div>
-      </div>
-
+    <div className="space-y-4">
       {/* Credit Balance Display */}
       {user && (
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 text-center">
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-3 text-center">
           <p className="text-sm text-gray-600">
             Credit Balance: <span className="font-semibold text-blue-600">{user.credit_balance}</span>
             {user.credit_balance === 0 && (
@@ -367,8 +359,8 @@ export function ClipGeneration() {
 
       {/* Upload Loading State */}
       {isUploading && (
-        <div className="bg-white rounded-lg p-6 text-center space-y-4">
-          <LoadingSpinner size="lg" className="mx-auto mb-4" />
+        <div className="bg-white rounded-lg p-4 text-center space-y-3">
+          <LoadingSpinner size="lg" className="mx-auto" />
           <div>
             <p className="font-medium text-gray-900">{state.message}</p>
             <p className="text-sm text-gray-500 mt-1">Please wait while we process your photo</p>
@@ -384,9 +376,9 @@ export function ClipGeneration() {
 
       {/* Generation Progress */}
       {state.phase === 'generating' && (
-        <div className="bg-white rounded-lg p-6 text-center space-y-6">
-          <div className="relative w-32 h-32 mx-auto">
-            <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 100 100">
+        <div className="bg-white rounded-lg p-4 text-center space-y-3">
+          <div className="relative w-20 h-20 mx-auto">
+            <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 100 100">
               <circle
                 cx="50"
                 cy="50"
@@ -411,20 +403,20 @@ export function ClipGeneration() {
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
-                <div className="text-2xl font-bold text-gray-700">{state.progress}%</div>
-                <LoadingSpinner size="sm" className="mt-1" />
+                <div className="text-lg font-bold text-gray-700">{state.progress}%</div>
+                <LoadingSpinner size="sm" className="mt-1 mx-auto" />
               </div>
             </div>
           </div>
           
-          <div>
-            <p className="text-xl font-semibold text-gray-900 mb-2">{state.message}</p>
+          <div className="space-y-1">
+            <p className="text-base font-semibold text-gray-900">{state.message}</p>
             {state.estimatedTime && state.estimatedTime > 0 && (
               <p className="text-sm text-gray-500">
                 ⏱️ Estimated time remaining: {state.estimatedTime} seconds
               </p>
             )}
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-gray-400">
               🎬 AI is analyzing your photo and creating cinematic motion
             </p>
           </div>
@@ -433,8 +425,8 @@ export function ClipGeneration() {
             progress={state.progress} 
             label="Generation Progress"
             variant="primary"
-            size="lg"
-            className="max-w-lg mx-auto"
+            size="md"
+            className="max-w-md mx-auto"
           />
         </div>
       )}

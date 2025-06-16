@@ -11,11 +11,12 @@ interface Clip {
   id: string
   project_id: string
   image_url: string
+  image_file_path: string
   video_url: string | null
   prompt: string | null
   status: 'pending' | 'processing' | 'completed' | 'failed'
   created_at: string
-  completed_at: string | null
+  updated_at: string
 }
 
 interface User {
@@ -23,6 +24,8 @@ interface User {
   email: string
   credit_balance: number
 }
+
+
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null)
@@ -85,11 +88,12 @@ export default function Dashboard() {
               id,
               project_id,
               image_url,
+              image_file_path,
               video_url,
               prompt,
               status,
               created_at,
-              completed_at
+              updated_at
             `)
             .eq('project_id', project.id)
             .order('created_at', { ascending: false })
@@ -99,7 +103,7 @@ export default function Dashboard() {
           }
         }
 
-        // Sort all clips by creation date
+        // Sort all clips by creation date (no URL processing needed)
         allClips.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         setClips(allClips)
 
@@ -170,7 +174,7 @@ export default function Dashboard() {
   }
 
   const completedClips = clips.filter(clip => clip.status === 'completed' && clip.video_url)
-  const processingClips = clips.filter(clip => clip.status === 'processing' || clip.status === 'pending')
+  const processingClips = clips.filter(clip => (clip.status === 'processing' || clip.status === 'pending') && !clip.video_url)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-100 via-orange-50 to-purple-50">
@@ -181,24 +185,31 @@ export default function Dashboard() {
             <div>
               <Link
                 href="/create"
-                className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+                className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
               >
                 <ArrowLeft className="h-5 w-5 mr-2" />
                 Back to Create
               </Link>
-              <h1 className="text-3xl font-bold text-gray-900">Your Dashboard</h1>
+              <div className="flex items-center space-x-3 mb-2">
+                <img 
+                  src="/echoes-logo.png" 
+                  alt="Echoes Logo" 
+                  className="h-8 w-8"
+                />
+                <h1 className="text-3xl font-bold text-gray-900">Your Dashboard</h1>
+              </div>
               <p className="text-gray-600 mt-2">
                 Welcome back, {user?.email}
               </p>
             </div>
             <div className="text-right">
-              <div className="bg-white rounded-lg p-4 shadow-sm">
-                <p className="text-sm text-gray-600">Credit Balance</p>
-                <p className="text-2xl font-bold text-blue-600">{user?.credit_balance}</p>
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <p className="text-sm text-gray-600 mb-1">Credit Balance</p>
+                <p className="text-3xl font-bold text-blue-600">{user?.credit_balance}</p>
                 {user?.credit_balance === 0 && (
                   <Link
                     href="/create"
-                    className="text-sm text-orange-600 hover:text-orange-700"
+                    className="text-sm text-orange-600 hover:text-orange-700 mt-2 inline-block transition-colors"
                   >
                     Purchase Credits
                   </Link>
@@ -210,9 +221,9 @@ export default function Dashboard() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg p-6 shadow-sm">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-md">
+              <div className="p-3 bg-green-100 rounded-lg">
                 <Play className="h-6 w-6 text-green-600" />
               </div>
               <div className="ml-4">
@@ -222,9 +233,9 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-6 shadow-sm">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-md">
+              <div className="p-3 bg-blue-100 rounded-lg">
                 <Clock className="h-6 w-6 text-blue-600" />
               </div>
               <div className="ml-4">
@@ -234,9 +245,9 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-6 shadow-sm">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-md">
+              <div className="p-3 bg-purple-100 rounded-lg">
                 <Calendar className="h-6 w-6 text-purple-600" />
               </div>
               <div className="ml-4">
@@ -250,29 +261,60 @@ export default function Dashboard() {
         {/* Processing Clips */}
         {processingClips.length > 0 && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Currently Processing</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Currently Processing</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {processingClips.map((clip) => (
-                <div key={clip.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
-                  <div className="aspect-video bg-gray-100 flex items-center justify-center">
-                    <img
-                      src={clip.image_url}
-                      alt="Processing clip"
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                      <LoadingSpinner size="md" className="text-white" />
-                    </div>
+                <div key={clip.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+                  <div className="aspect-video bg-gray-100 relative overflow-hidden">
+                    {clip.image_url ? (
+                      <>
+                        <img
+                          src={clip.image_url}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            console.error('Failed to load image:', clip.image_url);
+                            // Hide the image and show fallback
+                            e.currentTarget.style.display = 'none';
+                            const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                            if (fallback) fallback.style.display = 'flex';
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <div className="text-center">
+                            <LoadingSpinner size="lg" className="text-white mb-2 mx-auto" />
+                            <p className="text-sm text-white font-medium">Processing...</p>
+                          </div>
+                        </div>
+                        <div className="absolute top-3 left-3">
+                          {getStatusBadge(clip.status)}
+                        </div>
+                        {/* Fallback div (hidden by default) */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-orange-100 to-rose-100 items-center justify-center" style={{display: 'none'}}>
+                          <div className="text-center">
+                            <LoadingSpinner size="lg" className="text-orange-500 mb-2 mx-auto" />
+                            <p className="text-sm text-gray-600 font-medium">Processing...</p>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-orange-100 to-rose-100 flex items-center justify-center">
+                        <div className="text-center">
+                          <LoadingSpinner size="lg" className="text-orange-500 mb-2 mx-auto" />
+                          <p className="text-sm text-gray-600 font-medium">Processing...</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      {getStatusBadge(clip.status)}
-                      <span className="text-xs text-gray-500">
+                  <div className="p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs text-gray-500 flex items-center">
+                        <Clock className="h-3 w-3 mr-1" />
                         {formatDate(clip.created_at)}
                       </span>
                     </div>
                     <p className="text-sm text-gray-600">
-                      {clip.prompt || 'Generating your video...'}
+                      {clip.status === 'processing' ? 'Generating your video...' : 'Queued for processing...'}
                     </p>
                   </div>
                 </div>
@@ -283,10 +325,10 @@ export default function Dashboard() {
 
         {/* Completed Clips */}
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Video Clips</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Your Video Clips</h2>
           
           {completedClips.length === 0 ? (
-            <div className="bg-white rounded-lg p-12 text-center">
+            <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-gray-100">
               <div className="text-gray-400 mb-4">
                 <Play className="h-16 w-16 mx-auto" />
               </div>
@@ -296,7 +338,7 @@ export default function Dashboard() {
               </p>
               <Link
                 href="/create"
-                className="inline-flex items-center px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                className="inline-flex items-center px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
               >
                 Create Your First Clip
               </Link>
@@ -304,8 +346,8 @@ export default function Dashboard() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {completedClips.map((clip) => (
-                <div key={clip.id} className="bg-white rounded-lg shadow-sm overflow-hidden">
-                  <div className="aspect-video">
+                <div key={clip.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
+                  <div className="aspect-video relative group">
                     <video
                       src={clip.video_url!}
                       poster={clip.image_url}
@@ -315,16 +357,19 @@ export default function Dashboard() {
                     >
                       Your browser does not support the video tag.
                     </video>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="absolute top-3 left-3">
                       {getStatusBadge(clip.status)}
-                      <span className="text-xs text-gray-500">
-                        {clip.completed_at ? formatDate(clip.completed_at) : formatDate(clip.created_at)}
+                    </div>
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs text-gray-500 flex items-center">
+                        <Calendar className="h-3 w-3 mr-1" />
+                        {clip.status === 'completed' ? formatDate(clip.updated_at) : formatDate(clip.created_at)}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 mb-3">
-                      {clip.prompt || 'Your generated video clip'}
+                    <p className="text-sm text-gray-600 mb-4">
+                      Your generated video clip
                     </p>
                     <div className="flex gap-2">
                       <LoadingButton

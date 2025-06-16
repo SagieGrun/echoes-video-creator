@@ -16,6 +16,7 @@ declare const Deno: {
 
 interface GenerateClipRequest {
   image_url: string
+  image_file_path: string
   project_id?: string
 }
 
@@ -102,20 +103,26 @@ Deno.serve(async (req) => {
     // Parse request body
     console.log(`[API-${requestId}] Step 2: Parsing request body`)
     const body: GenerateClipRequest = await req.json()
-    const { image_url, project_id } = body
+    const { image_url, image_file_path, project_id } = body
     
     console.log(`[API-${requestId}] Request parameters:`, {
       hasImageUrl: !!image_url,
       imageUrlLength: image_url?.length || 0,
       imageUrlPrefix: image_url ? image_url.substring(0, 50) + '...' : 'none',
+      hasImageFilePath: !!image_file_path,
+      imageFilePathLength: image_file_path?.length || 0,
+      imageFilePathPrefix: image_file_path ? image_file_path.substring(0, 50) + '...' : 'none',
       hasProjectId: !!project_id,
       projectId: project_id
     })
     
-    if (!image_url) {
-      console.error(`[API-${requestId}] Missing image_url parameter`)
+    if (!image_url || !image_file_path) {
+      console.error(`[API-${requestId}] Missing required parameters:`, {
+        hasImageUrl: !!image_url,
+        hasImageFilePath: !!image_file_path
+      })
       return new Response(
-        JSON.stringify({ error: 'Image URL is required' }),
+        JSON.stringify({ error: 'Both image_url and image_file_path are required' }),
         { 
           status: 400,
           headers: { 
@@ -216,6 +223,7 @@ Deno.serve(async (req) => {
       .insert({
         project_id: finalProjectId,
         image_url,
+        image_file_path,
         status: 'pending',
         prompt: systemPrompt,
         regen_count: 0,
@@ -254,9 +262,13 @@ Deno.serve(async (req) => {
     // Start Runway generation job
     try {
       console.log(`[API-${requestId}] Step 6: Starting Runway generation`)
+      console.log(`[API-${requestId}] Using signed URL directly:`, {
+        signedUrl: image_url.substring(0, 100) + '...'
+      })
+      
       const runwayService = createRunwayService()
       const result = await runwayService.generateVideo({
-        image_url: image_url,
+        image_url: image_url, // Use the signed URL directly
         prompt: systemPrompt,
         duration: 5
       })

@@ -1,15 +1,9 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { getAppUrl } from '@/lib/utils'
+import { useSmartLogin } from '@/hooks/useSmartLogin'
 
 export function Footer() {
-  const router = useRouter()
-
-  const handleTryFree = () => {
-    const appUrl = getAppUrl()
-    router.push(`/login?redirect=${encodeURIComponent(appUrl)}`)
-  }
+  const { handleSmartLogin, isLoading } = useSmartLogin()
   return (
     <footer className="bg-gradient-to-br from-orange-300 via-rose-300 to-purple-300 py-12 px-4">
       <div className="max-w-6xl mx-auto">
@@ -17,7 +11,14 @@ export function Footer() {
         <div className="grid md:grid-cols-4 gap-8 mb-8">
           {/* Brand */}
           <div className="md:col-span-2">
-            <h3 className="text-2xl font-bold text-orange-900 mb-4">ECHOES</h3>
+            <div className="flex items-center space-x-3 mb-4">
+              <img 
+                src="/echoes-logo.png" 
+                alt="Echoes Logo" 
+                className="h-8 w-8"
+              />
+              <h3 className="text-2xl font-bold text-orange-900">ECHOES</h3>
+            </div>
             <p className="text-rose-800 leading-relaxed">
               Bringing memories to life with AI-powered animation. 
               Transform your cherished photos into magical videos.
@@ -55,10 +56,11 @@ export function Footer() {
           
           {/* Final CTA */}
           <button 
-            onClick={handleTryFree}
-            className="bg-gradient-to-r from-coral-400 to-rose-300 hover:from-coral-500 hover:to-rose-400 text-white font-semibold px-6 py-3 rounded-full transition-all duration-300 transform hover:scale-105"
+            onClick={handleSmartLogin}
+            disabled={isLoading}
+            className="bg-gradient-to-r from-coral-400 to-rose-300 hover:from-coral-500 hover:to-rose-400 text-white font-semibold px-6 py-3 rounded-full transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Start Creating
+            {isLoading ? 'Loading...' : 'Start Creating'}
           </button>
         </div>
       </div>

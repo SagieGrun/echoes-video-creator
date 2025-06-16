@@ -58,19 +58,27 @@ export default function CreatePage() {
             href="/dashboard"
             className="inline-flex items-center px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
           >
-            My Clips
+            Dashboard
           </Link>
         </div>
 
         {/* Main Generation Section - Full Width */}
         <div className="max-w-2xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-xl p-8">
-            <div className="flex items-center justify-center mb-6">
-              <Sparkles className="h-8 w-8 text-orange-500 mr-3" />
-              <h2 className="text-3xl font-bold text-gray-900">
+          <div className="bg-white rounded-2xl shadow-xl p-6">
+            <div className="flex items-center justify-center mb-4">
+              <img 
+                src="/echoes-logo.png" 
+                alt="Echoes Logo" 
+                className="h-6 w-6 mr-2"
+              />
+              <Sparkles className="h-6 w-6 text-orange-500 mr-2" />
+              <h2 className="text-2xl font-bold text-gray-900">
                 Create Your Video Clip
               </h2>
             </div>
+            <p className="text-center text-gray-600 mb-6">
+              Transform your photo into a cinematic moment. Your first clip is free!
+            </p>
             
             <ClipGeneration />
           </div>

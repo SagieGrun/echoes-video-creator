@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { determinePostLoginRoute } from '@/lib/auth-routing'
 
 export async function GET(request: Request) {
   console.log('Auth callback received')
@@ -99,11 +100,19 @@ export async function GET(request: Request) {
     }
   }
   
-  console.log('Redirecting to create page')
+  // Determine where to redirect based on user's clip history
+  let redirectPath = '/create' // Default fallback
+  
+  if (user) {
+    console.log('Determining post-login route based on user clip history')
+    redirectPath = await determinePostLoginRoute(user.id, supabase)
+    console.log('Redirecting to:', redirectPath)
+  }
+  
   const isDevelopment = process.env.NODE_ENV === 'development'
   const redirectUrl = isDevelopment 
-    ? new URL('/create', request.url)
-    : 'https://app.get-echoes.com'
+    ? new URL(redirectPath, request.url)
+    : `https://app.get-echoes.com${redirectPath}`
   
   return NextResponse.redirect(redirectUrl)
 } 

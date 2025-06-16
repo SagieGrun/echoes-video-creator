@@ -1,16 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { getAppUrl } from '@/lib/utils'
+import { useSmartLogin } from '@/hooks/useSmartLogin'
 
 export function HeroSection() {
-  const router = useRouter()
-
-  const handleTryFree = () => {
-    const appUrl = getAppUrl()
-    router.push(`/login?redirect=${encodeURIComponent(appUrl)}`)
-  }
+  const { handleSmartLogin, isLoading } = useSmartLogin()
 
   return (
     <section className="relative min-h-screen flex items-center justify-center px-4 overflow-hidden pt-16">
@@ -30,9 +24,16 @@ export function HeroSection() {
           
           {/* Left Side - Main Content */}
           <div className="text-center lg:text-left">
-            {/* Main Headline */}
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-orange-900 mb-6 leading-tight">
-              Bring Your 
+            {/* Main Headline with Logo */}
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-orange-900 mb-6 leading-tight text-center lg:text-left">
+              <div className="flex items-center justify-center lg:justify-start gap-6 mb-2">
+                <span>Bring Your</span>
+                <img 
+                  src="/echoes-logo.png" 
+                  alt="Echoes Logo" 
+                  className="h-12 w-12 md:h-16 md:w-16 lg:h-20 lg:w-20"
+                />
+              </div>
               <span className="block bg-gradient-to-r from-coral-500 to-rose-400 bg-clip-text text-transparent">
                 Memories to Life
               </span>
@@ -47,10 +48,11 @@ export function HeroSection() {
             {/* Primary CTA */}
             <div className="mb-8 text-center lg:text-left">
               <button 
-                onClick={handleTryFree}
-                className="inline-block bg-gradient-to-r from-coral-400 to-rose-300 hover:from-coral-500 hover:to-rose-400 text-white font-semibold text-lg px-8 py-4 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl mb-4"
+                onClick={handleSmartLogin}
+                disabled={isLoading}
+                className="inline-block bg-gradient-to-r from-coral-400 to-rose-300 hover:from-coral-500 hover:to-rose-400 text-white font-semibold text-lg px-8 py-4 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Try Your First Clip FREE
+                {isLoading ? 'Loading...' : 'Try Your First Clip FREE'}
               </button>
               
               <p className="text-rose-700 text-base font-medium">

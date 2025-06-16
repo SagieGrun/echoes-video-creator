@@ -2,17 +2,11 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { getAppUrl } from '@/lib/utils'
+import { useSmartLogin } from '@/hooks/useSmartLogin'
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const router = useRouter()
-
-  const handleTryFree = () => {
-    const appUrl = getAppUrl()
-    router.push(`/login?redirect=${encodeURIComponent(appUrl)}`)
-  }
+  const { handleSmartLogin, isLoading } = useSmartLogin()
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-sm border-b border-rose-100">
@@ -20,10 +14,14 @@ export function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href="/" className="text-xl font-bold text-orange-800">
-              ECHOES
+            <Link href="/" className="flex items-center space-x-2">
+              <img 
+                src="/echoes-logo.png" 
+                alt="Echoes Logo" 
+                className="h-8 w-8"
+              />
+              <span className="text-xl font-bold text-orange-800">ECHOES</span>
             </Link>
-                            <span className="ml-2 text-orange-600 text-sm">🚀</span>
           </div>
 
           {/* Desktop Navigation */}
@@ -45,10 +43,11 @@ export function Header() {
           {/* CTA Button */}
           <div className="hidden md:flex items-center space-x-4">
             <button 
-              onClick={handleTryFree}
-              className="bg-gradient-to-r from-coral-400 to-rose-300 hover:from-coral-500 hover:to-rose-400 text-white font-semibold px-6 py-2 rounded-full transition-all duration-300 transform hover:scale-105"
+              onClick={handleSmartLogin}
+              disabled={isLoading}
+              className="bg-gradient-to-r from-coral-400 to-rose-300 hover:from-coral-500 hover:to-rose-400 text-white font-semibold px-6 py-2 rounded-full transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Try Free
+              {isLoading ? 'Loading...' : 'Login'}
             </button>
           </div>
 
@@ -80,10 +79,11 @@ export function Header() {
                 Reviews
               </a>
               <button 
-                onClick={handleTryFree}
-                className="bg-gradient-to-r from-coral-400 to-rose-300 text-white font-semibold px-6 py-2 rounded-full w-fit"
+                onClick={handleSmartLogin}
+                disabled={isLoading}
+                className="bg-gradient-to-r from-coral-400 to-rose-300 text-white font-semibold px-6 py-2 rounded-full w-fit disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Try Free
+                {isLoading ? 'Loading...' : 'Login'}
               </button>
             </div>
           </div>
