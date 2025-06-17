@@ -103,9 +103,40 @@ export default function Dashboard() {
           }
         }
 
-        // Sort all clips by creation date (no URL processing needed)
+        // Sort all clips by creation date and generate fresh signed URLs for images
         allClips.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        setClips(allClips)
+        
+        // Generate fresh signed URLs for images using file paths
+        const clipsWithFreshUrls = await Promise.all(
+          allClips.map(async (clip) => {
+            if (clip.image_file_path) {
+              try {
+                const { data: signedUrlData } = await supabase.storage
+                  .from('private-photos')
+                  .createSignedUrl(clip.image_file_path, 3600) // 1 hour expiry
+                
+                if (signedUrlData?.signedUrl) {
+                  return {
+                    ...clip,
+                    image_url: signedUrlData.signedUrl
+                  }
+                }
+              } catch (error) {
+                console.error('Error generating signed URL for clip:', clip.id, error)
+              }
+            }
+            return clip
+          })
+        )
+        
+        console.log('Dashboard clips with fresh URLs:', clipsWithFreshUrls.map(clip => ({
+          id: clip.id,
+          status: clip.status,
+          has_fresh_url: clip.image_url?.includes('token='),
+          image_file_path: clip.image_file_path
+        })))
+        
+        setClips(clipsWithFreshUrls)
 
       } catch (error) {
         console.error('Error fetching user data:', error)
@@ -190,7 +221,7 @@ export default function Dashboard() {
                 <ArrowLeft className="h-5 w-5 mr-2" />
                 Back to Create
               </Link>
-              <div className="flex items-center space-x-3 mb-2">
+              <div className="flex items-center space-x-3">
                 <img 
                   src="/echoes-logo.png" 
                   alt="Echoes Logo" 
@@ -198,65 +229,25 @@ export default function Dashboard() {
                 />
                 <h1 className="text-3xl font-bold text-gray-900">Your Dashboard</h1>
               </div>
-              <p className="text-gray-600 mt-2">
-                Welcome back, {user?.email}
-              </p>
             </div>
-            <div className="text-right">
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <p className="text-sm text-gray-600 mb-1">Credit Balance</p>
-                <p className="text-3xl font-bold text-blue-600">{user?.credit_balance}</p>
-                {user?.credit_balance === 0 && (
-                  <Link
-                    href="/create"
-                    className="text-sm text-orange-600 hover:text-orange-700 mt-2 inline-block transition-colors"
-                  >
-                    Purchase Credits
-                  </Link>
-                )}
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-gray-600">Credit Balance</span>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+                <span className="text-2xl font-bold text-blue-600">{user?.credit_balance}</span>
               </div>
+              {user?.credit_balance === 0 && (
+                <Link
+                  href="/create"
+                  className="text-sm bg-orange-500 text-white px-3 py-1 rounded-lg hover:bg-orange-600 transition-colors"
+                >
+                  Buy Credits
+                </Link>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <Play className="h-6 w-6 text-green-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Completed Clips</p>
-                <p className="text-2xl font-bold text-gray-900">{completedClips.length}</p>
-              </div>
-            </div>
-          </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Clock className="h-6 w-6 text-blue-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Processing</p>
-                <p className="text-2xl font-bold text-gray-900">{processingClips.length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center">
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <Calendar className="h-6 w-6 text-purple-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Clips</p>
-                <p className="text-2xl font-bold text-gray-900">{clips.length}</p>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Processing Clips */}
         {processingClips.length > 0 && (
@@ -272,8 +263,9 @@ export default function Dashboard() {
                           src={clip.image_url}
                           alt=""
                           className="w-full h-full object-cover"
+
                           onError={(e) => {
-                            console.error('Failed to load image:', clip.image_url);
+                            console.error('Failed to load processing image:', clip.image_url);
                             // Hide the image and show fallback
                             e.currentTarget.style.display = 'none';
                             const fallback = e.currentTarget.nextElementSibling as HTMLElement;
@@ -354,6 +346,7 @@ export default function Dashboard() {
                       controls
                       className="w-full h-full object-cover"
                       preload="metadata"
+
                     >
                       Your browser does not support the video tag.
                     </video>
