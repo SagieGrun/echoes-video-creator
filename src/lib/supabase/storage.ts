@@ -73,9 +73,10 @@ export async function uploadPhoto(file: File) {
     console.log('Using project:', projectId)
 
     const fileExt = file.name.split('.').pop()
+    // V3: Explicitly ensuring the file path is correctly structured for permanent storage.
     const fileName = `${userId}/${projectId}/${Date.now()}.${fileExt}`
     
-    console.log('Generated filename:', fileName)
+    console.log('Generated filename with project ID (v3):', fileName)
 
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('private-photos')

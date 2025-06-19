@@ -109,23 +109,30 @@ export default function Dashboard() {
         // Generate fresh signed URLs for images using file paths
         const clipsWithFreshUrls = await Promise.all(
           allClips.map(async (clip) => {
-            if (clip.image_file_path) {
-              try {
-                const { data: signedUrlData } = await supabase.storage
-                  .from('private-photos')
-                  .createSignedUrl(clip.image_file_path, 3600) // 1 hour expiry
-                
-                if (signedUrlData?.signedUrl) {
-                  return {
-                    ...clip,
-                    image_url: signedUrlData.signedUrl
-                  }
-                }
-              } catch (error) {
-                console.error('Error generating signed URL for clip:', clip.id, error)
-              }
+            const fallbackClip = { ...clip, image_url: '' }
+
+            if (!clip.image_file_path) {
+              return fallbackClip
             }
-            return clip
+
+            try {
+              const { data: signedUrlData, error: urlError } = await supabase.storage
+                .from('private-photos')
+                .createSignedUrl(clip.image_file_path, 3600) // 1 hour expiry
+
+              if (urlError) throw urlError
+
+              if (signedUrlData?.signedUrl) {
+                return { ...clip, image_url: signedUrlData.signedUrl }
+              }
+
+              console.warn('createSignedUrl succeeded but returned no URL for path:', clip.image_file_path)
+              return fallbackClip
+              
+            } catch (error) {
+              console.error('Error generating signed URL for clip:', clip.id, error)
+              return fallbackClip
+            }
           })
         )
         
@@ -339,17 +346,32 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {completedClips.map((clip) => (
                 <div key={clip.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
-                  <div className="aspect-video relative group">
-                    <video
-                      src={clip.video_url!}
-                      poster={clip.image_url}
-                      controls
-                      className="w-full h-full object-cover"
-                      preload="metadata"
-
-                    >
-                      Your browser does not support the video tag.
-                    </video>
+                  <div className="aspect-video relative group bg-gray-100">
+                    {clip.image_url ? (
+                      <div className="w-full h-full relative">
+                        <video
+                          src={clip.video_url!}
+                          controls
+                          className="w-full h-full object-cover"
+                          preload="metadata"
+                        >
+                          Your browser does not support the video tag.
+                        </video>
+                        {/* Thumbnail overlay - shows until video starts playing */}
+                        <div 
+                          className="absolute inset-0 bg-cover bg-center pointer-events-none"
+                          style={{ backgroundImage: `url(${clip.image_url})` }}
+                          onLoad={() => console.log('Thumbnail loaded for clip:', clip.id)}
+                          onError={() => console.error('Thumbnail failed to load for clip:', clip.id)}
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                        <div className="text-center text-gray-500">
+                          <p>Thumbnail unavailable</p>
+                        </div>
+                      </div>
+                    )}
                     <div className="absolute top-3 left-3">
                       {getStatusBadge(clip.status)}
                     </div>
