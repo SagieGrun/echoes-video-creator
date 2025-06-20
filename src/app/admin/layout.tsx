@@ -34,6 +34,14 @@ export default function AdminLayout({
                 </li>
                 <li>
                   <a
+                    href="/admin/music"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                  >
+                    Music
+                  </a>
+                </li>
+                <li>
+                  <a
                     href="/admin/models"
                     className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
                   >
