@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { LoadingButton } from '@/components/ui/LoadingButton'
-import { ArrowLeft, Download, Play, Calendar, Clock } from 'lucide-react'
+import { ArrowLeft, Download, Play, Calendar, Clock, Film } from 'lucide-react'
 import Link from 'next/link'
 
 interface Clip {
@@ -90,6 +90,7 @@ export default function Dashboard() {
               image_url,
               image_file_path,
               video_url,
+              video_file_path,
               prompt,
               status,
               created_at,
@@ -106,33 +107,46 @@ export default function Dashboard() {
         // Sort all clips by creation date and generate fresh signed URLs for images
         allClips.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         
-        // Generate fresh signed URLs for images using file paths
+        // Generate fresh signed URLs for images and videos using file paths
         const clipsWithFreshUrls = await Promise.all(
           allClips.map(async (clip) => {
-            const fallbackClip = { ...clip, image_url: '' }
+            let updatedClip = { ...clip, image_url: '' }
 
-            if (!clip.image_file_path) {
-              return fallbackClip
-            }
+            // Generate fresh signed URL for image
+            if (clip.image_file_path) {
+              try {
+                const { data: signedUrlData, error: urlError } = await supabase.storage
+                  .from('private-photos')
+                  .createSignedUrl(clip.image_file_path, 3600) // 1 hour expiry
 
-            try {
-              const { data: signedUrlData, error: urlError } = await supabase.storage
-                .from('private-photos')
-                .createSignedUrl(clip.image_file_path, 3600) // 1 hour expiry
+                if (urlError) throw urlError
 
-              if (urlError) throw urlError
-
-              if (signedUrlData?.signedUrl) {
-                return { ...clip, image_url: signedUrlData.signedUrl }
+                if (signedUrlData?.signedUrl) {
+                  updatedClip.image_url = signedUrlData.signedUrl
+                }
+              } catch (error) {
+                console.error('Error generating signed URL for image:', clip.id, error)
               }
-
-              console.warn('createSignedUrl succeeded but returned no URL for path:', clip.image_file_path)
-              return fallbackClip
-              
-            } catch (error) {
-              console.error('Error generating signed URL for clip:', clip.id, error)
-              return fallbackClip
             }
+
+            // Generate fresh signed URL for video if we have a file path
+            if (clip.video_file_path) {
+              try {
+                const { data: videoSignedUrlData, error: videoUrlError } = await supabase.storage
+                  .from('private-photos')
+                  .createSignedUrl(clip.video_file_path, 3600) // 1 hour expiry
+
+                if (videoUrlError) throw videoUrlError
+
+                if (videoSignedUrlData?.signedUrl) {
+                  updatedClip.video_url = videoSignedUrlData.signedUrl
+                }
+              } catch (error) {
+                console.error('Error generating signed URL for video:', clip.id, error)
+              }
+            }
+
+            return updatedClip
           })
         )
         
@@ -343,80 +357,102 @@ export default function Dashboard() {
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {completedClips.map((clip) => (
-                <div key={clip.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
-                  <div className="aspect-video relative group bg-gray-100">
-                    {clip.image_url ? (
-                      <div className="w-full h-full relative">
-                        <video
-                          src={clip.video_url!}
-                          controls
-                          className="w-full h-full object-cover"
-                          preload="metadata"
-                        >
-                          Your browser does not support the video tag.
-                        </video>
-                        {/* Thumbnail overlay - shows until video starts playing */}
-                        <div 
-                          className="absolute inset-0 bg-cover bg-center pointer-events-none"
-                          style={{ backgroundImage: `url(${clip.image_url})` }}
-                          onLoad={() => console.log('Thumbnail loaded for clip:', clip.id)}
-                          onError={() => console.error('Thumbnail failed to load for clip:', clip.id)}
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                        <div className="text-center text-gray-500">
-                          <p>Thumbnail unavailable</p>
-                        </div>
-                      </div>
-                    )}
-                    <div className="absolute top-3 left-3">
-                      {getStatusBadge(clip.status)}
-                    </div>
-                  </div>
-                  <div className="p-5">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs text-gray-500 flex items-center">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        {clip.status === 'completed' ? formatDate(clip.updated_at) : formatDate(clip.created_at)}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Your generated video clip
+            <>
+              {/* Create Final Video CTA */}
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl p-6 mb-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Ready to create your final video?</h3>
+                    <p className="text-gray-600 text-sm">
+                      Select your favorite clips, add music, and create a professional video compilation
                     </p>
-                    <div className="flex gap-2">
-                      <LoadingButton
-                        onClick={() => window.open(clip.video_url!, '_blank')}
-                        variant="primary"
-                        size="sm"
-                        className="flex-1"
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        Download
-                      </LoadingButton>
-                      <LoadingButton
-                        onClick={() => {
-                          if (navigator.share) {
-                            navigator.share({
-                              title: 'Check out my video clip!',
-                              url: clip.video_url!
-                            })
-                          } else {
-                            navigator.clipboard.writeText(clip.video_url!)
-                          }
-                        }}
-                        variant="secondary"
-                        size="sm"
-                      >
-                        Share
-                      </LoadingButton>
+                  </div>
+                  <Link
+                    href="/finalize"
+                    className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl font-medium whitespace-nowrap ml-4"
+                  >
+                    <Film className="h-5 w-5 mr-2" />
+                    Create Final Video
+                  </Link>
+                </div>
+              </div>
+
+              {/* Clips Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {completedClips.map((clip) => (
+                  <div key={clip.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
+                    <div className="aspect-video relative group bg-gray-100">
+                      {clip.image_url ? (
+                        <div className="w-full h-full relative">
+                          <video
+                            src={clip.video_url!}
+                            controls
+                            className="w-full h-full object-cover"
+                            preload="metadata"
+                          >
+                            Your browser does not support the video tag.
+                          </video>
+                          {/* Thumbnail overlay - shows until video starts playing */}
+                          <div 
+                            className="absolute inset-0 bg-cover bg-center pointer-events-none"
+                            style={{ backgroundImage: `url(${clip.image_url})` }}
+                            onLoad={() => console.log('Thumbnail loaded for clip:', clip.id)}
+                            onError={() => console.error('Thumbnail failed to load for clip:', clip.id)}
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                          <div className="text-center text-gray-500">
+                            <p>Thumbnail unavailable</p>
+                          </div>
+                        </div>
+                      )}
+                      <div className="absolute top-3 left-3">
+                        {getStatusBadge(clip.status)}
+                      </div>
+                    </div>
+                    <div className="p-5">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs text-gray-500 flex items-center">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          {clip.status === 'completed' ? formatDate(clip.updated_at) : formatDate(clip.created_at)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Your generated video clip
+                      </p>
+                      <div className="flex gap-2">
+                        <LoadingButton
+                          onClick={() => window.open(clip.video_url!, '_blank')}
+                          variant="primary"
+                          size="sm"
+                          className="flex-1"
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Download
+                        </LoadingButton>
+                        <LoadingButton
+                          onClick={() => {
+                            if (navigator.share) {
+                              navigator.share({
+                                title: 'Check out my video clip!',
+                                url: clip.video_url!
+                              })
+                            } else {
+                              navigator.clipboard.writeText(clip.video_url!)
+                            }
+                          }}
+                          variant="secondary"
+                          size="sm"
+                        >
+                          Share
+                        </LoadingButton>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
 

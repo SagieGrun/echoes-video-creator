@@ -25,6 +25,7 @@ export interface Clip {
   image_url: string
   image_file_path: string
   video_url?: string
+  video_file_path?: string
   prompt?: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
   runway_job_id?: string

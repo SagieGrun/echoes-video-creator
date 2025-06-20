@@ -189,8 +189,47 @@ Deno.serve(async (req) => {
         }
 
         if (result.status === 'completed' && result.video_url) {
-          updateData.video_url = result.video_url
-          // Note: completed_at column doesn't exist in schema, so we skip it
+          // Download video from Runway's temporary URL and store permanently
+          try {
+            console.log(`[STATUS-${requestId}] Downloading video from Runway URL`)
+            const videoResponse = await fetch(result.video_url)
+            if (!videoResponse.ok) {
+              throw new Error(`Failed to download video: ${videoResponse.status}`)
+            }
+            
+            const videoBuffer = await videoResponse.arrayBuffer()
+            console.log(`[STATUS-${requestId}] Video downloaded, size: ${videoBuffer.byteLength} bytes`)
+            
+            // Generate permanent storage path
+            const fileName = `${clip.id}_${Date.now()}.mp4`
+            const filePath = `${project.user_id}/${clip.project_id}/${fileName}`
+            
+            // Upload to Supabase storage
+            const { data: uploadData, error: uploadError } = await serviceSupabase.storage
+              .from('private-photos') // Using same bucket as images for simplicity
+              .upload(filePath, videoBuffer, {
+                contentType: 'video/mp4',
+                cacheControl: '3600',
+                upsert: false
+              })
+            
+            if (uploadError) {
+              console.error(`[STATUS-${requestId}] Error uploading video:`, uploadError)
+              throw uploadError
+            }
+            
+            console.log(`[STATUS-${requestId}] Video uploaded successfully to:`, filePath)
+            
+            // Store the permanent file path instead of temporary URL
+            updateData.video_url = filePath // Store path, not URL
+            updateData.video_file_path = filePath // Also store in separate field for clarity
+            
+          } catch (error) {
+            console.error(`[STATUS-${requestId}] Error storing video permanently:`, error)
+            // Fall back to temporary URL for now, but log the issue
+            updateData.video_url = result.video_url
+            updateData.error_message = 'Video generated but storage failed'
+          }
         }
 
         if (result.status === 'failed' && result.error_message) {
