@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "migrate-videos": "node scripts/migrate-video-storage.js"
   },
   "keywords": [
     "video",
@@ -25,9 +26,11 @@
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.50.0",
     "clsx": "^2.1.1",
+    "dotenv": "^16.5.0",
     "glob-parent": "^6.0.2",
     "lucide-react": "^0.514.0",
     "next": "^14.0.0",
+    "node-fetch": "^3.3.2",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "react-dropzone": "^14.3.8",

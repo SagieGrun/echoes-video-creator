@@ -13,6 +13,7 @@ interface Clip {
   image_url: string
   image_file_path: string
   video_url: string | null
+  video_file_path: string | null
   prompt: string | null
   status: 'pending' | 'processing' | 'completed' | 'failed'
   created_at: string
@@ -382,28 +383,33 @@ export default function Dashboard() {
                 {completedClips.map((clip) => (
                   <div key={clip.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
                     <div className="aspect-video relative group bg-gray-100">
-                      {clip.image_url ? (
+                      {clip.image_url && clip.video_url ? (
                         <div className="w-full h-full relative">
                           <video
-                            src={clip.video_url!}
+                            src={clip.video_url}
+                            controls
+                            className="w-full h-full object-cover"
+                            preload="metadata"
+                            poster={clip.image_url}
+                          >
+                            Your browser does not support the video tag.
+                          </video>
+                        </div>
+                      ) : clip.video_url ? (
+                        <div className="w-full h-full relative">
+                          <video
+                            src={clip.video_url}
                             controls
                             className="w-full h-full object-cover"
                             preload="metadata"
                           >
                             Your browser does not support the video tag.
                           </video>
-                          {/* Thumbnail overlay - shows until video starts playing */}
-                          <div 
-                            className="absolute inset-0 bg-cover bg-center pointer-events-none"
-                            style={{ backgroundImage: `url(${clip.image_url})` }}
-                            onLoad={() => console.log('Thumbnail loaded for clip:', clip.id)}
-                            onError={() => console.error('Thumbnail failed to load for clip:', clip.id)}
-                          />
                         </div>
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gray-200">
                           <div className="text-center text-gray-500">
-                            <p>Thumbnail unavailable</p>
+                            <p>Video unavailable</p>
                           </div>
                         </div>
                       )}
@@ -411,16 +417,13 @@ export default function Dashboard() {
                         {getStatusBadge(clip.status)}
                       </div>
                     </div>
-                    <div className="p-5">
-                      <div className="flex items-center justify-between mb-3">
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-4">
                         <span className="text-xs text-gray-500 flex items-center">
                           <Calendar className="h-3 w-3 mr-1" />
                           {clip.status === 'completed' ? formatDate(clip.updated_at) : formatDate(clip.created_at)}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Your generated video clip
-                      </p>
                       <div className="flex gap-2">
                         <LoadingButton
                           onClick={() => window.open(clip.video_url!, '_blank')}
