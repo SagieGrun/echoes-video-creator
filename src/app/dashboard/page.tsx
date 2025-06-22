@@ -20,17 +20,33 @@ interface Clip {
   updated_at: string
 }
 
+interface FinalVideo {
+  id: string
+  project_id: string
+  user_id: string
+  selected_clips: any[]
+  music_track_id: string | null
+  transition_type: string
+  music_volume: number
+  status: 'draft' | 'processing' | 'completed' | 'failed'
+  file_url: string | null
+  file_path: string | null
+  total_duration: number | null
+  file_size: number | null
+  created_at: string
+  completed_at: string | null
+}
+
 interface User {
   id: string
   email: string
   credit_balance: number
 }
 
-
-
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null)
   const [clips, setClips] = useState<Clip[]>([])
+  const [finalVideos, setFinalVideos] = useState<FinalVideo[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -160,6 +176,42 @@ export default function Dashboard() {
         
         setClips(clipsWithFreshUrls)
 
+        // Fetch final videos
+        const { data: finalVideosData, error: finalVideosError } = await supabase
+          .from('final_videos')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+
+        if (finalVideosError) {
+          console.error('Error fetching final videos:', finalVideosError)
+        } else {
+          // Generate signed URLs for final videos
+                     const finalVideosWithUrls = await Promise.all(
+             (finalVideosData || []).map(async (video: any) => {
+              let updatedVideo = { ...video }
+              
+              if (video.file_path && video.status === 'completed') {
+                try {
+                  const { data: signedUrlData, error: urlError } = await supabase.storage
+                    .from('final-videos')
+                    .createSignedUrl(video.file_path, 3600) // 1 hour expiry
+
+                  if (!urlError && signedUrlData?.signedUrl) {
+                    updatedVideo.file_url = signedUrlData.signedUrl
+                  }
+                } catch (error) {
+                  console.error('Error generating signed URL for final video:', video.id, error)
+                }
+              }
+              
+              return updatedVideo
+            })
+          )
+          
+          setFinalVideos(finalVideosWithUrls)
+        }
+
       } catch (error) {
         console.error('Error fetching user data:', error)
         setError('Failed to load dashboard')
@@ -228,6 +280,8 @@ export default function Dashboard() {
 
   const completedClips = clips.filter(clip => clip.status === 'completed' && clip.video_url)
   const processingClips = clips.filter(clip => (clip.status === 'processing' || clip.status === 'pending') && !clip.video_url)
+  const completedFinalVideos = finalVideos.filter(video => video.status === 'completed' && video.file_url)
+  const processingFinalVideos = finalVideos.filter(video => video.status === 'processing')
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-100 via-orange-50 to-purple-50">
@@ -269,7 +323,131 @@ export default function Dashboard() {
           </div>
         </div>
 
-
+        {/* Final Videos Section */}
+        {(completedFinalVideos.length > 0 || processingFinalVideos.length > 0) && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+              <Film className="h-6 w-6 mr-2 text-purple-600" />
+              Your Final Videos
+            </h2>
+            
+            {/* Processing Final Videos */}
+            {processingFinalVideos.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-medium text-gray-700 mb-4">Currently Compiling</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {processingFinalVideos.map((video) => (
+                    <div key={video.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+                      <div className="aspect-video bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center">
+                        <div className="text-center">
+                          <LoadingSpinner size="lg" className="text-purple-600 mb-2 mx-auto" />
+                          <p className="text-sm text-gray-600 font-medium">Compiling Video...</p>
+                          <p className="text-xs text-gray-500 mt-1">{video.selected_clips?.length || 0} clips</p>
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500 flex items-center">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {formatDate(video.created_at)}
+                          </span>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            Processing
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Completed Final Videos */}
+            {completedFinalVideos.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {completedFinalVideos.map((video) => (
+                  <div key={video.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
+                    <div className="aspect-video relative group bg-gray-100">
+                      {video.file_url ? (
+                        <div className="w-full h-full relative">
+                          <video
+                            src={video.file_url}
+                            controls
+                            className="w-full h-full object-cover"
+                            preload="metadata"
+                          >
+                            Your browser does not support the video tag.
+                          </video>
+                          <div className="absolute top-3 left-3">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              Final Video
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                          <div className="text-center text-gray-500">
+                            <p>Video unavailable</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            Final Video ({video.selected_clips?.length || 0} clips)
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {video.transition_type} transitions
+                            {video.music_track_id && ' • With music'}
+                          </p>
+                        </div>
+                        <span className="text-xs text-gray-500 flex items-center">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          {formatDate(video.completed_at || video.created_at)}
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <LoadingButton
+                          onClick={() => window.open(video.file_url!, '_blank')}
+                          variant="primary"
+                          size="sm"
+                          className="flex-1"
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Download
+                        </LoadingButton>
+                        <LoadingButton
+                          onClick={() => {
+                            if (navigator.share) {
+                              navigator.share({
+                                title: 'Check out my final video!',
+                                url: video.file_url!
+                              })
+                            } else {
+                              navigator.clipboard.writeText(video.file_url!)
+                            }
+                          }}
+                          variant="secondary"
+                          size="sm"
+                          className="px-3"
+                        >
+                          Share
+                        </LoadingButton>
+                      </div>
+                      {video.file_size && (
+                        <p className="text-xs text-gray-400 mt-2">
+                          {(video.file_size / (1024 * 1024)).toFixed(1)} MB
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Processing Clips */}
         {processingClips.length > 0 && (

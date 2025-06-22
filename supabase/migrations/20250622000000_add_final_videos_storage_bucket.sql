@@ -14,7 +14,7 @@ CREATE POLICY "Users can view their own final videos"
   ON storage.objects FOR SELECT
   USING (
     bucket_id = 'final-videos' 
-    AND auth.uid()::text = (storage.foldername(name))[1]
+    AND auth.uid()::text = (storage.foldername(name))[2]
   );
 
 CREATE POLICY "Service can upload final videos"
@@ -33,5 +33,5 @@ CREATE POLICY "Users can delete their own final videos"
   ON storage.objects FOR DELETE
   USING (
     bucket_id = 'final-videos' 
-    AND auth.uid()::text = (storage.foldername(name))[1]
+    AND auth.uid()::text = (storage.foldername(name))[2]
   ); 

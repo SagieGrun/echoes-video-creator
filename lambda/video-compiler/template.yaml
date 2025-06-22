@@ -41,7 +41,6 @@ Resources:
           Properties:
             Path: /compile
             Method: post
-      # Note: FFmpeg layer removed for now - will use container approach later
 
 Outputs:
   VideoCompilerApi:
