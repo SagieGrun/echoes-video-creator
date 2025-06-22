@@ -200,6 +200,8 @@ export function ClipGeneration() {
   }
 
   const startStatusPolling = (clipId: string) => {
+    let intervalId: NodeJS.Timeout | null = null
+    
     const poll = async () => {
       try {
         // Get the user's auth token
@@ -231,6 +233,8 @@ export function ClipGeneration() {
         }))
 
         if (statusData.status === 'completed') {
+          console.log('Clip completed! Video URL received:', statusData.video_url)
+          
           setState(prev => ({
             ...prev,
             phase: 'completed',
@@ -239,10 +243,14 @@ export function ClipGeneration() {
             videoUrl: statusData.video_url
           }))
           
-          if (pollingInterval) {
-            clearInterval(pollingInterval)
-            setPollingInterval(null)
+          // Clear polling immediately
+          if (intervalId) {
+            clearInterval(intervalId)
+            intervalId = null
           }
+          setPollingInterval(null)
+          return // Stop polling
+          
         } else if (statusData.status === 'failed') {
           setState(prev => ({
             ...prev,
@@ -251,10 +259,13 @@ export function ClipGeneration() {
             message: statusData.error_message || 'Generation failed'
           }))
           
-          if (pollingInterval) {
-            clearInterval(pollingInterval)
-            setPollingInterval(null)
+          // Clear polling immediately
+          if (intervalId) {
+            clearInterval(intervalId)
+            intervalId = null
           }
+          setPollingInterval(null)
+          return // Stop polling
         }
 
       } catch (error) {
@@ -263,9 +274,13 @@ export function ClipGeneration() {
     }
 
     // Poll immediately and then every 3 seconds
-    poll()
-    const interval = setInterval(poll, 3000)
-    setPollingInterval(interval)
+    poll().then(() => {
+      // Only set up interval if not already completed
+      if (intervalId === null) {
+        intervalId = setInterval(poll, 3000)
+        setPollingInterval(intervalId)
+      }
+    })
   }
 
   const getStatusMessage = (status: string, estimatedTime?: number): string => {
@@ -441,7 +456,6 @@ export function ClipGeneration() {
             src={state.videoUrl} 
             controls 
             className="w-full max-w-md mx-auto rounded-lg"
-            poster={state.videoUrl.replace('.mp4', '-poster.jpg')}
           >
             Your browser does not support the video tag.
           </video>

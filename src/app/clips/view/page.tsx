@@ -1,22 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
-
-
+import { createSupabaseBrowserClient } from '@/lib/supabase'
 
 // Helper function to get app URL based on environment
 const getAppUrl = () => {
   const isDevelopment = process.env.NODE_ENV === 'development'
   return isDevelopment ? '/create' : 'https://app.get-echoes.com'
 }
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 type Clip = {
   id: string
@@ -35,6 +28,8 @@ export default function ClipPage({ params }: { params: { id: string } }) {
   const appUrl = getAppUrl()
 
   useEffect(() => {
+    const supabase = createSupabaseBrowserClient()
+    
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       setIsAuthenticated(!!session)

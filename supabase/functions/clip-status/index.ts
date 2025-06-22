@@ -146,12 +146,31 @@ Deno.serve(async (req) => {
     if (clip.status === 'completed' || clip.status === 'failed') {
       console.log(`[STATUS-${requestId}] Clip is in final state:`, { status: clip.status })
       
+      let videoUrl = clip.video_url
+      
+      // If we have a video_file_path, generate a fresh signed URL
+      if (clip.status === 'completed' && clip.video_file_path) {
+        try {
+          const { data: signedUrlData, error: urlError } = await serviceSupabase.storage
+            .from('private-photos')
+            .createSignedUrl(clip.video_file_path, 3600) // 1 hour expiry
+          
+          if (!urlError && signedUrlData?.signedUrl) {
+            videoUrl = signedUrlData.signedUrl
+            console.log(`[STATUS-${requestId}] Generated fresh signed URL for completed clip`)
+          }
+        } catch (error) {
+          console.error(`[STATUS-${requestId}] Error generating signed URL:`, error)
+          // Fall back to stored video_url
+        }
+      }
+      
       return new Response(
         JSON.stringify({
           clip_id: clip.id,
           status: clip.status,
           progress: clip.status === 'completed' ? 100 : 0,
-          video_url: clip.video_url,
+          video_url: videoUrl,
           error_message: clip.error_message,
           estimated_time: 0
         }),
@@ -251,7 +270,7 @@ Deno.serve(async (req) => {
             clip_id: clip.id,
             status: result.status,
             progress: result.progress,
-            video_url: result.video_url,
+            video_url: updateData.video_url || result.video_url, // Use stored path if available
             error_message: result.error_message,
             estimated_time: result.estimated_time || 0
           }),

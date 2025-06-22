@@ -7,26 +7,22 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 // Server-side client
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
-// Browser client for client components (singleton pattern)
-let browserClient: ReturnType<typeof createBrowserClient> | null = null
+// Singleton pattern to prevent multiple client instances
+let supabaseClient: ReturnType<typeof createBrowserClient> | null = null
 
 export function createSupabaseBrowserClient() {
-  // Only create client on browser side
   if (typeof window === 'undefined') {
     throw new Error('createSupabaseBrowserClient should only be called on the client side')
   }
-
-  if (!browserClient) {
-    browserClient = createBrowserClient(supabaseUrl, supabaseKey, {
-      auth: {
-        storage: window.localStorage,
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true
-      }
-    })
+  
+  // Return existing client if it exists
+  if (supabaseClient) {
+    return supabaseClient
   }
-  return browserClient
+  
+  // Create new client only if one doesn't exist
+  supabaseClient = createBrowserClient(supabaseUrl, supabaseKey)
+  return supabaseClient
 }
 
 // Types for database tables

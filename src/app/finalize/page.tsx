@@ -11,6 +11,7 @@ interface Clip {
   id: string
   image_url: string
   video_url: string | null
+  video_file_path: string | null
   status: string
   created_at: string
 }
@@ -19,6 +20,7 @@ interface MusicTrack {
   id: string
   name: string
   file_url: string
+  file_path: string
 }
 
 interface FinalizationSettings {
@@ -253,35 +255,69 @@ export default function FinalizePage() {
     
     setSaving(true)
     try {
-      const settings = {
-        selectedClips: clipOrder.map((clipId, index) => ({
-          clip_id: clipId,
-          order: index
-        })),
-        musicTrackId: selectedMusicId || null,
-        transitionType: transitionType,
-        musicVolume: musicVolume
+      // Prepare selected clips with video file paths
+      const selectedClips = clipOrder.map((clipId, index) => {
+        const clip = clips.find(c => c.id === clipId)
+        return {
+          id: clip?.id,
+          video_file_path: clip?.video_file_path,
+          order: index + 1
+        }
+      }).filter(clip => clip.id && clip.video_file_path)
+
+      // Prepare music selection
+      const selectedMusic = selectedMusicId ? 
+        musicTracks.find(track => track.id === selectedMusicId) : null
+
+      // Prepare compilation payload
+      const compilationData = {
+        selectedClips,
+        selectedMusic: selectedMusic ? {
+          file_path: selectedMusic.file_path,
+          volume: musicVolume
+        } : null,
+        settings: {
+          transitionType,
+          transitionDuration: 1.0,
+          musicVolume
+        }
       }
 
-      const response = await fetch(`/api/finalize`, {
-        method: 'PUT',
+      // Get auth token for API call
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        throw new Error('Authentication required')
+      }
+
+      // Call video compilation API
+      const response = await fetch('/api/compile', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(compilationData),
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to save settings')
+        throw new Error(errorData.error || 'Failed to compile video')
       }
 
-      alert('Settings saved! Your video compilation will begin shortly.')
+      const result = await response.json()
+      
+      if (result.mock) {
+        alert('Lambda function not deployed yet. Check console for compilation payload.')
+        console.log('Video compilation payload:', result.payload)
+      } else {
+        alert('Video compilation started! You will be notified when it\'s ready.')
+      }
+      
       router.push('/dashboard')
       
     } catch (error) {
-      console.error('Error saving settings:', error)
-      alert('Error saving settings: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      console.error('Error compiling video:', error)
+      alert('Error compiling video: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setSaving(false)
     }

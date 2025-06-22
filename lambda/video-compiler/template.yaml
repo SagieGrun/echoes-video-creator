@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Echoes Video Compilation Lambda Function
+
+Globals:
+  Function:
+    Timeout: 900  # 15 minutes - maximum for Lambda
+    MemorySize: 3008  # Maximum memory for better performance
+    Runtime: python3.9
+
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+    Description: Environment name for parameter store paths
+
+Resources:
+  VideoCompilerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+                - ssm:GetParameters
+                - ssm:GetParametersByPath
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/echoes/${Environment}/supabase/*"
+      Events:
+        VideoCompilerApi:
+          Type: Api
+          Properties:
+            Path: /compile
+            Method: post
+      # Note: FFmpeg layer removed for now - will use container approach later
+
+Outputs:
+  VideoCompilerApi:
+    Description: "API Gateway endpoint URL for Video Compiler function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/compile/"
+  VideoCompilerFunction:
+    Description: "Video Compiler Lambda Function ARN"
+    Value: !GetAtt VideoCompilerFunction.Arn 
