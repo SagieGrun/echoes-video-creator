@@ -25,8 +25,12 @@ interface User {
   credit_balance: number
 }
 
-export function ClipGeneration() {
-  const [user, setUser] = useState<User | null>(null)
+interface ClipGenerationProps {
+  user?: User | null
+}
+
+export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
+  const [user, setUser] = useState<User | null>(propUser || null)
   const [state, setState] = useState<ClipGenerationState>({
     phase: 'upload',
     progress: 0,
@@ -37,36 +41,42 @@ export function ClipGeneration() {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
   const [showCreditPurchase, setShowCreditPurchase] = useState(false)
-  const [isLoadingUser, setIsLoadingUser] = useState(true)
 
-  // Check user authentication and credit balance
+  // Update user state when prop changes
   useEffect(() => {
-    const checkUser = async () => {
-      try {
-        const supabase = createSupabaseBrowserClient()
-        const { data: { session } } = await supabase.auth.getSession()
-        
-        if (session?.user) {
-          // Fetch user profile with credit balance
-          const { data: userData, error } = await supabase
-            .from('users')
-            .select('id, email, credit_balance')
-            .eq('id', session.user.id)
-            .single()
-
-          if (userData && !error) {
-            setUser(userData)
-          }
-        }
-      } catch (error) {
-        console.error('Error checking user:', error)
-      } finally {
-        setIsLoadingUser(false)
-      }
+    if (propUser) {
+      setUser(propUser)
     }
+  }, [propUser])
 
-    checkUser()
-  }, [])
+  // Only check user if not provided via props
+  useEffect(() => {
+    if (!propUser) {
+      const checkUser = async () => {
+        try {
+          const supabase = createSupabaseBrowserClient()
+          const { data: { session } } = await supabase.auth.getSession()
+          
+          if (session?.user) {
+            // Fetch user profile with credit balance
+            const { data: userData, error } = await supabase
+              .from('users')
+              .select('id, email, credit_balance')
+              .eq('id', session.user.id)
+              .single()
+
+            if (userData && !error) {
+              setUser(userData)
+            }
+          }
+        } catch (error) {
+          console.error('Error checking user:', error)
+        }
+      }
+
+      checkUser()
+    }
+  }, [propUser])
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -327,26 +337,6 @@ export function ClipGeneration() {
       progress: 0,
       message: 'Credits added! Upload a photo to create your clip'
     })
-  }
-
-  // Show loading spinner while checking user authentication
-  if (isLoadingUser) {
-    return (
-      <div className="space-y-6">
-        <div className="max-w-4xl mx-auto p-6">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Create Your Video Clip</h1>
-            <p className="text-gray-600 text-lg">
-              Transform your photo into a cinematic moment. Your first clip is free!
-            </p>
-          </div>
-          <div className="flex flex-col items-center justify-center py-12">
-            <LoadingSpinner size="lg" className="mb-4" />
-            <p className="text-gray-600">Loading your account...</p>
-          </div>
-        </div>
-      </div>
-    )
   }
 
   return (

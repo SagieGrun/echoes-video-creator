@@ -14,13 +14,13 @@ export function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-2">
+            <Link href="/" className="flex items-center space-x-3">
               <img 
                 src="/echoes-logo.png" 
                 alt="Echoes Logo" 
-                className="h-8 w-8"
+                className="h-8 w-8 flex-shrink-0"
               />
-              <span className="text-xl font-bold text-orange-800">ECHOES</span>
+              <span className="text-xl font-bold text-orange-800 leading-none">echoes</span>
             </Link>
           </div>
 

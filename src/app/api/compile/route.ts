@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
+// Increase the maximum duration for this API route
+export const maxDuration = 300 // 5 minutes
+
 // This will be set after Lambda deployment
 const LAMBDA_ENDPOINT = process.env.LAMBDA_COMPILE_ENDPOINT || ''
 
@@ -34,6 +37,7 @@ export async function POST(request: NextRequest) {
         order: index + 1
       })),
       music: selectedMusic ? {
+        id: selectedMusic.id,
         file_path: selectedMusic.file_path,
         volume: settings?.musicVolume || 0.3
       } : null,
@@ -52,23 +56,43 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Call Lambda function
-    const lambdaResponse = await fetch(LAMBDA_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(lambdaPayload)
-    })
-
-    if (!lambdaResponse.ok) {
-      const errorText = await lambdaResponse.text()
-      throw new Error(`Lambda function failed: ${errorText}`)
-    }
-
-    const result = await lambdaResponse.json()
+    // Call Lambda function with increased timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 300000) // 5 minute timeout
     
-    return NextResponse.json(result)
+    console.log('Starting Lambda function call...')
+    const startTime = Date.now()
+    
+    try {
+      const lambdaResponse = await fetch(LAMBDA_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(lambdaPayload),
+        signal: controller.signal
+      })
+
+      clearTimeout(timeoutId)
+      const duration = Date.now() - startTime
+      console.log(`Lambda function completed in ${duration}ms`)
+
+      if (!lambdaResponse.ok) {
+        const errorText = await lambdaResponse.text()
+        console.error('Lambda function error:', errorText)
+        throw new Error(`Lambda function failed: ${errorText}`)
+      }
+
+      const result = await lambdaResponse.json()
+      console.log('Lambda function succeeded:', result)
+      
+      return NextResponse.json(result)
+    } catch (error) {
+      clearTimeout(timeoutId)
+      const duration = Date.now() - startTime
+      console.error(`Lambda function failed after ${duration}ms:`, error)
+      throw error
+    }
 
   } catch (error) {
     console.error('Error in video compilation:', error)

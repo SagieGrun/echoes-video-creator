@@ -45,6 +45,12 @@ export default function FinalizePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [user, setUser] = useState<any>(null)
+  
+  // Enhanced loading states
+  const [loadingStep, setLoadingStep] = useState(0)
+  const [estimatedTime, setEstimatedTime] = useState(0)
+  const [startTime, setStartTime] = useState<number | null>(null)
+  const [remainingTime, setRemainingTime] = useState(0)
 
   // Load user's clips and music tracks
   useEffect(() => {
@@ -144,7 +150,7 @@ export default function FinalizePage() {
       // Load active music tracks
       const { data: musicData, error: musicError } = await supabase
         .from('music_tracks')
-        .select('id, name, file_url')
+        .select('id, name, file_url, file_path')
         .eq('is_active', true)
 
       if (musicError) throw musicError
@@ -254,6 +260,36 @@ export default function FinalizePage() {
     if (!user || !supabase) return
     
     setSaving(true)
+    setLoadingStep(0)
+    setStartTime(Date.now())
+    
+    // Estimate time based on number of clips (roughly 3-5 seconds per clip + base time)
+    const baseTime = 10 // base processing time
+    const timePerClip = 4 // seconds per clip
+    const estimatedSeconds = baseTime + (selectedClipIds.size * timePerClip)
+    setEstimatedTime(estimatedSeconds)
+    
+    // Progressive loading steps
+    const steps = [
+      'Preparing your clips...',
+      'Uploading to video processor...',
+      'Downloading and analyzing clips...',
+      'Applying transitions and effects...',
+      selectedMusicId ? 'Adding background music...' : 'Finalizing video...',
+      'Uploading final video...',
+      'Almost ready!'
+    ]
+    
+    // Progress through steps automatically
+    const stepInterval = setInterval(() => {
+      setLoadingStep(prev => {
+        if (prev < steps.length - 1) {
+          return prev + 1
+        }
+        return prev
+      })
+    }, Math.max(2000, estimatedSeconds * 1000 / steps.length)) // Distribute steps over estimated time
+    
     try {
       // Prepare selected clips with video file paths
       const selectedClips = clipOrder.map((clipId, index) => {
@@ -273,6 +309,7 @@ export default function FinalizePage() {
       const compilationData = {
         selectedClips,
         selectedMusic: selectedMusic ? {
+          id: selectedMusic.id,
           file_path: selectedMusic.file_path,
           volume: musicVolume
         } : null,
@@ -310,24 +347,40 @@ export default function FinalizePage() {
         alert('Lambda function not deployed yet. Check console for compilation payload.')
         console.log('Video compilation payload:', result.payload)
       } else {
-        alert('Video compilation started! You will be notified when it\'s ready.')
+        // Navigate to dashboard Final Videos tab instead of showing popup
+        router.push('/dashboard?tab=videos')
       }
-      
-      router.push('/dashboard')
       
     } catch (error) {
       console.error('Error compiling video:', error)
       alert('Error compiling video: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setSaving(false)
+      clearInterval(stepInterval)
+      setLoadingStep(0)
+      setStartTime(null)
+      setRemainingTime(0)
     }
   }
+
+  // Update remaining time every second during compilation
+  useEffect(() => {
+    if (!saving || !startTime) return
+
+    const timer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000)
+      const remaining = Math.max(0, estimatedTime - elapsed)
+      setRemainingTime(remaining)
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [saving, startTime, estimatedTime])
 
   if (loading || !supabase) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-100 via-orange-50 to-purple-50 flex items-center justify-center">
         <div className="text-center">
-          <LoadingSpinner size="lg" className="mb-4" />
+          <LoadingSpinner size="lg" className="mb-4 mx-auto" />
           <p className="text-gray-600">Loading your clips...</p>
         </div>
       </div>
@@ -558,13 +611,73 @@ export default function FinalizePage() {
                 <p className="text-purple-100 text-sm mb-4">
                   {selectedClipIds.size} clips selected
                 </p>
-                <button
-                  onClick={saveSettings}
-                  disabled={saving || selectedClipIds.size === 0}
-                  className="w-full bg-white text-purple-600 py-3 px-4 rounded-lg hover:bg-gray-50 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-medium"
-                >
-                  {saving ? 'Creating Video...' : 'Create Final Video'}
-                </button>
+                
+                {saving ? (
+                  <div className="space-y-4">
+                    {/* Progress Steps */}
+                    <div className="bg-white/10 rounded-lg p-4 border border-white/20">
+                      <div className="flex items-center justify-center mb-3">
+                        <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent mr-3 flex-shrink-0"></div>
+                        <span className="text-sm font-medium animate-pulse">
+                          {[
+                            'Preparing your clips...',
+                            'Uploading to video processor...',
+                            'Downloading and analyzing clips...',
+                            'Applying transitions and effects...',
+                            selectedMusicId ? 'Adding background music...' : 'Finalizing video...',
+                            'Uploading final video...',
+                            'Almost ready!'
+                          ][loadingStep] || 'Processing...'}
+                        </span>
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className="w-full bg-white/20 rounded-full h-2 mb-2 overflow-hidden">
+                        <div 
+                          className="bg-gradient-to-r from-white to-purple-200 h-2 rounded-full transition-all duration-1000 ease-out relative"
+                          style={{ 
+                            width: `${Math.min(95, (loadingStep + 1) / 7 * 100)}%` 
+                          }}
+                        >
+                          {/* Shimmer effect */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                        </div>
+                      </div>
+                      
+                      {/* Time Estimation */}
+                      <div className="flex justify-between text-xs text-purple-100">
+                        <span>Step {loadingStep + 1} of 7</span>
+                        <span className="font-mono">
+                          {startTime && remainingTime > 0 && (
+                            <>
+                              ~{remainingTime}s remaining
+                            </>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Reassuring Message */}
+                    <div className="text-xs text-purple-100 opacity-75 text-center">
+                      <div className="flex items-center justify-center mb-1">
+                        <div className="w-1 h-1 bg-purple-200 rounded-full animate-pulse mr-1"></div>
+                        <div className="w-1 h-1 bg-purple-200 rounded-full animate-pulse mr-1" style={{animationDelay: '0.2s'}}></div>
+                        <div className="w-1 h-1 bg-purple-200 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+                      </div>
+                      Your video is being compiled with {selectedClipIds.size} clips
+                      {selectedMusicId && ' and background music'}. 
+                      <br />You'll be redirected when ready!
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={saveSettings}
+                    disabled={selectedClipIds.size === 0}
+                    className="w-full bg-white text-purple-600 py-3 px-4 rounded-lg hover:bg-gray-50 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-medium"
+                  >
+                    Create Final Video
+                  </button>
+                )}
               </div>
             </div>
 

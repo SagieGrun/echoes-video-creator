@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useSmartLogin } from '@/hooks/useSmartLogin'
 
 export function Footer() {
@@ -11,14 +12,14 @@ export function Footer() {
         <div className="grid md:grid-cols-4 gap-8 mb-8">
           {/* Brand */}
           <div className="md:col-span-2">
-            <div className="flex items-center space-x-3 mb-4">
+            <Link href="/" className="flex items-center space-x-3 mb-4 w-fit">
               <img 
                 src="/echoes-logo.png" 
                 alt="Echoes Logo" 
                 className="h-8 w-8"
               />
-              <h3 className="text-2xl font-bold text-orange-900">ECHOES</h3>
-            </div>
+              <h3 className="text-2xl font-bold text-orange-900">echoes</h3>
+            </Link>
             <p className="text-rose-800 leading-relaxed">
               Bringing memories to life with AI-powered animation. 
               Transform your cherished photos into magical videos.

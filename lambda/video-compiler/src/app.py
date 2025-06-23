@@ -119,8 +119,19 @@ def lambda_handler(event, context):
             # Download music if provided
             music_file = None
             if music and music.get('file_path'):
+                logger.info(f"Music requested: {music}")
                 music_file = temp_path / "music.mp3"
-                download_from_supabase_storage(music['file_path'], music_file)
+                download_music_from_supabase_storage(music['file_path'], music_file)
+                
+                # Verify music file was downloaded
+                if music_file.exists():
+                    music_size = music_file.stat().st_size
+                    logger.info(f"Music file downloaded successfully: {music_size} bytes")
+                else:
+                    logger.error("Music file was not downloaded successfully")
+                    music_file = None
+            else:
+                logger.info("No music requested or no file_path provided")
             
             # Compile video
             output_file = temp_path / "final_video.mp4"
@@ -189,6 +200,30 @@ def download_from_supabase_storage(file_path: str, local_path: Path):
         logger.error(f"Failed to download {file_path}: {str(e)}")
         raise
 
+def download_music_from_supabase_storage(file_path: str, local_path: Path):
+    """Download music file from Supabase music-tracks storage bucket"""
+    try:
+        logger.info(f"Attempting to download music: {file_path}")
+        
+        # Get signed URL for download from music-tracks bucket
+        response = supabase.storage.from_('music-tracks').create_signed_url(file_path, 3600)  # 1 hour expiry
+        logger.info(f"Music signed URL response: {response}")
+        
+        if not response.get('signedURL'):
+            # Check if there's an error in the response
+            if 'error' in response:
+                raise Exception(f"Supabase music storage error for {file_path}: {response['error']}")
+            else:
+                raise Exception(f"Failed to get signed URL for music {file_path}: {response}")
+        
+        # Download music file
+        urllib.request.urlretrieve(response['signedURL'], local_path)
+        logger.info(f"Successfully downloaded music {file_path} to {local_path}")
+        
+    except Exception as e:
+        logger.error(f"Failed to download music {file_path}: {str(e)}")
+        raise
+
 def upload_to_supabase_storage(local_path: str, storage_path: str):
     """Upload file from local path to Supabase storage"""
     try:
@@ -213,6 +248,31 @@ def upload_to_supabase_storage(local_path: str, storage_path: str):
     except Exception as e:
         logger.error(f"Failed to upload to {storage_path}: {str(e)}")
         raise
+
+def get_video_duration(video_file: str) -> float:
+    """Get video duration in seconds using ffprobe"""
+    try:
+        cmd = [
+            './bin/ffprobe', 
+            '-v', 'quiet',
+            '-show_entries', 'format=duration',
+            '-of', 'csv=p=0',
+            video_file
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        
+        if result.returncode == 0 and result.stdout.strip():
+            duration = float(result.stdout.strip())
+            logger.info(f"Video duration for {video_file}: {duration} seconds")
+            return duration
+        else:
+            logger.warning(f"Could not get duration for {video_file}, defaulting to 5 seconds")
+            return 5.0  # Default duration for clips
+            
+    except Exception as e:
+        logger.warning(f"Error getting video duration: {str(e)}, defaulting to 5 seconds")
+        return 5.0
 
 def compile_video(clip_files: list, music_file: str, output_file: str, settings: dict, music_volume: float = 0.3):
     """Compile video using FFmpeg with transitions and music"""
@@ -309,17 +369,32 @@ def build_ffmpeg_command(clip_files: list, music_file: str, output_file: str,
     else:
         has_music = False
     
+    # Calculate total video duration for proper fade timing
+    if has_music:
+        if len(clip_files) == 1:
+            # Single clip duration
+            video_duration = get_video_duration(clip_files[0])
+        else:
+            # Multiple clips - sum their durations (approximation)
+            video_duration = sum(get_video_duration(clip) for clip in clip_files)
+        
+        # Calculate fade out start time (1 second before end, minimum at 1 second)
+        fade_out_start = max(1.0, video_duration - 1.0)
+    
     # Build filter complex for transitions
     if len(clip_files) == 1:
-        # Single clip - no transitions needed
+        # Single clip - need to process music with volume, fade, and duration
         if has_music:
-            # Video has no audio, just use music as audio track
+            # Apply volume control, fade in/out, and truncate music to video duration
+            # Fade in over 1 second, fade out over 1 second from calculated time
+            filter_complex = f'[1:a]atrim=duration={video_duration},volume={music_volume},afade=t=in:st=0:d=1,afade=t=out:st={fade_out_start}:d=1[outa]'
             cmd.extend([
+                '-filter_complex', filter_complex,
                 '-map', '0:v',  # Video from clip
-                '-map', '1:a',  # Audio from music
+                '-map', '[outa]',  # Processed audio from music
                 '-c:v', 'copy',
-                '-c:a', 'aac',
-                '-shortest'  # Stop when shortest stream ends
+                '-c:a', 'aac'
+                # Removed -shortest since we're explicitly controlling duration
             ])
         else:
             # Video-only clip, no audio needed
@@ -335,7 +410,9 @@ def build_ffmpeg_command(clip_files: list, music_file: str, output_file: str,
             transition_type=transition_type,
             transition_duration=transition_duration,
             has_music=has_music,
-            music_volume=music_volume
+            music_volume=music_volume,
+            fade_out_start=fade_out_start if has_music else 0,
+            video_duration=video_duration if has_music else 0
         )
         
         cmd.extend(['-filter_complex', filter_complex])
@@ -354,8 +431,9 @@ def build_ffmpeg_command(clip_files: list, music_file: str, output_file: str,
         '-fflags', '+genpts',  # Generate presentation timestamps
     ]
     
-    # Only add audio settings if we have audio
-    if has_music or len(clip_files) > 1:  # Multiple clips might have generated audio
+    # Add explicit duration control if we have music
+    if has_music:
+        video_settings.extend(['-t', str(video_duration)])  # Limit output duration
         video_settings.extend(['-c:a', 'aac', '-b:a', '128k'])
     
     cmd.extend(video_settings)
@@ -365,51 +443,53 @@ def build_ffmpeg_command(clip_files: list, music_file: str, output_file: str,
 
 
 def build_transition_filter(num_clips: int, transition_type: str, transition_duration: float, 
-                           has_music: bool, music_volume: float):
+                           has_music: bool, music_volume: float, fade_out_start: float = 10.0, video_duration: float = 0.0):
     """Build FFmpeg filter complex for video transitions"""
     
     if transition_type == 'fade':
-        return build_fade_transition_filter(num_clips, transition_duration, has_music, music_volume)
+        return build_fade_transition_filter(num_clips, transition_duration, has_music, music_volume, fade_out_start, video_duration)
     elif transition_type == 'crossfade':
-        return build_crossfade_transition_filter(num_clips, transition_duration, has_music, music_volume)
+        return build_crossfade_transition_filter(num_clips, transition_duration, has_music, music_volume, fade_out_start, video_duration)
     else:
         # Default to simple concatenation
-        return build_concat_filter(num_clips, has_music, music_volume)
+        return build_concat_filter(num_clips, has_music, music_volume, fade_out_start, video_duration)
 
 
-def build_fade_transition_filter(num_clips: int, transition_duration: float, has_music: bool, music_volume: float):
+def build_fade_transition_filter(num_clips: int, transition_duration: float, has_music: bool, music_volume: float, fade_out_start: float, video_duration: float):
     """Build filter for fade transitions between clips - simplified approach"""
     
     # For fade transitions, we'll use a simpler approach without complex timing
     # Just concatenate clips and let FFmpeg handle the basic transitions
-    return build_concat_filter(num_clips, has_music, music_volume)
+    return build_concat_filter(num_clips, has_music, music_volume, fade_out_start, video_duration)
 
 
-def build_crossfade_transition_filter(num_clips: int, transition_duration: float, has_music: bool, music_volume: float):
+def build_crossfade_transition_filter(num_clips: int, transition_duration: float, has_music: bool, music_volume: float, fade_out_start: float, video_duration: float):
     """Build filter for crossfade transitions between clips - simplified approach"""
     
     # Crossfade is complex to implement correctly with timing
     # For now, fall back to simple concatenation
     # TODO: Implement proper crossfade with duration calculations
-    return build_concat_filter(num_clips, has_music, music_volume)
+    return build_concat_filter(num_clips, has_music, music_volume, fade_out_start, video_duration)
 
 
-def build_concat_filter(num_clips: int, has_music: bool, music_volume: float):
+def build_concat_filter(num_clips: int, has_music: bool, music_volume: float, fade_out_start: float = 10.0, video_duration: float = 0.0):
     """Build simple concatenation filter for video-only clips"""
     
     # Since clips have no audio, only concatenate video streams
     video_inputs = ''.join([f'[{i}:v]' for i in range(num_clips)])
     
     # Video-only concatenation
-    concat_filter = f'{video_inputs}concat=n={num_clips}:v=1:a=0[concatv]'
+    concat_filter = f'{video_inputs}concat=n={num_clips}:v=1:a=0[outv]'
     
     if has_music:
-        # Add music as the audio track, adjust volume
-        music_filter = f'[{num_clips}:a]volume={music_volume}[outa]'
-        return f'{concat_filter};{music_filter};[concatv]copy[outv]'
+        # Add music as the audio track with volume control, duration trim, and fade in/out
+        # Music is always the last input (after all video clips)
+        # Trim to video duration, then apply volume and fades
+        music_filter = f'[{num_clips}:a]atrim=duration={video_duration},volume={music_volume},afade=t=in:st=0:d=1,afade=t=out:st={fade_out_start}:d=1[outa]'
+        return f'{concat_filter};{music_filter}'
     else:
         # No audio output
-        return f'{concat_filter};[concatv]copy[outv]'
+        return concat_filter
 
 
 def build_simple_fallback_command(clip_files: list, music_file: str, output_file: str, music_volume: float):
@@ -428,15 +508,23 @@ def build_simple_fallback_command(clip_files: list, music_file: str, output_file
     else:
         has_music = False
     
+    # Calculate fade out timing if we have music
+    if has_music:
+        if len(clip_files) == 1:
+            video_duration = get_video_duration(clip_files[0])
+        else:
+            video_duration = sum(get_video_duration(clip) for clip in clip_files)
+        fade_out_start = max(1.0, video_duration - 1.0)
+    
     if len(clip_files) == 1:
-        # Single clip - very simple (no audio in clips)
+        # Single clip - with audio processing for music
         if has_music:
             cmd.extend([
+                '-filter_complex', f'[1:a]atrim=duration={video_duration},volume={music_volume},afade=t=in:st=0:d=1,afade=t=out:st={fade_out_start}:d=1[outa]',
                 '-map', '0:v',  # Video from clip
-                '-map', '1:a',  # Audio from music
-                '-c:v', 'copy',
-                '-filter:a', f'volume={music_volume}',
-                '-shortest'
+                '-map', '[outa]',  # Processed audio from music
+                '-c:v', 'copy'
+                # Removed -shortest since we're explicitly controlling duration
             ])
         else:
             cmd.extend([
@@ -445,16 +533,20 @@ def build_simple_fallback_command(clip_files: list, music_file: str, output_file
                 '-an'  # No audio
             ])
     else:
-        # Multiple clips - video-only concatenation
+        # Multiple clips - video-only concatenation with music processing
         if has_music:
+            # Create video inputs for concatenation
+            video_inputs = ''.join([f'[{i}:v]' for i in range(len(clip_files))])
             cmd.extend([
                 '-filter_complex', 
-                f'concat=n={len(clip_files)}:v=1:a=0[v];[{len(clip_files)}:a]volume={music_volume}[a]',
+                f'{video_inputs}concat=n={len(clip_files)}:v=1:a=0[v];[{len(clip_files)}:a]atrim=duration={video_duration},volume={music_volume},afade=t=in:st=0:d=1,afade=t=out:st={fade_out_start}:d=1[a]',
                 '-map', '[v]', '-map', '[a]'
             ])
         else:
+            # Create video inputs for concatenation
+            video_inputs = ''.join([f'[{i}:v]' for i in range(len(clip_files))])
             cmd.extend([
-                '-filter_complex', f'concat=n={len(clip_files)}:v=1:a=0[v]',
+                '-filter_complex', f'{video_inputs}concat=n={len(clip_files)}:v=1:a=0[v]',
                 '-map', '[v]',
                 '-an'  # No audio
             ])
@@ -462,8 +554,9 @@ def build_simple_fallback_command(clip_files: list, music_file: str, output_file
     # Simple output settings
     output_settings = ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28']
     
-    # Only add audio codec if we have music
+    # Add duration control and audio codec if we have music
     if has_music:
+        output_settings.extend(['-t', str(video_duration)])  # Limit output duration
         output_settings.extend(['-c:a', 'aac', '-b:a', '96k'])
     
     cmd.extend(output_settings)
