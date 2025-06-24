@@ -50,6 +50,7 @@ def lambda_handler(event, context):
     Expected input:
     {
         "user_id": "uuid",
+        "video_id": "existing_video_id", // ID of the processing record to update
         "clips": [
             {
                 "id": "clip_id",
@@ -58,6 +59,7 @@ def lambda_handler(event, context):
             }
         ],
         "music": {
+            "id": "music_id",
             "file_path": "path/to/music.mp3",
             "volume": 0.5
         },
@@ -78,13 +80,24 @@ def lambda_handler(event, context):
         
         # Extract parameters
         user_id = body.get('user_id')
+        video_id = body.get('video_id')  # ID of existing processing record
         clips = body.get('clips', [])
         music = body.get('music', {})
         settings = body.get('settings', {})
         
-        logger.info(f"Request parameters: user_id={user_id}, clips_count={len(clips)}, music={music}, settings={settings}")
+        logger.info(f"Request parameters: user_id={user_id}, video_id={video_id}, clips_count={len(clips)}, music={music}, settings={settings}")
         
         if not user_id or not clips:
+            # Update status to failed if we have video_id
+            if video_id:
+                try:
+                    supabase.from_('final_videos').update({
+                        'status': 'failed',
+                        'error_message': 'Missing required parameters: user_id and clips'
+                    }).eq('id', video_id).execute()
+                except Exception as update_error:
+                    logger.error(f"Failed to update status to failed: {update_error}")
+            
             return {
                 'statusCode': 400,
                 'body': json.dumps({'error': 'Missing required parameters: user_id and clips'})
@@ -100,6 +113,16 @@ def lambda_handler(event, context):
                 logger.warning(f"Skipping clip {clip.get('id', 'unknown')} - no video_file_path")
         
         if not valid_clips:
+            # Update status to failed if we have video_id
+            if video_id:
+                try:
+                    supabase.from_('final_videos').update({
+                        'status': 'failed',
+                        'error_message': 'No clips with valid video_file_path found'
+                    }).eq('id', video_id).execute()
+                except Exception as update_error:
+                    logger.error(f"Failed to update status to failed: {update_error}")
+            
             return {
                 'statusCode': 400,
                 'body': json.dumps({'error': 'No clips with valid video_file_path found'})
@@ -147,30 +170,61 @@ def lambda_handler(event, context):
             final_video_path = f"final_videos/{user_id}/{context.aws_request_id}.mp4"
             upload_to_supabase_storage(str(output_file), final_video_path)
             
-            # Save record to database
-            final_video_record = {
-                'user_id': user_id,
-                'file_path': final_video_path,
-                'selected_clips': [clip['id'] for clip in valid_clips],
-                'music_track_id': music.get('id') if music and music.get('id') else None,
-                'transition_type': settings.get('transition_type', 'fade'),
-                'music_volume': music.get('volume', 0.3) if music else None,
-                'status': 'completed'
-            }
-            
-            result = supabase.table('final_videos').insert(final_video_record).execute()
-            
-            return {
-                'statusCode': 200,
-                'body': json.dumps({
-                    'message': 'Video compilation completed successfully',
-                    'video_id': result.data[0]['id'],
-                    'video_file_path': final_video_path
-                })
-            }
+            # Update existing record in database
+            if video_id:
+                # Update the existing processing record
+                update_data = {
+                    'file_path': final_video_path,
+                    'status': 'completed',
+                    'completed_at': 'now()'
+                }
+                
+                result = supabase.from_('final_videos').update(update_data).eq('id', video_id).execute()
+                
+                return {
+                    'statusCode': 200,
+                    'body': json.dumps({
+                        'message': 'Video compilation completed successfully',
+                        'video_id': video_id,
+                        'video_file_path': final_video_path
+                    })
+                }
+            else:
+                # Fallback: create new record (for backward compatibility)
+                final_video_record = {
+                    'user_id': user_id,
+                    'file_path': final_video_path,
+                    'selected_clips': [clip['id'] for clip in valid_clips],
+                    'music_track_id': music.get('id') if music and music.get('id') else None,
+                    'transition_type': settings.get('transition_type', 'fade'),
+                    'music_volume': music.get('volume', 0.3) if music else None,
+                    'status': 'completed'
+                }
+                
+                result = supabase.from_('final_videos').insert(final_video_record).execute()
+                
+                return {
+                    'statusCode': 200,
+                    'body': json.dumps({
+                        'message': 'Video compilation completed successfully',
+                        'video_id': 'new_record',  # Since we can't get ID without select
+                        'video_file_path': final_video_path
+                    })
+                }
             
     except Exception as e:
         logger.error(f"Error in video compilation: {str(e)}")
+        
+        # Update status to failed if we have video_id
+        if 'video_id' in locals() and video_id:
+            try:
+                supabase.from_('final_videos').update({
+                    'status': 'failed',
+                    'error_message': str(e)
+                }).eq('id', video_id).execute()
+            except Exception as update_error:
+                logger.error(f"Failed to update status to failed: {update_error}")
+        
         return {
             'statusCode': 500,
             'body': json.dumps({'error': f'Video compilation failed: {str(e)}'})
@@ -405,6 +459,9 @@ def build_ffmpeg_command(clip_files: list, music_file: str, output_file: str,
             ])
     else:
         # Multiple clips - add transitions
+        # Get individual clip durations for proper transition timing
+        clip_durations = [get_video_duration(clip) for clip in clip_files]
+        
         filter_complex = build_transition_filter(
             num_clips=len(clip_files),
             transition_type=transition_type,
@@ -412,7 +469,8 @@ def build_ffmpeg_command(clip_files: list, music_file: str, output_file: str,
             has_music=has_music,
             music_volume=music_volume,
             fade_out_start=fade_out_start if has_music else 0,
-            video_duration=video_duration if has_music else 0
+            video_duration=video_duration if has_music else 0,
+            clip_durations=clip_durations
         )
         
         cmd.extend(['-filter_complex', filter_complex])
@@ -421,11 +479,11 @@ def build_ffmpeg_command(clip_files: list, music_file: str, output_file: str,
         else:
             cmd.extend(['-map', '[outv]', '-an'])  # No audio output
     
-    # Output settings with error handling
+    # Output settings with high quality maintained
     video_settings = [
         '-c:v', 'libx264',
-        '-preset', 'fast',
-        '-crf', '23',
+        '-preset', 'fast',  # Good balance of speed and quality
+        '-crf', '23',  # High quality
         '-movflags', '+faststart',
         '-avoid_negative_ts', 'make_zero',  # Handle timing issues
         '-fflags', '+genpts',  # Generate presentation timestamps
@@ -443,33 +501,163 @@ def build_ffmpeg_command(clip_files: list, music_file: str, output_file: str,
 
 
 def build_transition_filter(num_clips: int, transition_type: str, transition_duration: float, 
-                           has_music: bool, music_volume: float, fade_out_start: float = 10.0, video_duration: float = 0.0):
+                           has_music: bool, music_volume: float, fade_out_start: float = 10.0, 
+                           video_duration: float = 0.0, clip_durations: list = None):
     """Build FFmpeg filter complex for video transitions"""
     
+    if clip_durations is None:
+        clip_durations = [5.0] * num_clips  # Default to 5 seconds per clip
+    
     if transition_type == 'fade':
-        return build_fade_transition_filter(num_clips, transition_duration, has_music, music_volume, fade_out_start, video_duration)
-    elif transition_type == 'crossfade':
-        return build_crossfade_transition_filter(num_clips, transition_duration, has_music, music_volume, fade_out_start, video_duration)
+        return build_fade_transition_filter(num_clips, transition_duration, has_music, music_volume, fade_out_start, video_duration, clip_durations)
+    elif transition_type == 'dissolve' or transition_type == 'crossfade':
+        return build_crossfade_transition_filter(num_clips, transition_duration, has_music, music_volume, fade_out_start, video_duration, clip_durations)
+    elif transition_type == 'slide':
+        return build_slide_transition_filter(num_clips, transition_duration, has_music, music_volume, fade_out_start, video_duration, clip_durations)
     else:
-        # Default to simple concatenation
+        # Default to simple cut (no transition)
         return build_concat_filter(num_clips, has_music, music_volume, fade_out_start, video_duration)
 
 
-def build_fade_transition_filter(num_clips: int, transition_duration: float, has_music: bool, music_volume: float, fade_out_start: float, video_duration: float):
-    """Build filter for fade transitions between clips - simplified approach"""
+def build_fade_transition_filter(num_clips: int, transition_duration: float, has_music: bool, music_volume: float, fade_out_start: float, video_duration: float, clip_durations: list):
+    """Build filter for fade-to-black transitions between clips"""
     
-    # For fade transitions, we'll use a simpler approach without complex timing
-    # Just concatenate clips and let FFmpeg handle the basic transitions
-    return build_concat_filter(num_clips, has_music, music_volume, fade_out_start, video_duration)
+    if num_clips < 2:
+        return build_concat_filter(num_clips, has_music, music_volume, fade_out_start, video_duration)
+    
+    # Build fade-to-black transitions between clips
+    # Each clip fades out to black, then next clip fades in from black
+    filter_parts = []
+    
+    # Process each clip with fade out (except last) and fade in (except first)
+    for i in range(num_clips):
+        clip_filter = f'[{i}:v]'
+        clip_duration = clip_durations[i]
+        fade_out_time = max(0, clip_duration - transition_duration)
+        
+        if i == 0:
+            # First clip: only fade out at the end
+            clip_filter += f'fade=t=out:st={fade_out_time}:d={transition_duration}'
+        elif i == num_clips - 1:
+            # Last clip: only fade in at the start
+            clip_filter += f'fade=t=in:st=0:d={transition_duration}'
+        else:
+            # Middle clips: fade in at start, fade out at end
+            clip_filter += f'fade=t=in:st=0:d={transition_duration},fade=t=out:st={fade_out_time}:d={transition_duration}'
+        
+        clip_filter += f'[v{i}]'
+        filter_parts.append(clip_filter)
+    
+    # Concatenate the processed clips
+    video_inputs = ''.join([f'[v{i}]' for i in range(num_clips)])
+    concat_filter = f'{video_inputs}concat=n={num_clips}:v=1:a=0[outv]'
+    filter_parts.append(concat_filter)
+    
+    if has_music:
+        # Add music processing
+        music_filter = f'[{num_clips}:a]atrim=duration={video_duration},volume={music_volume},afade=t=in:st=0:d=1,afade=t=out:st={fade_out_start}:d=1[outa]'
+        filter_parts.append(music_filter)
+    
+    return ';'.join(filter_parts)
 
 
-def build_crossfade_transition_filter(num_clips: int, transition_duration: float, has_music: bool, music_volume: float, fade_out_start: float, video_duration: float):
-    """Build filter for crossfade transitions between clips - simplified approach"""
+def build_crossfade_transition_filter(num_clips: int, transition_duration: float, has_music: bool, music_volume: float, fade_out_start: float, video_duration: float, clip_durations: list):
+    """Build filter for crossfade (dissolve) transitions between clips"""
     
-    # Crossfade is complex to implement correctly with timing
-    # For now, fall back to simple concatenation
-    # TODO: Implement proper crossfade with duration calculations
-    return build_concat_filter(num_clips, has_music, music_volume, fade_out_start, video_duration)
+    if num_clips < 2:
+        return build_concat_filter(num_clips, has_music, music_volume, fade_out_start, video_duration)
+    
+    # For crossfade, we need to overlap clips and blend them
+    # This is more complex but creates smooth dissolve transitions
+    filter_parts = []
+    
+    # First clip (no modification needed)
+    current_stream = '[0:v]'
+    
+    # Calculate cumulative offset for each transition
+    cumulative_offset = 0
+    
+    # Apply crossfade between each pair of clips
+    for i in range(1, num_clips):
+        # Calculate offset based on previous clip duration minus transition overlap
+        prev_clip_duration = clip_durations[i-1]
+        offset = cumulative_offset + prev_clip_duration - transition_duration
+        
+        # Create crossfade between current stream and next clip
+        crossfade_filter = f'{current_stream}[{i}:v]xfade=transition=fade:duration={transition_duration}:offset={offset}[v{i}]'
+        filter_parts.append(crossfade_filter)
+        current_stream = f'[v{i}]'
+        
+        # Update cumulative offset for next iteration
+        cumulative_offset = offset
+    
+    # The final stream is our output video
+    final_stream = current_stream.replace('[', '').replace(']', '')
+    if final_stream != f'v{num_clips-1}':
+        # If we only have 2 clips, rename the final stream
+        filter_parts.append(f'{current_stream}copy[outv]')
+    else:
+        # For multiple clips, the last xfade output is already our final video
+        filter_parts[-1] = filter_parts[-1].replace(f'[v{num_clips-1}]', '[outv]')
+    
+    if has_music:
+        # Add music processing
+        music_filter = f'[{num_clips}:a]atrim=duration={video_duration},volume={music_volume},afade=t=in:st=0:d=1,afade=t=out:st={fade_out_start}:d=1[outa]'
+        filter_parts.append(music_filter)
+    
+    return ';'.join(filter_parts)
+
+
+def build_slide_transition_filter(num_clips: int, transition_duration: float, has_music: bool, music_volume: float, fade_out_start: float, video_duration: float, clip_durations: list):
+    """Build filter for slide transitions between clips"""
+    
+    if num_clips < 2:
+        return build_concat_filter(num_clips, has_music, music_volume, fade_out_start, video_duration)
+    
+    # For slide transitions, we use xfade with slide effects
+    filter_parts = []
+    
+    # First clip (no modification needed)
+    current_stream = '[0:v]'
+    
+    # Apply slide transition between each pair of clips
+    # Alternate between different slide directions for variety
+    slide_directions = ['slideleft', 'slideright', 'slideup', 'slidedown']
+    
+    # Calculate cumulative offset for each transition
+    cumulative_offset = 0
+    
+    for i in range(1, num_clips):
+        # Choose slide direction (cycle through options)
+        direction = slide_directions[(i-1) % len(slide_directions)]
+        
+        # Calculate offset based on previous clip duration minus transition overlap
+        prev_clip_duration = clip_durations[i-1]
+        offset = cumulative_offset + prev_clip_duration - transition_duration
+        
+        # Create slide transition between current stream and next clip
+        slide_filter = f'{current_stream}[{i}:v]xfade=transition={direction}:duration={transition_duration}:offset={offset}[v{i}]'
+        filter_parts.append(slide_filter)
+        current_stream = f'[v{i}]'
+        
+        # Update cumulative offset for next iteration
+        cumulative_offset = offset
+    
+    # The final stream is our output video
+    final_stream = current_stream.replace('[', '').replace(']', '')
+    if final_stream != f'v{num_clips-1}':
+        # If we only have 2 clips, rename the final stream
+        filter_parts.append(f'{current_stream}copy[outv]')
+    else:
+        # For multiple clips, the last xfade output is already our final video
+        filter_parts[-1] = filter_parts[-1].replace(f'[v{num_clips-1}]', '[outv]')
+    
+    if has_music:
+        # Add music processing
+        music_filter = f'[{num_clips}:a]atrim=duration={video_duration},volume={music_volume},afade=t=in:st=0:d=1,afade=t=out:st={fade_out_start}:d=1[outa]'
+        filter_parts.append(music_filter)
+    
+    return ';'.join(filter_parts)
 
 
 def build_concat_filter(num_clips: int, has_music: bool, music_volume: float, fade_out_start: float = 10.0, video_duration: float = 0.0):
@@ -551,8 +739,8 @@ def build_simple_fallback_command(clip_files: list, music_file: str, output_file
                 '-an'  # No audio
             ])
     
-    # Simple output settings
-    output_settings = ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28']
+    # Simple output settings with quality maintained
+    output_settings = ['-c:v', 'libx264', '-preset', 'fast', '-crf', '23']
     
     # Add duration control and audio codec if we have music
     if has_music:

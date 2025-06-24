@@ -71,6 +71,8 @@ export default function FinalizePage() {
     if (!supabase) return
     
     try {
+      console.log('Loading finalize page data...')
+      
       // Get current user
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.user) {
@@ -78,14 +80,20 @@ export default function FinalizePage() {
         return
       }
       setUser(session.user)
+      console.log('User authenticated:', session.user.id)
 
       // Get all user's projects
+      console.log('Fetching user projects...')
       const { data: projects, error: projectsError } = await supabase
         .from('projects')
         .select('id')
         .eq('user_id', session.user.id)
 
-      if (projectsError) throw projectsError
+      if (projectsError) {
+        console.error('Error fetching projects:', projectsError)
+        throw projectsError
+      }
+      console.log('Found projects:', projects?.length || 0)
 
       if (!projects || projects.length === 0) {
         setClips([])
@@ -94,17 +102,22 @@ export default function FinalizePage() {
       }
 
       // Get all completed clips for user's projects
+      console.log('Fetching clips for projects...')
       const allClips: Clip[] = []
       for (const project of projects) {
+        console.log('Fetching clips for project:', project.id)
         const { data: projectClips, error: clipsError } = await supabase
           .from('clips')
           .select('id, image_url, image_file_path, video_url, video_file_path, status, created_at')
           .eq('project_id', project.id)
           .eq('status', 'completed')
-          .not('video_url', 'is', null)
+          .not('video_file_path', 'eq', null)
           .order('created_at', { ascending: false })
 
-        if (!clipsError && projectClips) {
+        if (clipsError) {
+          console.error('Error fetching clips for project', project.id, ':', clipsError)
+        } else if (projectClips) {
+          console.log('Found clips for project', project.id, ':', projectClips.length)
           // Generate fresh signed URLs for images and videos
           const clipsWithUrls = await Promise.all(
             projectClips.map(async (clip: any) => {
@@ -148,12 +161,17 @@ export default function FinalizePage() {
       }
 
       // Load active music tracks
+      console.log('Fetching music tracks...')
       const { data: musicData, error: musicError } = await supabase
         .from('music_tracks')
         .select('id, name, file_url, file_path')
         .eq('is_active', true)
 
-      if (musicError) throw musicError
+      if (musicError) {
+        console.error('Error fetching music tracks:', musicError)
+        throw musicError
+      }
+      console.log('Found music tracks:', musicData?.length || 0)
 
       setClips(allClips)
       setMusicTracks(musicData || [])
@@ -346,21 +364,111 @@ export default function FinalizePage() {
       if (result.mock) {
         alert('Lambda function not deployed yet. Check console for compilation payload.')
         console.log('Video compilation payload:', result.payload)
+        // Reset UI state for mock response
+        setSaving(false)
+        clearInterval(stepInterval)
+        setLoadingStep(0)
+        setStartTime(null)
+        setRemainingTime(0)
+      } else if (result.status === 'processing') {
+        // Start polling for completion status
+        console.log('Video compilation started, beginning status polling...')
+        clearInterval(stepInterval) // Stop step progression, polling will handle completion
+        await pollVideoStatus(result.video_id, session.access_token)
       } else {
-        // Navigate to dashboard Final Videos tab instead of showing popup
+        // Navigate to dashboard Final Videos tab
         router.push('/dashboard?tab=videos')
       }
       
     } catch (error) {
       console.error('Error compiling video:', error)
       alert('Error compiling video: ' + (error instanceof Error ? error.message : 'Unknown error'))
-    } finally {
+      
+      // Ensure UI state is reset on any error
       setSaving(false)
       clearInterval(stepInterval)
       setLoadingStep(0)
       setStartTime(null)
       setRemainingTime(0)
     }
+  }
+
+  // Poll video status until completion
+  const pollVideoStatus = async (videoId: string, initialAccessToken: string) => {
+    const maxAttempts = 60 // Poll for up to 5 minutes (60 * 5 seconds)
+    let attempts = 0
+    
+    const poll = async (): Promise<void> => {
+      try {
+        console.log(`Polling video status (attempt ${attempts + 1}/${maxAttempts})...`)
+        
+        // Get fresh session token for each request to avoid expiration
+        const { data: { session } } = await supabase.auth.getSession()
+        const currentAccessToken = session?.access_token || initialAccessToken
+        
+        const response = await fetch(`/api/compile/status?video_id=${videoId}`, {
+          headers: {
+            'Authorization': `Bearer ${currentAccessToken}`
+          }
+        })
+        
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('Status check failed:', response.status, errorText)
+          
+          // If it's an auth error, try to refresh the session
+          if (response.status === 401) {
+            console.log('Authentication failed, attempting to refresh session...')
+            const { data: { session: refreshedSession } } = await supabase.auth.getSession()
+            if (!refreshedSession) {
+              throw new Error('Session expired. Please refresh the page and try again.')
+            }
+          }
+          
+          throw new Error(`Failed to check video status: ${response.status} ${errorText}`)
+        }
+        
+        const status = await response.json()
+        console.log('Video status:', status)
+        
+        if (status.status === 'completed') {
+          // Video is ready, navigate to dashboard
+          console.log('Video compilation completed successfully!')
+          
+          // Reset UI state before navigation
+          setSaving(false)
+          setLoadingStep(0)
+          setStartTime(null)
+          setRemainingTime(0)
+          
+          router.push('/dashboard?tab=videos')
+          return
+        } else if (status.status === 'failed') {
+          throw new Error(status.error_message || 'Video compilation failed')
+        } else if (status.status === 'processing') {
+          // Still processing, continue polling
+          attempts++
+          if (attempts < maxAttempts) {
+            console.log(`Video still processing, will check again in 5 seconds...`)
+            setTimeout(poll, 5000) // Poll every 5 seconds
+          } else {
+            throw new Error('Video compilation timed out after 5 minutes')
+          }
+        }
+      } catch (error) {
+        console.error('Error polling video status:', error)
+        alert('Error checking video status: ' + (error instanceof Error ? error.message : 'Unknown error'))
+        
+        // 🚨 CRITICAL FIX: Reset UI state when polling fails
+        setSaving(false)
+        setLoadingStep(0)
+        setStartTime(null)
+        setRemainingTime(0)
+      }
+    }
+    
+    // Start polling
+    poll()
   }
 
   // Update remaining time every second during compilation

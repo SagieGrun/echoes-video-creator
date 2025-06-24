@@ -28,40 +28,63 @@ prompt_for_input() {
     eval "$var_name='$value'"
 }
 
-# Get Supabase credentials
-echo "📋 Please provide your Supabase credentials:"
-echo "   (You can find these in your Supabase project settings → API)"
-echo ""
+# Check if credentials already exist in AWS Parameter Store
+echo "🔍 Checking for existing credentials..."
 
-prompt_for_input "Supabase Project URL (e.g., https://abc123.supabase.co)" "SUPABASE_URL" "false"
-prompt_for_input "Supabase Service Role Key" "SUPABASE_SERVICE_ROLE_KEY" "true"
+EXISTING_URL=$(aws ssm get-parameter --name "/echoes/prod/supabase/url" --query "Parameter.Value" --output text 2>/dev/null || echo "")
+EXISTING_KEY=$(aws ssm get-parameter --name "/echoes/prod/supabase/service_role_key" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
 
-echo ""
-echo "🔐 Storing credentials in AWS Parameter Store..."
+if [ -n "$EXISTING_URL" ] && [ -n "$EXISTING_KEY" ]; then
+    echo "✅ Found existing credentials in AWS Parameter Store"
+    echo "   URL: $EXISTING_URL"
+    echo "   Key: [HIDDEN]"
+    echo ""
+    echo "💡 Using existing credentials. To update them, delete the parameters first:"
+    echo "   aws ssm delete-parameter --name '/echoes/prod/supabase/url'"
+    echo "   aws ssm delete-parameter --name '/echoes/prod/supabase/service_role_key'"
+else
+    echo "📋 No existing credentials found. Please provide your Supabase credentials:"
+    echo "   (You can find these in your Supabase project settings → API)"
+    echo ""
 
-# Store parameters in AWS Systems Manager
-aws ssm put-parameter \
-    --name "/echoes/prod/supabase/url" \
-    --value "$SUPABASE_URL" \
-    --type "String" \
-    --overwrite \
-    --description "Supabase project URL for Echoes video compilation"
+    prompt_for_input "Supabase Project URL (e.g., https://abc123.supabase.co)" "SUPABASE_URL" "false"
+    prompt_for_input "Supabase Service Role Key" "SUPABASE_SERVICE_ROLE_KEY" "true"
 
-aws ssm put-parameter \
-    --name "/echoes/prod/supabase/service_role_key" \
-    --value "$SUPABASE_SERVICE_ROLE_KEY" \
-    --type "SecureString" \
-    --overwrite \
-    --description "Supabase service role key for Echoes video compilation"
+    echo ""
+    echo "🔐 Storing credentials in AWS Parameter Store..."
 
-echo "✅ Credentials stored securely in AWS Parameter Store"
+    # Store parameters in AWS Systems Manager
+    aws ssm put-parameter \
+        --name "/echoes/prod/supabase/url" \
+        --value "$SUPABASE_URL" \
+        --type "String" \
+        --overwrite \
+        --description "Supabase project URL for Echoes video compilation"
+
+    aws ssm put-parameter \
+        --name "/echoes/prod/supabase/service_role_key" \
+        --value "$SUPABASE_SERVICE_ROLE_KEY" \
+        --type "SecureString" \
+        --overwrite \
+        --description "Supabase service role key for Echoes video compilation"
+
+    echo "✅ Credentials stored securely in AWS Parameter Store"
+fi
 
 # Build and deploy with SAM
 echo "📦 Building Lambda function..."
 sam build
 
 echo "🚀 Deploying to AWS..."
-sam deploy --guided
+
+# Check if samconfig.toml exists (indicates previous deployment)
+if [ -f "samconfig.toml" ]; then
+    echo "✅ Found existing SAM configuration, using previous settings..."
+    sam deploy
+else
+    echo "📋 First deployment detected, running guided setup..."
+    sam deploy --guided
+fi
 
 echo "✅ Deployment completed!"
 echo ""

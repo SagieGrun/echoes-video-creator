@@ -342,7 +342,7 @@ export default function Dashboard() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3">
               <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
                 <img 
                   src="/echoes-logo.png" 
@@ -548,37 +548,37 @@ export default function Dashboard() {
 
         {/* Completed Clips */}
             {completedClips.length > 0 ? (
-              <div>
+        <div>
                 {/* Create Final Video Section */}
                 <div className="mb-6 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-100">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
                         <Film className="h-5 w-5 text-purple-600" />
-                      </div>
-                      <div>
+            </div>
+                  <div>
                         <h3 className="font-semibold text-gray-900">Ready to Create Your Final Video?</h3>
                         <p className="text-sm text-gray-600">
                           Combine your clips with music and transitions to create a professional video compilation
                         </p>
                       </div>
-                    </div>
-                    <Link
-                      href="/finalize"
-                      className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors font-medium"
-                    >
-                      <Film className="h-4 w-4 mr-2" />
-                      Create Final Video
-                    </Link>
                   </div>
+                  <Link
+                    href="/finalize"
+                      className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors font-medium"
+                  >
+                      <Film className="h-4 w-4 mr-2" />
+                    Create Final Video
+                  </Link>
                 </div>
+              </div>
 
                 <h3 className="text-lg font-medium text-gray-700 mb-4">
                   Your Clip Library ({completedClips.length})
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {completedClips.map((clip, index) => (
-                    <div key={clip.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
+                  <div key={clip.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
                       <div className="aspect-square relative">
                         {clip.video_url ? (
                           <video
@@ -617,8 +617,8 @@ export default function Dashboard() {
                     </div>
                   ))}
                 </div>
-              </div>
-            ) : (
+                        </div>
+                      ) : (
               <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-gray-100">
                 <div className="text-gray-400 mb-4">
                   <ImageIcon className="h-16 w-16 mx-auto" />
@@ -634,7 +634,7 @@ export default function Dashboard() {
                   <Upload className="h-5 w-5 mr-2" />
                   Upload Photo
                 </button>
-              </div>
+                          </div>
             )}
                         </div>
                       )}
@@ -767,9 +767,9 @@ export default function Dashboard() {
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                               Final Video
                             </span>
-                          </div>
-                        </div>
-                        <div className="p-4">
+                      </div>
+                    </div>
+                    <div className="p-4">
                           <div className="mb-3">
                             <p className="text-sm font-medium text-gray-900">
                               {video.selected_clips?.length || 0} clips • {video.transition_type} transitions
