@@ -6,7 +6,8 @@ import { createSupabaseBrowserClient } from '@/lib/supabase'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { LoadingButton } from '@/components/ui/LoadingButton'
 import { ClipGeneration } from '@/components/generation/ClipGeneration'
-import { ArrowLeft, Download, Play, Calendar, Clock, Film, Upload, Plus, Image as ImageIcon, Sparkles, User, ChevronDown, LogOut, CreditCard, Zap, Eye, Timer } from 'lucide-react'
+import { VideoPlayer } from '@/components/ui/VideoPlayer'
+import { ArrowLeft, Download, Play, Calendar, Clock, Film, Upload, Plus, Image as ImageIcon, Sparkles, User, ChevronDown, LogOut, CreditCard, Zap, Eye, Timer, Trash2, X } from 'lucide-react'
 import Link from 'next/link'
 
 interface Clip {
@@ -53,10 +54,12 @@ export default function Dashboard() {
   const [finalVideos, setFinalVideos] = useState<FinalVideo[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<TabType>('create')
+  const [activeTab, setActiveTab] = useState<TabType>('clips')
   const [showUserDropdown, setShowUserDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const searchParams = useSearchParams()
+  const [deletingVideoId, setDeletingVideoId] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
 
   // Handle tab parameter from URL
   useEffect(() => {
@@ -81,15 +84,36 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        // Ensure we're on the client side
-        if (typeof window === 'undefined') return
+        setIsLoading(true)
+        setError(null)
         
         const supabase = createSupabaseBrowserClient()
-        const { data: { session } } = await supabase.auth.getSession()
         
-        if (!session?.user) {
-          setError('Please log in to view your dashboard')
-          return
+        // Get current session and refresh if needed
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        
+        if (sessionError) {
+          console.error('Session error:', sessionError)
+          throw new Error('Authentication failed')
+        }
+        
+        if (!session) {
+          throw new Error('Not authenticated')
+        }
+        
+        // Refresh session if it's close to expiring (within 5 minutes)
+        const now = Math.floor(Date.now() / 1000)
+        const expiresAt = session.expires_at || 0
+        const timeUntilExpiry = expiresAt - now
+        
+        if (timeUntilExpiry < 300) { // Less than 5 minutes
+          console.log('Refreshing session as it expires soon')
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
+          if (refreshError) {
+            console.error('Session refresh error:', refreshError)
+          } else if (refreshData.session) {
+            console.log('Session refreshed successfully')
+          }
         }
 
         // Fetch user profile
@@ -215,27 +239,84 @@ export default function Dashboard() {
           console.error('Error fetching final videos:', finalVideosError)
         } else {
           // Generate signed URLs for final videos
-                     const finalVideosWithUrls = await Promise.all(
-             (finalVideosData || []).map(async (video: any) => {
+          console.log('Final videos from database:', finalVideosData?.map((v: any) => ({
+            id: v.id,
+            status: v.status,
+            file_path: v.file_path,
+            created_at: v.created_at
+          })))
+          
+          const finalVideosWithUrls = await Promise.all(
+            (finalVideosData || []).map(async (video: any) => {
               let updatedVideo = { ...video }
               
               if (video.file_path && video.status === 'completed') {
                 try {
+                  console.log(`Generating signed URL for video ${video.id} with path: ${video.file_path}`)
+                  
+                  // First, verify the file exists in storage
+                  const { data: fileExists, error: listError } = await supabase.storage
+                    .from('final-videos')
+                    .list(video.file_path.split('/').slice(0, -1).join('/'), {
+                      search: video.file_path.split('/').pop()
+                    })
+                  
+                  if (listError) {
+                    console.error(`Error checking if file exists for video ${video.id}:`, listError)
+                  } else if (!fileExists || fileExists.length === 0) {
+                    console.error(`File not found in storage for video ${video.id}:`, video.file_path)
+                    return updatedVideo
+                  }
+                  
                   const { data: signedUrlData, error: urlError } = await supabase.storage
                     .from('final-videos')
                     .createSignedUrl(video.file_path, 3600) // 1 hour expiry
 
-                  if (!urlError && signedUrlData?.signedUrl) {
+                  if (urlError) {
+                    console.error(`Error generating signed URL for video ${video.id}:`, urlError)
+                    updatedVideo.file_url = null
+                  } else if (signedUrlData?.signedUrl) {
+                    console.log(`Successfully generated signed URL for video ${video.id}`)
                     updatedVideo.file_url = signedUrlData.signedUrl
+                    
+                    // Test if the URL is actually accessible
+                    try {
+                      const testResponse = await fetch(signedUrlData.signedUrl, { 
+                        method: 'HEAD',
+                        mode: 'cors'
+                      })
+                      console.log(`URL accessibility test for video ${video.id}:`, {
+                        status: testResponse.status,
+                        statusText: testResponse.statusText,
+                        headers: Object.fromEntries(testResponse.headers.entries())
+                      })
+                      
+                      if (!testResponse.ok) {
+                        console.error(`Signed URL not accessible for video ${video.id}: ${testResponse.status} ${testResponse.statusText}`)
+                      }
+                    } catch (testError) {
+                      console.error(`Failed to test URL accessibility for video ${video.id}:`, testError)
+                    }
+                  } else {
+                    console.error(`No signed URL returned for video ${video.id}`)
+                    updatedVideo.file_url = null
                   }
                 } catch (error) {
                   console.error('Error generating signed URL for final video:', video.id, error)
                 }
+              } else {
+                console.log(`Skipping signed URL for video ${video.id} - file_path: ${video.file_path}, status: ${video.status}`)
               }
               
               return updatedVideo
             })
           )
+          
+          console.log('Final videos with URLs:', finalVideosWithUrls.map(v => ({
+            id: v.id,
+            has_file_url: !!v.file_url,
+            file_url_preview: v.file_url?.substring(0, 100) + '...'
+          })))
           
           setFinalVideos(finalVideosWithUrls)
         }
@@ -328,12 +409,55 @@ export default function Dashboard() {
 
   // Helper function to create multi-image thumbnail for final videos
   const getClipImages = (video: FinalVideo) => {
-    if (!video.selected_clips || !Array.isArray(video.selected_clips)) return []
+    if (!video.selected_clips || !Array.isArray(video.selected_clips)) {
+      return []
+    }
     
     return video.selected_clips
       .map(clipId => clips.find(clip => clip.id === clipId))
-      .filter(clip => clip && clip.image_url)
-      .slice(0, 4) // Max 4 images for thumbnail
+      .filter(Boolean)
+  }
+
+  const handleDeleteVideo = async (videoId: string) => {
+    try {
+      setDeletingVideoId(videoId)
+      
+      const supabase = createSupabaseBrowserClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session?.access_token) {
+        throw new Error('Not authenticated')
+      }
+      
+      // Call the secure delete API endpoint with authorization header
+      const response = await fetch('/api/videos/delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ videoId }),
+      })
+      
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete video')
+      }
+      
+      console.log(`Successfully deleted video ${videoId}`)
+      
+      // Update the UI state directly instead of reloading the page
+      setFinalVideos(prevVideos => prevVideos.filter(video => video.id !== videoId))
+      setShowDeleteConfirm(null)
+      
+    } catch (error) {
+      console.error('Error deleting video:', error)
+      setError(error instanceof Error ? error.message : 'Failed to delete video')
+      setShowDeleteConfirm(null)
+    } finally {
+      setDeletingVideoId(null)
+    }
   }
 
   return (
@@ -705,58 +829,35 @@ export default function Dashboard() {
                     const clipImages = getClipImages(video)
                     return (
                       <div key={video.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
-                        <div id={`video-${video.id}`} className="aspect-video relative bg-gray-100 group">
-                          {clipImages.length > 0 ? (
-                            <>
-                              {/* Multi-image thumbnail grid */}
-                              <div className="w-full h-full grid grid-cols-2 gap-0.5 p-1">
-                                {clipImages.slice(0, 4).map((clip, idx) => (
-                                  <div key={idx} className="relative bg-gray-200 rounded-sm overflow-hidden">
-                                    <img
-                                      src={clip?.image_url || ''}
-                                      alt=""
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </div>
-                                ))}
-                                {clipImages.length < 4 && 
-                                  Array.from({ length: 4 - clipImages.length }).map((_, idx) => (
-                                    <div key={`empty-${idx}`} className="bg-gray-200 rounded-sm"></div>
-                                  ))
-                                }
-                              </div>
-                              
-                              {/* Play button overlay */}
-                              {video.file_url && (
-                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <button
-                                    onClick={() => {
-                                      const videoElement = document.createElement('video');
-                                      videoElement.src = video.file_url!;
-                                      videoElement.controls = true;
-                                      videoElement.className = 'w-full h-full object-cover';
-                                      videoElement.play();
-                                      
-                                      // Replace thumbnail with video
-                                      const container = document.getElementById(`video-${video.id}`);
-                                      if (container) {
-                                        container.innerHTML = '';
-                                        container.appendChild(videoElement);
-                                      }
-                                    }}
-                                    className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-colors"
-                                  >
-                                    <Play className="h-8 w-8 text-gray-800 ml-1" />
-                                  </button>
-                                </div>
-                              )}
-                            </>
-                          ) : video.file_url ? (
-                            <video
+                        <div className="aspect-video relative bg-gray-100">
+                          {video.file_url ? (
+                            <VideoPlayer
                               src={video.file_url}
-                              controls
-                              className="w-full h-full object-cover"
-                              preload="metadata"
+                              className="aspect-video"
+                              thumbnailContent={
+                                clipImages.length > 0 ? (
+                                  <div className="w-full h-full grid grid-cols-2 gap-0.5 p-1">
+                                    {clipImages.slice(0, 4).map((clip, idx) => (
+                                      <div key={idx} className="relative bg-gray-200 rounded-sm overflow-hidden">
+                                        <img
+                                          src={clip?.image_url || ''}
+                                          alt=""
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                    ))}
+                                    {clipImages.length < 4 && 
+                                      Array.from({ length: 4 - clipImages.length }).map((_, idx) => (
+                                        <div key={`empty-${idx}`} className="bg-gray-200 rounded-sm"></div>
+                                      ))
+                                    }
+                                  </div>
+                                ) : (
+                                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                                    <Film className="h-12 w-12 text-gray-400" />
+                                  </div>
+                                )
+                              }
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
@@ -810,6 +911,16 @@ export default function Dashboard() {
                         >
                           Share
                         </LoadingButton>
+                        <LoadingButton
+                          onClick={() => setShowDeleteConfirm(video.id)}
+                          variant="secondary"
+                          size="sm"
+                          className="px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          disabled={deletingVideoId === video.id}
+                          loading={deletingVideoId === video.id}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </LoadingButton>
                       </div>
                     </div>
                   </div>
@@ -847,6 +958,54 @@ export default function Dashboard() {
         </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Delete Final Video</h3>
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-600">
+                Are you sure you want to delete this final video? This action cannot be undone.
+              </p>
+              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">
+                  <strong>Warning:</strong> This will permanently remove the video from your account and storage.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                disabled={deletingVideoId === showDeleteConfirm}
+              >
+                Cancel
+              </button>
+              <LoadingButton
+                onClick={() => handleDeleteVideo(showDeleteConfirm)}
+                variant="secondary"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white"
+                disabled={deletingVideoId === showDeleteConfirm}
+                loading={deletingVideoId === showDeleteConfirm}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Video
+              </LoadingButton>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 
