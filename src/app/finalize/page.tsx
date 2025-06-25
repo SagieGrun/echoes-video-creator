@@ -284,8 +284,8 @@ export default function FinalizePage() {
     
     // Calculate expected duration based on clip count
     const clipCount = selectedClipIds.size
-    const secondsPerClip = 3.8 // Based on real performance data
-    const baseOverhead = 5 // Base processing time
+    const secondsPerClip = 6 // Based on real performance data: 2 clips=19s, 5 clips=37s
+    const baseOverhead = 7 // Base processing time
     const calculatedDuration = baseOverhead + (clipCount * secondsPerClip)
     setExpectedDuration(calculatedDuration)
     
@@ -744,11 +744,11 @@ export default function FinalizePage() {
                             width: (() => {
                               if (!expectedDuration || !startTime) return '5%'
                               const progressPercent = Math.min((elapsedTime / expectedDuration) * 100, 95)
-                              // Use phase-based minimums
+                              // Use phase-based minimums, but cap at 95% to prevent >100%
                               if (currentPhase === 'starting') return Math.max(progressPercent, 5) + '%'
                               if (currentPhase === 'processing') return Math.max(progressPercent, 20) + '%'
                               if (currentPhase === 'finishing') return Math.max(progressPercent, 75) + '%'
-                              return progressPercent + '%'
+                              return Math.min(progressPercent, 95) + '%'  // Hard cap at 95%
                             })()
                           }}
                         >
@@ -767,7 +767,7 @@ export default function FinalizePage() {
                         <span className="font-mono">
                           {elapsedTime}s elapsed
                           {expectedDuration > 0 && (
-                            ` • ${Math.round((elapsedTime / expectedDuration) * 100)}%`
+                            ` • ${Math.min(Math.round((elapsedTime / expectedDuration) * 100), 95)}%`
                           )}
                         </span>
                       </div>
