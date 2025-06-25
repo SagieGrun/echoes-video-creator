@@ -9,6 +9,90 @@ declare const Deno: {
   }
 }
 
+// Gen-4 Turbo supported aspect ratios from Runway documentation
+const SUPPORTED_RATIOS = {
+  // Landscape
+  'landscape_hd': { width: 1280, height: 720, ratio: '1280:720' },
+  'landscape_wide': { width: 1584, height: 672, ratio: '1584:672' },
+  'landscape_cinematic': { width: 1104, height: 832, ratio: '1104:832' },
+  // Portrait  
+  'portrait_hd': { width: 720, height: 1280, ratio: '720:1280' },
+  'portrait_tall': { width: 832, height: 1104, ratio: '832:1104' },
+  // Square
+  'square': { width: 960, height: 960, ratio: '960:960' }
+} as const
+
+type SupportedRatio = keyof typeof SUPPORTED_RATIOS
+type RunwayRatio = '1280:720' | '1584:672' | '1104:832' | '720:1280' | '832:1104' | '960:960'
+
+/**
+ * Analyze image from URL to get dimensions and aspect ratio
+ */
+async function analyzeImageFromUrl(imageUrl: string): Promise<{ width: number; height: number; aspectRatio: number }> {
+  try {
+    // Fetch the image
+    const response = await fetch(imageUrl)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.status}`)
+    }
+    
+    const imageBuffer = await response.arrayBuffer()
+    const uint8Array = new Uint8Array(imageBuffer)
+    
+    // Simple image dimension detection for JPEG and PNG
+    let width = 0
+    let height = 0
+    
+    // Check if it's a JPEG
+    if (uint8Array[0] === 0xFF && uint8Array[1] === 0xD8) {
+      // JPEG format
+      for (let i = 2; i < uint8Array.length - 4; i++) {
+        if (uint8Array[i] === 0xFF && uint8Array[i + 1] === 0xC0) {
+          height = (uint8Array[i + 5] << 8) | uint8Array[i + 6]
+          width = (uint8Array[i + 7] << 8) | uint8Array[i + 8]
+          break
+        }
+      }
+    }
+    // Check if it's a PNG
+    else if (uint8Array[0] === 0x89 && uint8Array[1] === 0x50 && uint8Array[2] === 0x4E && uint8Array[3] === 0x47) {
+      // PNG format - dimensions are at bytes 16-23
+      width = (uint8Array[16] << 24) | (uint8Array[17] << 16) | (uint8Array[18] << 8) | uint8Array[19]
+      height = (uint8Array[20] << 24) | (uint8Array[21] << 16) | (uint8Array[22] << 8) | uint8Array[23]
+    }
+    
+    if (width === 0 || height === 0) {
+      throw new Error('Could not determine image dimensions')
+    }
+    
+    return {
+      width,
+      height,
+      aspectRatio: width / height
+    }
+  } catch (error) {
+    console.error('Error analyzing image:', error)
+    throw new Error(`Failed to analyze image: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
+}
+
+/**
+ * Find the best matching Runway ratio for the given aspect ratio
+ */
+function findBestRatio(aspectRatio: number): RunwayRatio {
+  const ratios = Object.entries(SUPPORTED_RATIOS).map(([key, value]) => ({
+    key: key as SupportedRatio,
+    ratio: value.ratio as RunwayRatio,
+    targetRatio: value.width / value.height,
+    difference: Math.abs(aspectRatio - (value.width / value.height))
+  }))
+
+  // Sort by smallest difference to find closest match
+  ratios.sort((a, b) => a.difference - b.difference)
+  
+  return ratios[0].ratio
+}
+
 interface GenerateVideoParams {
   image_url: string
   prompt: string
@@ -58,19 +142,42 @@ class RunwayService {
     try {
       console.log(`[${requestId}] Starting Runway Gen-4 Turbo generation`)
 
-      // ✅ CORRECT: Use exact API format from documentation
+      // Step 1: Analyze image to determine optimal aspect ratio
+      console.log(`[${requestId}] Step 1: Analyzing image dimensions`)
+      let optimalRatio: RunwayRatio = '1280:720' // Default fallback
+      
+      try {
+        const imageAnalysis = await analyzeImageFromUrl(image_url)
+        optimalRatio = findBestRatio(imageAnalysis.aspectRatio)
+        
+        console.log(`[${requestId}] Image analysis complete:`, {
+          width: imageAnalysis.width,
+          height: imageAnalysis.height,
+          aspectRatio: imageAnalysis.aspectRatio.toFixed(3),
+          optimalRatio,
+          orientation: imageAnalysis.aspectRatio > 1 ? 'landscape' : imageAnalysis.aspectRatio < 1 ? 'portrait' : 'square'
+        })
+      } catch (analysisError) {
+        console.warn(`[${requestId}] Image analysis failed, using default landscape ratio:`, analysisError)
+        // Continue with default ratio
+      }
+
+      // Step 2: Prepare API request with optimal ratio
       const requestBody = {
         model: 'gen4_turbo',
         promptImage: image_url, // Direct URL - no processing needed
         promptText: prompt,
-        ratio: '1280:720', // Default to 16:9 landscape
+        ratio: optimalRatio, // Use detected optimal ratio
         duration: 5 // Gen-4 Turbo supports 5s or 10s
       }
 
-      console.log(`[${requestId}] API Request:`, {
+      console.log(`[${requestId}] Step 3: Submitting to Runway API with optimal ratio:`, {
         url: `${this.baseUrl}/image_to_video`,
         body: {
-          ...requestBody,
+          model: requestBody.model,
+          promptText: requestBody.promptText.substring(0, 100) + (requestBody.promptText.length > 100 ? '...' : ''),
+          ratio: requestBody.ratio,
+          duration: requestBody.duration,
           promptImage: requestBody.promptImage.substring(0, 100) + '...' // Truncate for logging
         },
         headers: {
