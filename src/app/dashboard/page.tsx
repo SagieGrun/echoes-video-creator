@@ -7,6 +7,8 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { LoadingButton } from '@/components/ui/LoadingButton'
 import { ClipGeneration } from '@/components/generation/ClipGeneration'
 import { VideoPlayer } from '@/components/ui/VideoPlayer'
+import { OptimizedImage } from '@/components/ui/OptimizedImage'
+import { generateClipUrls, generateVideoUrls } from '@/lib/storage-optimizer'
 import { ArrowLeft, Download, Play, Calendar, Clock, Film, Upload, Plus, Image as ImageIcon, Sparkles, User, ChevronDown, LogOut, CreditCard, Zap, Eye, Timer, Trash2, X } from 'lucide-react'
 import Link from 'next/link'
 
@@ -175,51 +177,21 @@ export default function Dashboard() {
           }
         }
 
-        // Sort all clips by creation date and generate fresh signed URLs for images
+        // Sort all clips by creation date
         allClips.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         
-        // Generate fresh signed URLs for images and videos using file paths
-        const clipsWithFreshUrls = await Promise.all(
-          allClips.map(async (clip) => {
-            let updatedClip = { ...clip, image_url: '' }
-
-            // Generate fresh signed URL for image
-            if (clip.image_file_path) {
-              try {
-                const { data: signedUrlData, error: urlError } = await supabase.storage
-                  .from('private-photos')
-                  .createSignedUrl(clip.image_file_path, 3600) // 1 hour expiry
-
-                if (urlError) throw urlError
-
-                if (signedUrlData?.signedUrl) {
-                  updatedClip.image_url = signedUrlData.signedUrl
-                }
-              } catch (error) {
-                console.error('Error generating signed URL for image:', clip.id, error)
-              }
-            }
-
-            // Generate fresh signed URL for video if we have a file path
-            if (clip.video_file_path) {
-              try {
-                const { data: videoSignedUrlData, error: videoUrlError } = await supabase.storage
-                  .from('private-photos')
-                  .createSignedUrl(clip.video_file_path, 3600) // 1 hour expiry
-
-                if (videoUrlError) throw videoUrlError
-
-                if (videoSignedUrlData?.signedUrl) {
-                  updatedClip.video_url = videoSignedUrlData.signedUrl
-                }
-              } catch (error) {
-                console.error('Error generating signed URL for video:', clip.id, error)
-              }
-            }
-
-            return updatedClip
-          })
-        )
+        // Generate fresh signed URLs using optimized batch approach
+        const clipUrls = await generateClipUrls(allClips)
+        
+        // Merge URLs back into clips
+        const clipsWithFreshUrls = allClips.map((clip) => {
+          const urlData = clipUrls.find(u => u.id === clip.id)
+          return {
+            ...clip,
+            image_url: urlData?.image_url || '',
+            video_url: urlData?.video_url || null
+          }
+        })
         
         console.log('Dashboard clips with fresh URLs:', clipsWithFreshUrls.map(clip => ({
           id: clip.id,
@@ -240,7 +212,7 @@ export default function Dashboard() {
         if (finalVideosError) {
           console.error('Error fetching final videos:', finalVideosError)
         } else {
-          // Generate signed URLs for final videos
+          // Generate signed URLs for final videos using optimized batch approach
           console.log('Final videos from database:', finalVideosData?.map((v: any) => ({
             id: v.id,
             status: v.status,
@@ -248,73 +220,26 @@ export default function Dashboard() {
             created_at: v.created_at
           })))
           
-          const finalVideosWithUrls = await Promise.all(
-            (finalVideosData || []).map(async (video: any) => {
-              let updatedVideo = { ...video }
-              
-              if (video.file_path && video.status === 'completed') {
-                try {
-                  console.log(`Generating signed URL for video ${video.id} with path: ${video.file_path}`)
-                  
-                  // First, verify the file exists in storage
-                  const { data: fileExists, error: listError } = await supabase.storage
-                    .from('final-videos')
-                    .list(video.file_path.split('/').slice(0, -1).join('/'), {
-                      search: video.file_path.split('/').pop()
-                    })
-                  
-                  if (listError) {
-                    console.error(`Error checking if file exists for video ${video.id}:`, listError)
-                  } else if (!fileExists || fileExists.length === 0) {
-                    console.error(`File not found in storage for video ${video.id}:`, video.file_path)
-                    return updatedVideo
-                  }
-                  
-                  const { data: signedUrlData, error: urlError } = await supabase.storage
-                    .from('final-videos')
-                    .createSignedUrl(video.file_path, 3600) // 1 hour expiry
-
-                  if (urlError) {
-                    console.error(`Error generating signed URL for video ${video.id}:`, urlError)
-                    updatedVideo.file_url = null
-                  } else if (signedUrlData?.signedUrl) {
-                    console.log(`Successfully generated signed URL for video ${video.id}`)
-                    updatedVideo.file_url = signedUrlData.signedUrl
-                    
-                    // Test if the URL is actually accessible
-                    try {
-                      const testResponse = await fetch(signedUrlData.signedUrl, { 
-                        method: 'HEAD',
-                        mode: 'cors'
-                      })
-                      console.log(`URL accessibility test for video ${video.id}:`, {
-                        status: testResponse.status,
-                        statusText: testResponse.statusText,
-                        headers: Object.fromEntries(testResponse.headers.entries())
-                      })
-                      
-                      if (!testResponse.ok) {
-                        console.error(`Signed URL not accessible for video ${video.id}: ${testResponse.status} ${testResponse.statusText}`)
-                      }
-                    } catch (testError) {
-                      console.error(`Failed to test URL accessibility for video ${video.id}:`, testError)
-                    }
-                  } else {
-                    console.error(`No signed URL returned for video ${video.id}`)
-                    updatedVideo.file_url = null
-                  }
-                } catch (error) {
-                  console.error('Error generating signed URL for final video:', video.id, error)
-                }
-              } else {
-                console.log(`Skipping signed URL for video ${video.id} - file_path: ${video.file_path}, status: ${video.status}`)
-              }
-              
-              return updatedVideo
-            })
+          // Filter videos that need signed URLs
+          const videosNeedingUrls = (finalVideosData || []).filter(
+            (video: any) => video.file_path && video.status === 'completed'
           )
           
-          console.log('Final videos with URLs:', finalVideosWithUrls.map(v => ({
+          // Generate URLs in batch
+          const videoUrls = videosNeedingUrls.length > 0 
+            ? await generateVideoUrls(videosNeedingUrls)
+            : []
+          
+          // Merge URLs back into videos
+          const finalVideosWithUrls = (finalVideosData || []).map((video: any) => {
+            const urlData = videoUrls.find(u => u.id === video.id)
+            return {
+              ...video,
+              file_url: urlData?.file_url || null
+            }
+          })
+          
+          console.log('Final videos with URLs:', finalVideosWithUrls.map((v: any) => ({
             id: v.id,
             has_file_url: !!v.file_url,
             file_url_preview: v.file_url?.substring(0, 100) + '...'
@@ -620,7 +545,7 @@ export default function Dashboard() {
           <div className="space-y-8">
             {/* Embedded Create Page Content */}
             <div className="max-w-2xl mx-auto">
-              <div className="bg-white rounded-2xl shadow-xl p-6">
+              <div className="bg-gradient-to-br from-orange-50 via-orange-25 to-purple-50 rounded-2xl shadow-xl p-6 border border-orange-100">
                 <div className="flex items-center justify-center mb-4">
                   <Link href="/" className="flex items-center mr-2 hover:opacity-80 transition-opacity">
                     <img 
@@ -630,11 +555,11 @@ export default function Dashboard() {
                     />
                   </Link>
                   <Sparkles className="h-6 w-6 text-orange-500 mr-2" />
-                  <h2 className="text-2xl font-bold text-gray-900">
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-purple-600 bg-clip-text text-transparent">
                     Create Your Video Clip
                   </h2>
                 </div>
-                <p className="text-center text-gray-600 mb-6">
+                <p className="text-center text-gray-700 mb-6">
                   Transform your photo into a cinematic moment. Your first clip is free!
                 </p>
                 
@@ -642,44 +567,44 @@ export default function Dashboard() {
               </div>
 
               {/* Improved Tips Section */}
-              <div className="mt-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div className="mt-8 bg-gradient-to-br from-orange-50 via-purple-25 to-purple-50 rounded-2xl shadow-sm border border-orange-100 p-6">
                 <div className="text-center mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  <h3 className="text-lg font-semibold bg-gradient-to-r from-orange-600 to-purple-600 bg-clip-text text-transparent mb-2">
                     💡 Quick Tips for Best Results
                   </h3>
                   <p className="text-sm text-gray-600">Follow these guidelines to create amazing video clips</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-start space-x-3 p-4 bg-blue-50 rounded-lg">
-                    <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Eye className="h-4 w-4 text-blue-600" />
+                  <div className="flex items-start space-x-3 p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg border border-orange-200">
+                    <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-500 rounded-full flex items-center justify-center">
+                      <Eye className="h-4 w-4 text-white" />
                     </div>
                     <div>
                       <h4 className="font-medium text-gray-900 mb-1">High-Quality Photos</h4>
                       <p className="text-sm text-gray-600">Use clear, well-lit images for best results</p>
                     </div>
                   </div>
-                  <div className="flex items-start space-x-3 p-4 bg-orange-50 rounded-lg">
-                    <div className="flex-shrink-0 w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                      <Timer className="h-4 w-4 text-orange-600" />
+                  <div className="flex items-start space-x-3 p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200">
+                    <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-500 rounded-full flex items-center justify-center">
+                      <Timer className="h-4 w-4 text-white" />
                     </div>
                     <div>
                       <h4 className="font-medium text-gray-900 mb-1">~30 Second Generation</h4>
                       <p className="text-sm text-gray-600">AI processing takes about 30 seconds</p>
                     </div>
                   </div>
-                  <div className="flex items-start space-x-3 p-4 bg-purple-50 rounded-lg">
-                    <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                      <Zap className="h-4 w-4 text-purple-600" />
+                  <div className="flex items-start space-x-3 p-4 bg-gradient-to-br from-orange-50 via-orange-100 to-purple-100 rounded-lg border border-orange-200">
+                    <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-orange-500 to-purple-500 rounded-full flex items-center justify-center">
+                      <Zap className="h-4 w-4 text-white" />
                     </div>
                     <div>
                       <h4 className="font-medium text-gray-900 mb-1">1 Credit Per Clip</h4>
                       <p className="text-sm text-gray-600">Each generation uses one credit</p>
                     </div>
                   </div>
-                  <div className="flex items-start space-x-3 p-4 bg-green-50 rounded-lg">
-                    <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                      <CreditCard className="h-4 w-4 text-green-600" />
+                  <div className="flex items-start space-x-3 p-4 bg-gradient-to-br from-purple-50 via-purple-100 to-orange-100 rounded-lg border border-purple-200">
+                    <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-purple-500 to-orange-500 rounded-full flex items-center justify-center">
+                      <CreditCard className="h-4 w-4 text-white" />
                     </div>
                     <div>
                       <h4 className="font-medium text-gray-900 mb-1">First Clip Free</h4>
@@ -704,10 +629,11 @@ export default function Dashboard() {
                       <div className="aspect-square bg-gradient-to-br from-blue-100 to-orange-100 flex items-center justify-center relative">
                     {clip.image_url ? (
                       <>
-                        <img
+                        <OptimizedImage
                           src={clip.image_url}
                           alt=""
-                          className="w-full h-full object-cover"
+                          className="w-full h-full"
+                          fallbackIcon={<ImageIcon className="h-8 w-8" />}
                         />
                         <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                           <div className="text-center">
@@ -773,23 +699,27 @@ export default function Dashboard() {
                   <div key={clip.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
                       <div className="aspect-square relative">
                         {clip.video_url ? (
-                          <video
+                          <VideoPlayer
                             src={clip.video_url}
                             poster={clip.image_url || undefined}
-                            controls
-                            className="w-full h-full object-cover"
+                            showControls={true}
+                            className="w-full h-full"
                             preload="metadata"
-                          />
-                        ) : clip.image_url ? (
-                          <img
-                            src={clip.image_url}
-                            alt={`Clip ${index + 1}`}
-                            className="w-full h-full object-cover"
+                            aspectRatio="1/1"
+                            width={300}
+                            height={300}
                           />
                         ) : (
-                          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                            <ImageIcon className="h-8 w-8 text-gray-400" />
-                          </div>
+                          <OptimizedImage
+                            src={clip.image_url}
+                            alt={`Clip ${index + 1}`}
+                            className="w-full h-full"
+                            fallbackIcon={<ImageIcon className="h-8 w-8" />}
+                            priority={index < 4} // Prioritize first 4 clips for above-the-fold loading
+                            aspectRatio="1/1"
+                            width={300}
+                            height={300}
+                          />
                         )}
                         <div className="absolute top-2 left-2">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -915,6 +845,10 @@ export default function Dashboard() {
                               src={video.file_url}
                               className="aspect-video"
                               thumbnailWithControls={true}
+                              preload="metadata"
+                              aspectRatio="16/9"
+                              width={400}
+                              height={225}
                               thumbnailContent={
                                 clipImages.length > 0 ? (
                                   <div className="w-full h-full grid grid-cols-2 gap-0.5 p-1">
@@ -922,21 +856,18 @@ export default function Dashboard() {
                                       const clip = clipImages[idx]
                                       return (
                                         <div key={idx} className="relative bg-gray-200 rounded-sm overflow-hidden">
-                                          {clip?.image_url ? (
-                                            <img
-                                              src={clip.image_url}
-                                              alt=""
-                                              className="w-full h-full object-cover"
-                                              onError={(e) => {
-                                                console.log(`Failed to load image for clip ${clip.id}:`, clip.image_url)
-                                                e.currentTarget.style.display = 'none'
-                                              }}
-                                            />
-                                          ) : (
-                                            <div className="w-full h-full bg-gray-300 flex items-center justify-center">
-                                              <Film className="h-3 w-3 text-gray-500" />
-                                            </div>
-                                          )}
+                                          <OptimizedImage
+                                            src={clip?.image_url}
+                                            alt=""
+                                            className="w-full h-full"
+                                            fallbackIcon={<Film className="h-3 w-3" />}
+                                            aspectRatio="1/1"
+                                            width={100}
+                                            height={100}
+                                            onError={() => {
+                                              console.log(`Failed to load image for clip ${clip?.id}:`, clip?.image_url)
+                                            }}
+                                          />
                                         </div>
                                       )
                                     })}

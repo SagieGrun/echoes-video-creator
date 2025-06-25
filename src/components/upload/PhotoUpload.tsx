@@ -57,8 +57,8 @@ export function PhotoUpload({
           border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer
           transition-all duration-200
           ${isDragActive 
-            ? 'border-coral-400 bg-coral-50' 
-            : 'border-rose-200 hover:border-rose-300'
+            ? 'border-orange-400 bg-gradient-to-br from-orange-50 to-purple-50' 
+            : 'border-orange-200 hover:border-orange-300'
           }
         `}
       >
@@ -80,7 +80,7 @@ export function PhotoUpload({
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="text-rose-600">
+            <div className="text-orange-600">
               <p className="text-lg font-medium">
                 {isDragActive ? 'Drop your photo here' : 'Drag and drop your photo here'}
               </p>
@@ -88,11 +88,11 @@ export function PhotoUpload({
             </div>
             <button
               type="button"
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-gradient-to-r from-coral-400 to-rose-300 hover:from-coral-500 hover:to-rose-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-coral-500 transition-all duration-300 transform hover:scale-105"
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-gradient-to-r from-orange-500 to-purple-500 hover:from-orange-600 hover:to-purple-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-all duration-300 transform hover:scale-105"
             >
               Choose a file
             </button>
-            <p className="text-xs text-rose-500">
+            <p className="text-xs text-orange-500">
               Supported formats: JPG, PNG (max {maxSize / 1024 / 1024}MB)
             </p>
           </div>

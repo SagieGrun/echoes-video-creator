@@ -343,9 +343,9 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
     <div className="space-y-4">
       {/* Credit Balance Display */}
       {user && (
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-3 text-center">
+        <div className="bg-gradient-to-r from-orange-50 to-purple-50 rounded-lg p-3 text-center border border-orange-100">
           <p className="text-sm text-gray-600">
-            Credit Balance: <span className="font-semibold text-blue-600">{user.credit_balance}</span>
+            Credit Balance: <span className="font-semibold text-orange-600">{user.credit_balance}</span>
             {user.credit_balance === 0 && (
               <span className="ml-2 text-red-500">(Purchase more to continue)</span>
             )}
@@ -364,7 +364,7 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
 
       {/* Upload Loading State */}
       {isUploading && (
-        <div className="bg-white rounded-lg p-4 text-center space-y-3">
+        <div className="bg-gradient-to-br from-orange-50 to-purple-50 rounded-lg p-4 text-center space-y-3 border border-orange-100">
           <LoadingSpinner size="lg" className="mx-auto" />
           <div>
             <p className="font-medium text-gray-900">{state.message}</p>
@@ -381,7 +381,7 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
 
       {/* Generation Progress */}
       {state.phase === 'generating' && (
-        <div className="bg-white rounded-lg p-4 text-center space-y-3">
+        <div className="bg-gradient-to-br from-orange-50 to-purple-50 rounded-lg p-4 text-center space-y-3 border border-orange-100">
           <div className="relative w-20 h-20 mx-auto">
             <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 100 100">
               <circle
@@ -402,7 +402,7 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
                 fill="transparent"
                 strokeDasharray={`${2 * Math.PI * 40}`}
                 strokeDashoffset={`${2 * Math.PI * 40 * (1 - state.progress / 100)}`}
-                className="text-blue-500 transition-all duration-500 ease-out"
+                className="text-orange-500 transition-all duration-500 ease-out"
                 strokeLinecap="round"
               />
             </svg>
@@ -438,7 +438,7 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
 
       {/* Completed State */}
       {state.phase === 'completed' && state.videoUrl && (
-        <div className="bg-white rounded-lg p-6 text-center space-y-4">
+        <div className="bg-gradient-to-br from-green-50 via-orange-50 to-purple-50 rounded-lg p-6 text-center space-y-4 border border-green-200">
           <div className="text-green-600 text-4xl mb-4">✓</div>
           <h3 className="text-xl font-semibold text-gray-900">Your clip is ready!</h3>
           

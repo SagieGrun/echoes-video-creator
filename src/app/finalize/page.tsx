@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { OptimizedImage } from '@/components/ui/OptimizedImage'
 import { ArrowLeft, Film, Music, Settings, Play, GripVertical, X } from 'lucide-react'
 import Link from 'next/link'
 
@@ -615,17 +616,12 @@ export default function FinalizePage() {
                             
                             {/* Clip Thumbnail */}
                             <div className="w-16 h-12 bg-gray-100 rounded overflow-hidden mr-3">
-                              {clip.image_url ? (
-                                <img
-                                  src={clip.image_url}
-                                  alt={`Clip ${index + 1}`}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <Play className="h-4 w-4 text-gray-400" />
-                                </div>
-                              )}
+                              <OptimizedImage
+                                src={clip.image_url}
+                                alt={`Clip ${index + 1}`}
+                                className="w-full h-full"
+                                fallbackIcon={<Play className="h-4 w-4" />}
+                              />
                             </div>
                             
                             {/* Clip Info */}
@@ -671,17 +667,13 @@ export default function FinalizePage() {
                       >
                         <div className="p-2">
                           <div className="aspect-video bg-gray-100 rounded overflow-hidden mb-2">
-                            {clip.image_url ? (
-                              <img
-                                src={clip.image_url}
-                                alt={`Clip ${index + 1}`}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Play className="h-6 w-6 text-gray-400" />
-                              </div>
-                            )}
+                            <OptimizedImage
+                              src={clip.image_url}
+                              alt={`Clip ${index + 1}`}
+                              className="w-full h-full"
+                              fallbackIcon={<Play className="h-6 w-6" />}
+                              priority={index < 6} // Prioritize first 6 images for above-the-fold loading
+                            />
                           </div>
                           
                           <div className="text-sm">

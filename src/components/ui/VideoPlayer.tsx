@@ -11,6 +11,10 @@ interface VideoPlayerProps {
   autoPlay?: boolean
   showControls?: boolean
   thumbnailWithControls?: boolean // New prop: show thumbnail first, then native controls
+  preload?: 'none' | 'metadata' | 'auto'
+  aspectRatio?: string
+  width?: number
+  height?: number
 }
 
 export function VideoPlayer({ 
@@ -20,7 +24,11 @@ export function VideoPlayer({
   thumbnailContent,
   autoPlay = false,
   showControls = false,
-  thumbnailWithControls = false
+  thumbnailWithControls = false,
+  preload = 'metadata',
+  aspectRatio,
+  width,
+  height
 }: VideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [showVideo, setShowVideo] = useState(autoPlay)
@@ -205,9 +213,22 @@ export function VideoPlayer({
     }
   }
 
+  // Get container style with aspect ratio for layout shift prevention
+  const getContainerStyle = () => {
+    const baseStyle: React.CSSProperties = {}
+    
+    if (aspectRatio) {
+      baseStyle.aspectRatio = aspectRatio
+    } else if (width && height) {
+      baseStyle.aspectRatio = `${width}/${height}`
+    }
+    
+    return baseStyle
+  }
+
   if (hasError) {
     return (
-      <div className={`relative bg-gray-100 flex items-center justify-center ${className}`}>
+      <div className={`relative bg-gray-100 flex items-center justify-center ${className}`} style={getContainerStyle()}>
         <div className="text-center p-4">
           <div className="text-red-500 text-4xl mb-2">⚠️</div>
           <p className="text-sm text-gray-600">Unable to load video</p>
@@ -228,41 +249,49 @@ export function VideoPlayer({
   // If thumbnailWithControls is true and video is playing, show native controls
   if (thumbnailWithControls && showVideo) {
     return (
-      <video
-        src={src}
-        poster={poster}
-        controls
-        autoPlay={true} // Auto-play when switching from thumbnail to video
-        className={`w-full h-full object-cover ${className}`}
-        preload="metadata"
-        onError={(e) => {
-          console.error('Video loading error:', e)
-          setHasError(true)
-        }}
-      />
+      <div className={className} style={getContainerStyle()}>
+        <video
+          src={src}
+          poster={poster}
+          controls
+          autoPlay={true} // Auto-play when switching from thumbnail to video
+          className="w-full h-full object-cover"
+          preload={preload}
+          width={width}
+          height={height}
+          onError={(e) => {
+            console.error('Video loading error:', e)
+            setHasError(true)
+          }}
+        />
+      </div>
     )
   }
 
   // If showControls is true, immediately show video with native controls
   if (showControls && !thumbnailWithControls) {
     return (
-      <video
-        src={src}
-        poster={poster}
-        controls
-        className={`w-full h-full object-cover ${className}`}
-        preload="metadata"
-        onError={(e) => {
-          console.error('Video loading error:', e)
-          setHasError(true)
-        }}
-      />
+      <div className={className} style={getContainerStyle()}>
+        <video
+          src={src}
+          poster={poster}
+          controls
+          className="w-full h-full object-cover"
+          preload={preload}
+          width={width}
+          height={height}
+          onError={(e) => {
+            console.error('Video loading error:', e)
+            setHasError(true)
+          }}
+        />
+      </div>
     )
   }
 
   if (!showVideo) {
     return (
-      <div className={`relative group cursor-pointer ${className}`} onClick={handlePlayClick}>
+      <div className={`relative group cursor-pointer ${className}`} style={getContainerStyle()} onClick={handlePlayClick}>
         {thumbnailContent}
         <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
           <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-colors">
@@ -274,7 +303,7 @@ export function VideoPlayer({
   }
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative ${className}`} style={getContainerStyle()}>
       {isLoading && (
         <div className="absolute inset-0 bg-gray-100 flex items-center justify-center z-10">
           <Loader2 className="h-8 w-8 animate-spin text-gray-600" />
@@ -287,6 +316,9 @@ export function VideoPlayer({
           src={src}
           poster={poster}
           className="w-full h-full object-cover"
+          width={width}
+          height={height}
+          preload={preload}
           muted={isMuted}
           onLoad={handleVideoLoad}
           onLoadStart={handleVideoLoadStart}
