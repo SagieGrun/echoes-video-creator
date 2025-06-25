@@ -170,11 +170,15 @@ def lambda_handler(event, context):
             final_video_path = f"final_videos/{user_id}/{context.aws_request_id}.mp4"
             upload_to_supabase_storage(str(output_file), final_video_path)
             
+            # Generate public URL for the video
+            public_url = generate_public_url(final_video_path)
+            
             # Update existing record in database
             if video_id:
                 # Update the existing processing record
                 update_data = {
                     'file_path': final_video_path,
+                    'public_url': public_url,
                     'status': 'completed',
                     'completed_at': 'now()'
                 }
@@ -194,6 +198,7 @@ def lambda_handler(event, context):
                 final_video_record = {
                     'user_id': user_id,
                     'file_path': final_video_path,
+                    'public_url': public_url,
                     'selected_clips': [clip['id'] for clip in valid_clips],
                     'music_track_id': music.get('id') if music and music.get('id') else None,
                     'transition_type': settings.get('transition_type', 'fade'),
@@ -277,6 +282,23 @@ def download_music_from_supabase_storage(file_path: str, local_path: Path):
     except Exception as e:
         logger.error(f"Failed to download music {file_path}: {str(e)}")
         raise
+
+def generate_public_url(file_path: str) -> str:
+    """Generate public URL for a file in the final-videos bucket"""
+    try:
+        # Get the Supabase project URL from environment
+        supabase_url = get_parameter('SUPABASE_URL')
+        
+        # Format: https://[project-id].supabase.co/storage/v1/object/public/final-videos/[file-path]
+        public_url = f"{supabase_url}/storage/v1/object/public/final-videos/{file_path}"
+        
+        logger.info(f"Generated public URL: {public_url}")
+        return public_url
+        
+    except Exception as e:
+        logger.error(f"Failed to generate public URL for {file_path}: {str(e)}")
+        # Return a fallback URL structure
+        return f"https://project.supabase.co/storage/v1/object/public/final-videos/{file_path}"
 
 def upload_to_supabase_storage(local_path: str, storage_path: str):
     """Upload file from local path to Supabase storage"""
@@ -430,10 +452,12 @@ def build_ffmpeg_command(clip_files: list, music_file: str, output_file: str,
     else:
         # Multiple clips - sum their durations (approximation)
         video_duration = sum(get_video_duration(clip) for clip in clip_files)
-    
+        
     # Calculate fade out start time (1 second before end, minimum at 1 second)
     if has_music:
         fade_out_start = max(1.0, video_duration - 1.0)
+    else:
+        fade_out_start = 0
     
     # Build filter complex for transitions
     if len(clip_files) == 1:

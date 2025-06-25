@@ -617,11 +617,11 @@ export default function FinalizePage() {
                             {/* Clip Thumbnail */}
                             <div className="w-16 h-12 bg-gray-100 rounded overflow-hidden mr-3">
                               <OptimizedImage
-                                src={clip.image_url}
-                                alt={`Clip ${index + 1}`}
+                                  src={clip.image_url}
+                                  alt={`Clip ${index + 1}`}
                                 className="w-full h-full"
                                 fallbackIcon={<Play className="h-4 w-4" />}
-                              />
+                                />
                             </div>
                             
                             {/* Clip Info */}
@@ -668,12 +668,12 @@ export default function FinalizePage() {
                         <div className="p-2">
                           <div className="aspect-video bg-gray-100 rounded overflow-hidden mb-2">
                             <OptimizedImage
-                              src={clip.image_url}
-                              alt={`Clip ${index + 1}`}
+                                src={clip.image_url}
+                                alt={`Clip ${index + 1}`}
                               className="w-full h-full"
                               fallbackIcon={<Play className="h-6 w-6" />}
                               priority={index < 6} // Prioritize first 6 images for above-the-fold loading
-                            />
+                              />
                           </div>
                           
                           <div className="text-sm">

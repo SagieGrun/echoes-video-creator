@@ -8,6 +8,7 @@ import { LoadingButton } from '@/components/ui/LoadingButton'
 import { ClipGeneration } from '@/components/generation/ClipGeneration'
 import { VideoPlayer } from '@/components/ui/VideoPlayer'
 import { OptimizedImage } from '@/components/ui/OptimizedImage'
+import { SocialShare } from '@/components/ui/SocialShare'
 import { generateClipUrls, generateVideoUrls } from '@/lib/storage-optimizer'
 import { ArrowLeft, Download, Play, Calendar, Clock, Film, Upload, Plus, Image as ImageIcon, Sparkles, User, ChevronDown, LogOut, CreditCard, Zap, Eye, Timer, Trash2, X } from 'lucide-react'
 import Link from 'next/link'
@@ -36,6 +37,7 @@ interface FinalVideo {
   status: 'draft' | 'processing' | 'completed' | 'failed'
   file_url: string | null
   file_path: string | null
+  public_url: string | null
   total_duration: number | null
   file_size: number | null
   created_at: string
@@ -212,34 +214,21 @@ export default function Dashboard() {
         if (finalVideosError) {
           console.error('Error fetching final videos:', finalVideosError)
         } else {
-          // Generate signed URLs for final videos using optimized batch approach
           console.log('Final videos from database:', finalVideosData?.map((v: any) => ({
             id: v.id,
             status: v.status,
+            public_url: v.public_url,
             file_path: v.file_path,
             created_at: v.created_at
           })))
           
-          // Filter videos that need signed URLs
-          const videosNeedingUrls = (finalVideosData || []).filter(
-            (video: any) => video.file_path && video.status === 'completed'
-          )
+          // Use public URLs directly - no need for signed URL generation
+          const finalVideosWithUrls = (finalVideosData || []).map((video: any) => ({
+            ...video,
+            file_url: video.public_url || null // Use public_url directly
+          }))
           
-          // Generate URLs in batch
-          const videoUrls = videosNeedingUrls.length > 0 
-            ? await generateVideoUrls(videosNeedingUrls)
-            : []
-          
-          // Merge URLs back into videos
-          const finalVideosWithUrls = (finalVideosData || []).map((video: any) => {
-            const urlData = videoUrls.find(u => u.id === video.id)
-            return {
-              ...video,
-              file_url: urlData?.file_url || null
-            }
-          })
-          
-          console.log('Final videos with URLs:', finalVideosWithUrls.map((v: any) => ({
+          console.log('Final videos with public URLs:', finalVideosWithUrls.map((v: any) => ({
             id: v.id,
             has_file_url: !!v.file_url,
             file_url_preview: v.file_url?.substring(0, 100) + '...'
@@ -914,23 +903,10 @@ export default function Dashboard() {
                           <Download className="h-4 w-4 mr-1" />
                           Download
                         </LoadingButton>
-                        <LoadingButton
-                          onClick={() => {
-                            if (navigator.share) {
-                              navigator.share({
-                                    title: 'Check out my final video!',
-                                    url: video.file_url!
-                              })
-                            } else {
-                                  navigator.clipboard.writeText(video.file_url!)
-                            }
-                          }}
-                          variant="secondary"
-                          size="sm"
-                              className="px-3"
-                        >
-                          Share
-                        </LoadingButton>
+                        <SocialShare 
+                          videoId={video.id}
+                          title="Check out my final video!"
+                        />
                         <LoadingButton
                           onClick={() => setShowDeleteConfirm(video.id)}
                           variant="secondary"

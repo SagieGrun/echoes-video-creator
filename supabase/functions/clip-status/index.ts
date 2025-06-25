@@ -163,6 +163,21 @@ Deno.serve(async (req) => {
           console.error(`[STATUS-${requestId}] Error generating signed URL:`, error)
           // Fall back to stored video_url
         }
+      } else if (clip.status === 'completed' && clip.video_url && !clip.video_url.startsWith('http')) {
+        // Handle case where video_url contains a file path instead of a URL
+        try {
+          const { data: signedUrlData, error: urlError } = await serviceSupabase.storage
+            .from('private-photos')
+            .createSignedUrl(clip.video_url, 3600) // 1 hour expiry
+          
+          if (!urlError && signedUrlData?.signedUrl) {
+            videoUrl = signedUrlData.signedUrl
+            console.log(`[STATUS-${requestId}] Generated fresh signed URL from video_url path`)
+          }
+        } catch (error) {
+          console.error(`[STATUS-${requestId}] Error generating signed URL from video_url:`, error)
+          // Fall back to stored video_url
+        }
       }
       
       return new Response(
@@ -239,9 +254,9 @@ Deno.serve(async (req) => {
             
             console.log(`[STATUS-${requestId}] Video uploaded successfully to:`, filePath)
             
-            // Store the permanent file path instead of temporary URL
-            updateData.video_url = filePath // Store path, not URL
-            updateData.video_file_path = filePath // Also store in separate field for clarity
+            // Store the permanent file path for signed URL generation
+            updateData.video_file_path = filePath // Store path for generateClipUrls to use
+            updateData.video_url = filePath // Keep for backward compatibility
             
           } catch (error) {
             console.error(`[STATUS-${requestId}] Error storing video permanently:`, error)
@@ -265,12 +280,30 @@ Deno.serve(async (req) => {
           // Continue anyway, return the status we got from Runway
         }
 
+        // Generate signed URL for the stored video
+        let finalVideoUrl = updateData.video_url || result.video_url
+        if (result.status === 'completed' && updateData.video_file_path) {
+          try {
+            const { data: signedUrlData, error: urlError } = await serviceSupabase.storage
+              .from('private-photos')
+              .createSignedUrl(updateData.video_file_path, 3600) // 1 hour expiry
+            
+            if (!urlError && signedUrlData?.signedUrl) {
+              finalVideoUrl = signedUrlData.signedUrl
+              console.log(`[STATUS-${requestId}] Generated fresh signed URL for newly completed clip`)
+            }
+          } catch (error) {
+            console.error(`[STATUS-${requestId}] Error generating signed URL for new clip:`, error)
+            // Fall back to file path
+          }
+        }
+
         return new Response(
           JSON.stringify({
             clip_id: clip.id,
             status: result.status,
             progress: result.progress,
-            video_url: updateData.video_url || result.video_url, // Use stored path if available
+            video_url: finalVideoUrl,
             error_message: result.error_message,
             estimated_time: result.estimated_time || 0
           }),
