@@ -412,12 +412,36 @@ export default function Dashboard() {
   // Helper function to create multi-image thumbnail for final videos
   const getClipImages = (video: FinalVideo) => {
     if (!video.selected_clips || !Array.isArray(video.selected_clips)) {
+      console.log(`No selected_clips for video ${video.id}:`, video.selected_clips)
       return []
     }
     
-    return video.selected_clips
-      .map(clipId => clips.find(clip => clip.id === clipId))
+    console.log(`Getting clip images for video ${video.id}:`, {
+      selected_clips: video.selected_clips,
+      total_clips_available: clips.length,
+      clips_with_images: clips.filter(c => c.image_url).length
+    })
+    
+    const matchedClips = video.selected_clips
+      .map(clipData => {
+        // Handle both formats: string clipId or object {clip_id, order}
+        const clipId = typeof clipData === 'string' ? clipData : clipData?.clip_id
+        const foundClip = clips.find(clip => clip.id === clipId)
+        
+        if (!foundClip) {
+          console.log(`Clip not found for ID: ${clipId}`)
+        } else if (!foundClip.image_url) {
+          console.log(`Clip found but no image_url: ${clipId}`)
+        } else {
+          console.log(`Clip found with image_url: ${clipId} has_image_url: true`)
+        }
+        
+        return foundClip
+      })
       .filter(Boolean)
+    
+    console.log(`Matched ${matchedClips.length} clips for video ${video.id}`)
+    return matchedClips
   }
 
   const handleDeleteVideo = async (videoId: string) => {
@@ -894,20 +918,28 @@ export default function Dashboard() {
                               thumbnailContent={
                                 clipImages.length > 0 ? (
                                   <div className="w-full h-full grid grid-cols-2 gap-0.5 p-1">
-                                    {clipImages.slice(0, 4).map((clip, idx) => (
-                                      <div key={idx} className="relative bg-gray-200 rounded-sm overflow-hidden">
-                                        <img
-                                          src={clip?.image_url || ''}
-                                          alt=""
-                                          className="w-full h-full object-cover"
-                                        />
-                                      </div>
-                                    ))}
-                                    {clipImages.length < 4 && 
-                                      Array.from({ length: 4 - clipImages.length }).map((_, idx) => (
-                                        <div key={`empty-${idx}`} className="bg-gray-200 rounded-sm"></div>
-                                      ))
-                                    }
+                                    {Array.from({ length: 4 }).map((_, idx) => {
+                                      const clip = clipImages[idx]
+                                      return (
+                                        <div key={idx} className="relative bg-gray-200 rounded-sm overflow-hidden">
+                                          {clip?.image_url ? (
+                                            <img
+                                              src={clip.image_url}
+                                              alt=""
+                                              className="w-full h-full object-cover"
+                                              onError={(e) => {
+                                                console.log(`Failed to load image for clip ${clip.id}:`, clip.image_url)
+                                                e.currentTarget.style.display = 'none'
+                                              }}
+                                            />
+                                          ) : (
+                                            <div className="w-full h-full bg-gray-300 flex items-center justify-center">
+                                              <Film className="h-3 w-3 text-gray-500" />
+                                            </div>
+                                          )}
+                                        </div>
+                                      )
+                                    })}
                                   </div>
                                 ) : (
                                   <div className="w-full h-full bg-gray-200 flex items-center justify-center">
