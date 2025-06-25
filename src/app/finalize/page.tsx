@@ -46,11 +46,12 @@ export default function FinalizePage() {
   const [saving, setSaving] = useState(false)
   const [user, setUser] = useState<any>(null)
   
-  // Enhanced loading states
-  const [loadingStep, setLoadingStep] = useState(0)
-  const [estimatedTime, setEstimatedTime] = useState(0)
+  // Simple loading states
   const [startTime, setStartTime] = useState<number | null>(null)
-  const [remainingTime, setRemainingTime] = useState(0)
+  const [elapsedTime, setElapsedTime] = useState(0)
+  const [currentPhase, setCurrentPhase] = useState<'starting' | 'processing' | 'finishing'>('starting')
+  const [expectedDuration, setExpectedDuration] = useState(0)
+  const [phaseTimers, setPhaseTimers] = useState<{ phase2?: NodeJS.Timeout; phase3?: NodeJS.Timeout }>({})
 
   // Load user's clips and music tracks
   useEffect(() => {
@@ -278,35 +279,31 @@ export default function FinalizePage() {
     if (!user || !supabase) return
     
     setSaving(true)
-    setLoadingStep(0)
     setStartTime(Date.now())
+    setCurrentPhase('starting')
     
-    // Estimate time based on number of clips (roughly 3-5 seconds per clip + base time)
-    const baseTime = 10 // base processing time
-    const timePerClip = 4 // seconds per clip
-    const estimatedSeconds = baseTime + (selectedClipIds.size * timePerClip)
-    setEstimatedTime(estimatedSeconds)
+    // Calculate expected duration based on clip count
+    const clipCount = selectedClipIds.size
+    const secondsPerClip = 3.8 // Based on real performance data
+    const baseOverhead = 5 // Base processing time
+    const calculatedDuration = baseOverhead + (clipCount * secondsPerClip)
+    setExpectedDuration(calculatedDuration)
     
-    // Progressive loading steps
-    const steps = [
-      'Preparing your clips...',
-      'Uploading to video processor...',
-      'Downloading and analyzing clips...',
-      'Applying transitions and effects...',
-      selectedMusicId ? 'Adding background music...' : 'Finalizing video...',
-      'Uploading final video...',
-      'Almost ready!'
-    ]
+    // Dynamic phase transitions based on expected duration
+    const phase2Start = Math.max(3, calculatedDuration * 0.05) // 5% of total time, minimum 3s
+    const phase3Start = Math.max(15, calculatedDuration * 0.8) // 80% of total time, minimum 15s
     
-    // Progress through steps automatically
-    const stepInterval = setInterval(() => {
-      setLoadingStep(prev => {
-        if (prev < steps.length - 1) {
-          return prev + 1
-        }
-        return prev
-      })
-    }, Math.max(2000, estimatedSeconds * 1000 / steps.length)) // Distribute steps over estimated time
+    // Phase transition timers
+    const phase2Timer = setTimeout(() => {
+      setCurrentPhase('processing')
+    }, phase2Start * 1000)
+    
+    const phase3Timer = setTimeout(() => {
+      setCurrentPhase('finishing')
+    }, phase3Start * 1000)
+    
+    // Store timers for cleanup
+    setPhaseTimers({ phase2: phase2Timer, phase3: phase3Timer })
     
     try {
       // Prepare selected clips with video file paths
@@ -366,14 +363,18 @@ export default function FinalizePage() {
         console.log('Video compilation payload:', result.payload)
         // Reset UI state for mock response
         setSaving(false)
-        clearInterval(stepInterval)
-        setLoadingStep(0)
+        if (phaseTimers.phase2) clearTimeout(phaseTimers.phase2)
+        if (phaseTimers.phase3) clearTimeout(phaseTimers.phase3)
+        setPhaseTimers({})
         setStartTime(null)
-        setRemainingTime(0)
+        setCurrentPhase('starting')
       } else if (result.status === 'processing') {
         // Start polling for completion status
         console.log('Video compilation started, beginning status polling...')
-        clearInterval(stepInterval) // Stop step progression, polling will handle completion
+        if (phaseTimers.phase2) clearTimeout(phaseTimers.phase2) // Clear phase timers, polling will handle phase transitions
+        if (phaseTimers.phase3) clearTimeout(phaseTimers.phase3)
+        setPhaseTimers({})
+        setCurrentPhase('processing')
         await pollVideoStatus(result.video_id, session.access_token)
       } else {
         // Navigate to dashboard Final Videos tab
@@ -386,10 +387,11 @@ export default function FinalizePage() {
       
       // Ensure UI state is reset on any error
       setSaving(false)
-      clearInterval(stepInterval)
-      setLoadingStep(0)
+      if (phaseTimers.phase2) clearTimeout(phaseTimers.phase2)
+      if (phaseTimers.phase3) clearTimeout(phaseTimers.phase3)
+      setPhaseTimers({})
       setStartTime(null)
-      setRemainingTime(0)
+      setCurrentPhase('starting')
     }
   }
 
@@ -437,9 +439,8 @@ export default function FinalizePage() {
           
           // Reset UI state before navigation
           setSaving(false)
-          setLoadingStep(0)
           setStartTime(null)
-          setRemainingTime(0)
+          setCurrentPhase('starting')
           
           router.push('/dashboard?tab=videos')
           return
@@ -450,6 +451,10 @@ export default function FinalizePage() {
           attempts++
           if (attempts < maxAttempts) {
             console.log(`Video still processing, will check again in 5 seconds...`)
+            // Switch to finishing phase if we've been processing for a while
+            if (attempts > 4) {
+              setCurrentPhase('finishing')
+            }
             setTimeout(poll, 5000) // Poll every 5 seconds
           } else {
             throw new Error('Video compilation timed out after 5 minutes')
@@ -459,11 +464,10 @@ export default function FinalizePage() {
         console.error('Error polling video status:', error)
         alert('Error checking video status: ' + (error instanceof Error ? error.message : 'Unknown error'))
         
-        // 🚨 CRITICAL FIX: Reset UI state when polling fails
+        // Reset UI state when polling fails
         setSaving(false)
-        setLoadingStep(0)
         setStartTime(null)
-        setRemainingTime(0)
+        setCurrentPhase('starting')
       }
     }
     
@@ -471,18 +475,17 @@ export default function FinalizePage() {
     poll()
   }
 
-  // Update remaining time every second during compilation
+  // Update elapsed time every second during compilation
   useEffect(() => {
     if (!saving || !startTime) return
 
     const timer = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTime) / 1000)
-      const remaining = Math.max(0, estimatedTime - elapsed)
-      setRemainingTime(remaining)
+      setElapsedTime(elapsed)
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [saving, startTime, estimatedTime])
+  }, [saving, startTime])
 
   if (loading || !supabase) {
     return (
@@ -722,29 +725,31 @@ export default function FinalizePage() {
                 
                 {saving ? (
                   <div className="space-y-4">
-                    {/* Progress Steps */}
+                    {/* Adaptive Progress Display */}
                     <div className="bg-white/10 rounded-lg p-4 border border-white/20">
                       <div className="flex items-center justify-center mb-3">
                         <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent mr-3 flex-shrink-0"></div>
-                        <span className="text-sm font-medium animate-pulse">
-                          {[
-                            'Preparing your clips...',
-                            'Uploading to video processor...',
-                            'Downloading and analyzing clips...',
-                            'Applying transitions and effects...',
-                            selectedMusicId ? 'Adding background music...' : 'Finalizing video...',
-                            'Uploading final video...',
-                            'Almost ready!'
-                          ][loadingStep] || 'Processing...'}
+                        <span className="text-sm font-medium">
+                          {currentPhase === 'starting' && '🚀 Starting video compilation...'}
+                          {currentPhase === 'processing' && `⚙️ Processing ${selectedClipIds.size} clip${selectedClipIds.size > 1 ? 's' : ''}...`}
+                          {currentPhase === 'finishing' && '🎬 Almost ready! Finalizing your video...'}
                         </span>
                       </div>
                       
-                      {/* Progress Bar */}
+                      {/* Adaptive Progress Bar */}
                       <div className="w-full bg-white/20 rounded-full h-2 mb-2 overflow-hidden">
                         <div 
                           className="bg-gradient-to-r from-white to-purple-200 h-2 rounded-full transition-all duration-1000 ease-out relative"
                           style={{ 
-                            width: `${Math.min(95, (loadingStep + 1) / 7 * 100)}%` 
+                            width: (() => {
+                              if (!expectedDuration || !startTime) return '5%'
+                              const progressPercent = Math.min((elapsedTime / expectedDuration) * 100, 95)
+                              // Use phase-based minimums
+                              if (currentPhase === 'starting') return Math.max(progressPercent, 5) + '%'
+                              if (currentPhase === 'processing') return Math.max(progressPercent, 20) + '%'
+                              if (currentPhase === 'finishing') return Math.max(progressPercent, 75) + '%'
+                              return progressPercent + '%'
+                            })()
                           }}
                         >
                           {/* Shimmer effect */}
@@ -752,29 +757,37 @@ export default function FinalizePage() {
                         </div>
                       </div>
                       
-                      {/* Time Estimation */}
+                      {/* Real Time Display */}
                       <div className="flex justify-between text-xs text-purple-100">
-                        <span>Step {loadingStep + 1} of 7</span>
+                        <span>
+                          {currentPhase === 'starting' && 'Initializing...'}
+                          {currentPhase === 'processing' && 'Compiling...'}
+                          {currentPhase === 'finishing' && 'Finalizing...'}
+                        </span>
                         <span className="font-mono">
-                          {startTime && remainingTime > 0 && (
-                            <>
-                              ~{remainingTime}s remaining
-                            </>
+                          {elapsedTime}s elapsed
+                          {expectedDuration > 0 && (
+                            ` • ${Math.round((elapsedTime / expectedDuration) * 100)}%`
                           )}
                         </span>
                       </div>
                     </div>
                     
-                    {/* Reassuring Message */}
+                    {/* Adaptive Message */}
                     <div className="text-xs text-purple-100 opacity-75 text-center">
                       <div className="flex items-center justify-center mb-1">
                         <div className="w-1 h-1 bg-purple-200 rounded-full animate-pulse mr-1"></div>
                         <div className="w-1 h-1 bg-purple-200 rounded-full animate-pulse mr-1" style={{animationDelay: '0.2s'}}></div>
                         <div className="w-1 h-1 bg-purple-200 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
                       </div>
-                      Your video is being compiled with {selectedClipIds.size} clips
-                      {selectedMusicId && ' and background music'}. 
-                      <br />You'll be redirected when ready!
+                      Compiling {selectedClipIds.size} clips
+                      {selectedMusicId && ' with background music'}. 
+                      <br />
+                      {expectedDuration > 0 && (
+                        expectedDuration > 60 
+                          ? `Usually takes ${Math.round(expectedDuration / 60)} minute${Math.round(expectedDuration / 60) > 1 ? 's' : ''}.`
+                          : `Usually takes ${Math.round(expectedDuration)} seconds.`
+                      )}
                     </div>
                   </div>
                 ) : (

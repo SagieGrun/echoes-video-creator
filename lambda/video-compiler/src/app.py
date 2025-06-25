@@ -416,46 +416,49 @@ def build_ffmpeg_command(clip_files: list, music_file: str, output_file: str,
     for clip_file in clip_files:
         cmd.extend(['-i', clip_file])
     
-    # Add music file if provided
-    if music_file and os.path.exists(music_file):
+    # Add music file if provided and volume > 0
+    if music_file and os.path.exists(music_file) and music_volume > 0:
         cmd.extend(['-i', music_file])
         has_music = True
     else:
         has_music = False
     
-    # Calculate total video duration for proper fade timing
+    # Always calculate total video duration for proper fade timing
+    if len(clip_files) == 1:
+        # Single clip duration
+        video_duration = get_video_duration(clip_files[0])
+    else:
+        # Multiple clips - sum their durations (approximation)
+        video_duration = sum(get_video_duration(clip) for clip in clip_files)
+    
+    # Calculate fade out start time (1 second before end, minimum at 1 second)
     if has_music:
-        if len(clip_files) == 1:
-            # Single clip duration
-            video_duration = get_video_duration(clip_files[0])
-        else:
-            # Multiple clips - sum their durations (approximation)
-            video_duration = sum(get_video_duration(clip) for clip in clip_files)
-        
-        # Calculate fade out start time (1 second before end, minimum at 1 second)
         fade_out_start = max(1.0, video_duration - 1.0)
     
     # Build filter complex for transitions
     if len(clip_files) == 1:
         # Single clip - need to process music with volume, fade, and duration
         if has_music:
-            # Apply volume control, fade in/out, and truncate music to video duration
-            # Fade in over 1 second, fade out over 1 second from calculated time
-            filter_complex = f'[1:a]atrim=duration={video_duration},volume={music_volume},afade=t=in:st=0:d=1,afade=t=out:st={fade_out_start}:d=1[outa]'
+            # Apply video fade in/out (0.5s each) and music processing
+            video_fade_out_start = max(0.5, video_duration - 0.5)
+            filter_complex = f'[0:v]fade=t=in:st=0:d=0.5,fade=t=out:st={video_fade_out_start}:d=0.5[outv];[1:a]atrim=duration={video_duration},volume={music_volume},afade=t=in:st=0:d=1,afade=t=out:st={fade_out_start}:d=1[outa]'
             cmd.extend([
                 '-filter_complex', filter_complex,
-                '-map', '0:v',  # Video from clip
+                '-map', '[outv]',  # Processed video with fades
                 '-map', '[outa]',  # Processed audio from music
-                '-c:v', 'copy',
                 '-c:a', 'aac'
                 # Removed -shortest since we're explicitly controlling duration
+                # Note: video codec settings will be added later in video_settings
             ])
         else:
-            # Video-only clip, no audio needed
+            # Video-only clip with fade in/out
+            video_fade_out_start = max(0.5, video_duration - 0.5)
+            filter_complex = f'[0:v]fade=t=in:st=0:d=0.5,fade=t=out:st={video_fade_out_start}:d=0.5[outv]'
             cmd.extend([
-                '-map', '0:v',
-                '-c:v', 'copy',
+                '-filter_complex', filter_complex,
+                '-map', '[outv]',  # Processed video with fades
                 '-an'  # No audio
+                # Note: video codec settings will be added later in video_settings
             ])
     else:
         # Multiple clips - add transitions
@@ -469,7 +472,7 @@ def build_ffmpeg_command(clip_files: list, music_file: str, output_file: str,
             has_music=has_music,
             music_volume=music_volume,
             fade_out_start=fade_out_start if has_music else 0,
-            video_duration=video_duration if has_music else 0,
+            video_duration=video_duration,  # Always pass video_duration for fade calculations
             clip_durations=clip_durations
         )
         
@@ -479,19 +482,25 @@ def build_ffmpeg_command(clip_files: list, music_file: str, output_file: str,
         else:
             cmd.extend(['-map', '[outv]', '-an'])  # No audio output
     
-    # Output settings with high quality maintained
+    # Output settings with high quality maintained and web compatibility
     video_settings = [
         '-c:v', 'libx264',
-        '-preset', 'fast',  # Good balance of speed and quality
-        '-crf', '23',  # High quality
-        '-movflags', '+faststart',
+        '-profile:v', 'baseline',  # Baseline profile for maximum compatibility
+        '-level:v', '3.0',         # Level 3.0 for web compatibility
+        '-pix_fmt', 'yuv420p',     # Pixel format required for web playback
+        '-preset', 'fast',         # Good balance of speed and quality
+        '-crf', '23',              # High quality
+        '-movflags', '+faststart', # Enable progressive download
         '-avoid_negative_ts', 'make_zero',  # Handle timing issues
-        '-fflags', '+genpts',  # Generate presentation timestamps
+        '-fflags', '+genpts',      # Generate presentation timestamps
+        '-max_muxing_queue_size', '1024',  # Handle complex filter chains
     ]
     
-    # Add explicit duration control if we have music
+    # Add explicit duration control to prevent freezing
+    video_settings.extend(['-t', str(video_duration)])  # Always limit output duration
+    
+    # Add audio settings if we have music
     if has_music:
-        video_settings.extend(['-t', str(video_duration)])  # Limit output duration
         video_settings.extend(['-c:a', 'aac', '-b:a', '128k'])
     
     cmd.extend(video_settings)
@@ -526,23 +535,23 @@ def build_fade_transition_filter(num_clips: int, transition_duration: float, has
         return build_concat_filter(num_clips, has_music, music_volume, fade_out_start, video_duration)
     
     # Build fade-to-black transitions between clips
-    # Each clip fades out to black, then next clip fades in from black
+    # Each clip fades out to black, then next clip fades in from black (for transitions only)
     filter_parts = []
     
-    # Process each clip with fade out (except last) and fade in (except first)
+    # Process each clip with fade out (except last) and fade in (except first) for transitions
     for i in range(num_clips):
         clip_filter = f'[{i}:v]'
         clip_duration = clip_durations[i]
         fade_out_time = max(0, clip_duration - transition_duration)
         
         if i == 0:
-            # First clip: only fade out at the end
+            # First clip: only fade out at the end for transition
             clip_filter += f'fade=t=out:st={fade_out_time}:d={transition_duration}'
         elif i == num_clips - 1:
-            # Last clip: only fade in at the start
+            # Last clip: only fade in at the start for transition
             clip_filter += f'fade=t=in:st=0:d={transition_duration}'
         else:
-            # Middle clips: fade in at start, fade out at end
+            # Middle clips: fade in at start, fade out at end for transitions
             clip_filter += f'fade=t=in:st=0:d={transition_duration},fade=t=out:st={fade_out_time}:d={transition_duration}'
         
         clip_filter += f'[v{i}]'
@@ -550,8 +559,13 @@ def build_fade_transition_filter(num_clips: int, transition_duration: float, has
     
     # Concatenate the processed clips
     video_inputs = ''.join([f'[v{i}]' for i in range(num_clips)])
-    concat_filter = f'{video_inputs}concat=n={num_clips}:v=1:a=0[outv]'
+    concat_filter = f'{video_inputs}concat=n={num_clips}:v=1:a=0[concat_v]'
     filter_parts.append(concat_filter)
+    
+    # Add final video fade in/out (0.5s each) to the ENTIRE final video
+    final_fade_out_start = max(0.5, video_duration - 0.5) if video_duration > 0 else max(0.5, sum(clip_durations) - 0.5)
+    final_fade_filter = f'[concat_v]fade=t=in:st=0:d=0.5,fade=t=out:st={final_fade_out_start}:d=0.5[outv]'
+    filter_parts.append(final_fade_filter)
     
     if has_music:
         # Add music processing
@@ -591,14 +605,17 @@ def build_crossfade_transition_filter(num_clips: int, transition_duration: float
         # Update cumulative offset for next iteration
         cumulative_offset = offset
     
-    # The final stream is our output video
+    # The final stream is our output video - add fade in/out to the final result
+    final_fade_out_start = max(0.5, video_duration - 0.5) if video_duration > 0 else max(0.5, sum(clip_durations) - 0.5)
+    
     final_stream = current_stream.replace('[', '').replace(']', '')
     if final_stream != f'v{num_clips-1}':
-        # If we only have 2 clips, rename the final stream
-        filter_parts.append(f'{current_stream}copy[outv]')
+        # If we only have 2 clips, add fade effects
+        filter_parts.append(f'{current_stream}fade=t=in:st=0:d=0.5,fade=t=out:st={final_fade_out_start}:d=0.5[outv]')
     else:
-        # For multiple clips, the last xfade output is already our final video
-        filter_parts[-1] = filter_parts[-1].replace(f'[v{num_clips-1}]', '[outv]')
+        # For multiple clips, add fade effects to the last xfade output
+        filter_parts[-1] = filter_parts[-1].replace(f'[v{num_clips-1}]', '[xfade_v]')
+        filter_parts.append(f'[xfade_v]fade=t=in:st=0:d=0.5,fade=t=out:st={final_fade_out_start}:d=0.5[outv]')
     
     if has_music:
         # Add music processing
@@ -643,14 +660,17 @@ def build_slide_transition_filter(num_clips: int, transition_duration: float, ha
         # Update cumulative offset for next iteration
         cumulative_offset = offset
     
-    # The final stream is our output video
+    # The final stream is our output video - add fade in/out to the final result
+    final_fade_out_start = max(0.5, video_duration - 0.5) if video_duration > 0 else max(0.5, sum(clip_durations) - 0.5)
+    
     final_stream = current_stream.replace('[', '').replace(']', '')
     if final_stream != f'v{num_clips-1}':
-        # If we only have 2 clips, rename the final stream
-        filter_parts.append(f'{current_stream}copy[outv]')
+        # If we only have 2 clips, add fade effects
+        filter_parts.append(f'{current_stream}fade=t=in:st=0:d=0.5,fade=t=out:st={final_fade_out_start}:d=0.5[outv]')
     else:
-        # For multiple clips, the last xfade output is already our final video
-        filter_parts[-1] = filter_parts[-1].replace(f'[v{num_clips-1}]', '[outv]')
+        # For multiple clips, add fade effects to the last xfade output
+        filter_parts[-1] = filter_parts[-1].replace(f'[v{num_clips-1}]', '[xfade_v]')
+        filter_parts.append(f'[xfade_v]fade=t=in:st=0:d=0.5,fade=t=out:st={final_fade_out_start}:d=0.5[outv]')
     
     if has_music:
         # Add music processing
@@ -666,8 +686,14 @@ def build_concat_filter(num_clips: int, has_music: bool, music_volume: float, fa
     # Since clips have no audio, only concatenate video streams
     video_inputs = ''.join([f'[{i}:v]' for i in range(num_clips)])
     
-    # Video-only concatenation
-    concat_filter = f'{video_inputs}concat=n={num_clips}:v=1:a=0[outv]'
+    if num_clips == 1:
+        # Single clip - add fade in/out directly
+        final_fade_out_start = max(0.5, video_duration - 0.5) if video_duration > 0 else 4.5  # Default 5s clip - 0.5s
+        concat_filter = f'[0:v]fade=t=in:st=0:d=0.5,fade=t=out:st={final_fade_out_start}:d=0.5[outv]'
+    else:
+        # Multiple clips - concatenate then add fade in/out
+        final_fade_out_start = max(0.5, video_duration - 0.5) if video_duration > 0 else max(0.5, (num_clips * 5.0) - 0.5)  # Estimate total duration
+        concat_filter = f'{video_inputs}concat=n={num_clips}:v=1:a=0[concat_v];[concat_v]fade=t=in:st=0:d=0.5,fade=t=out:st={final_fade_out_start}:d=0.5[outv]'
     
     if has_music:
         # Add music as the audio track with volume control, duration trim, and fade in/out
@@ -689,8 +715,8 @@ def build_simple_fallback_command(clip_files: list, music_file: str, output_file
     for clip_file in clip_files:
         cmd.extend(['-i', clip_file])
     
-    # Add music if provided
-    if music_file and os.path.exists(music_file):
+    # Add music if provided and volume > 0
+    if music_file and os.path.exists(music_file) and music_volume > 0:
         cmd.extend(['-i', music_file])
         has_music = True
     else:
@@ -705,46 +731,65 @@ def build_simple_fallback_command(clip_files: list, music_file: str, output_file
         fade_out_start = max(1.0, video_duration - 1.0)
     
     if len(clip_files) == 1:
-        # Single clip - with audio processing for music
+        # Single clip - with video fade and audio processing for music
+        video_fade_out_start = max(0.5, video_duration - 0.5)
         if has_music:
             cmd.extend([
-                '-filter_complex', f'[1:a]atrim=duration={video_duration},volume={music_volume},afade=t=in:st=0:d=1,afade=t=out:st={fade_out_start}:d=1[outa]',
-                '-map', '0:v',  # Video from clip
+                '-filter_complex', f'[0:v]fade=t=in:st=0:d=0.5,fade=t=out:st={video_fade_out_start}:d=0.5[outv];[1:a]atrim=duration={video_duration},volume={music_volume},afade=t=in:st=0:d=1,afade=t=out:st={fade_out_start}:d=1[outa]',
+                '-map', '[outv]',  # Processed video with fades
                 '-map', '[outa]',  # Processed audio from music
-                '-c:v', 'copy'
                 # Removed -shortest since we're explicitly controlling duration
+                # Note: video codec settings will be added later in output_settings
             ])
         else:
             cmd.extend([
-                '-map', '0:v',
-                '-c:v', 'copy',
+                '-filter_complex', f'[0:v]fade=t=in:st=0:d=0.5,fade=t=out:st={video_fade_out_start}:d=0.5[outv]',
+                '-map', '[outv]',  # Processed video with fades
                 '-an'  # No audio
+                # Note: video codec settings will be added later in output_settings
             ])
     else:
-        # Multiple clips - video-only concatenation with music processing
+        # Multiple clips - video concatenation with fade effects and music processing
+        video_fade_out_start = max(0.5, video_duration - 0.5)
         if has_music:
-            # Create video inputs for concatenation
+            # Create video inputs for concatenation with fade effects
             video_inputs = ''.join([f'[{i}:v]' for i in range(len(clip_files))])
             cmd.extend([
                 '-filter_complex', 
-                f'{video_inputs}concat=n={len(clip_files)}:v=1:a=0[v];[{len(clip_files)}:a]atrim=duration={video_duration},volume={music_volume},afade=t=in:st=0:d=1,afade=t=out:st={fade_out_start}:d=1[a]',
+                f'{video_inputs}concat=n={len(clip_files)}:v=1:a=0[concat_v];[concat_v]fade=t=in:st=0:d=0.5,fade=t=out:st={video_fade_out_start}:d=0.5[v];[{len(clip_files)}:a]atrim=duration={video_duration},volume={music_volume},afade=t=in:st=0:d=1,afade=t=out:st={fade_out_start}:d=1[a]',
                 '-map', '[v]', '-map', '[a]'
             ])
         else:
-            # Create video inputs for concatenation
+            # Create video inputs for concatenation with fade effects
             video_inputs = ''.join([f'[{i}:v]' for i in range(len(clip_files))])
             cmd.extend([
-                '-filter_complex', f'{video_inputs}concat=n={len(clip_files)}:v=1:a=0[v]',
+                '-filter_complex', f'{video_inputs}concat=n={len(clip_files)}:v=1:a=0[concat_v];[concat_v]fade=t=in:st=0:d=0.5,fade=t=out:st={video_fade_out_start}:d=0.5[v]',
                 '-map', '[v]',
                 '-an'  # No audio
             ])
     
-    # Simple output settings with quality maintained
-    output_settings = ['-c:v', 'libx264', '-preset', 'fast', '-crf', '23']
+    # Simple output settings with quality maintained and web compatibility
+    output_settings = [
+        '-c:v', 'libx264',
+        '-profile:v', 'baseline',  # Baseline profile for maximum compatibility
+        '-level:v', '3.0',         # Level 3.0 for web compatibility
+        '-pix_fmt', 'yuv420p',     # Pixel format required for web playback
+        '-preset', 'fast',         # Good balance of speed and quality
+        '-crf', '23',              # High quality
+        '-movflags', '+faststart', # Enable progressive download
+        '-max_muxing_queue_size', '1024'  # Handle complex filter chains
+    ]
     
-    # Add duration control and audio codec if we have music
+    # Always add duration control to prevent video freezing
+    if len(clip_files) == 1:
+        video_duration = get_video_duration(clip_files[0])
+    else:
+        video_duration = sum(get_video_duration(clip) for clip in clip_files)
+    
+    output_settings.extend(['-t', str(video_duration)])  # Always limit output duration
+    
+    # Add audio codec if we have music
     if has_music:
-        output_settings.extend(['-t', str(video_duration)])  # Limit output duration
         output_settings.extend(['-c:a', 'aac', '-b:a', '96k'])
     
     cmd.extend(output_settings)

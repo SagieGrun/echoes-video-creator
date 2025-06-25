@@ -60,6 +60,8 @@ export default function Dashboard() {
   const searchParams = useSearchParams()
   const [deletingVideoId, setDeletingVideoId] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
+  const [deletingClipId, setDeletingClipId] = useState<string | null>(null)
+  const [showDeleteClipConfirm, setShowDeleteClipConfirm] = useState<string | null>(null)
 
   // Handle tab parameter from URL
   useEffect(() => {
@@ -460,6 +462,48 @@ export default function Dashboard() {
     }
   }
 
+  const handleDeleteClip = async (clipId: string) => {
+    try {
+      setDeletingClipId(clipId)
+      
+      const supabase = createSupabaseBrowserClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session?.access_token) {
+        throw new Error('Not authenticated')
+      }
+      
+      // Call the secure delete API endpoint with authorization header
+      const response = await fetch('/api/clips/delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ clipId }),
+      })
+      
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete clip')
+      }
+      
+      console.log(`Successfully deleted clip ${clipId}`)
+      
+      // Update the UI state directly instead of reloading the page
+      setClips(prevClips => prevClips.filter(clip => clip.id !== clipId))
+      setShowDeleteClipConfirm(null)
+      
+    } catch (error) {
+      console.error('Error deleting clip:', error)
+      setError(error instanceof Error ? error.message : 'Failed to delete clip')
+      setShowDeleteClipConfirm(null)
+    } finally {
+      setDeletingClipId(null)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-100 via-orange-50 to-purple-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -734,8 +778,20 @@ export default function Dashboard() {
                           <Calendar className="h-3 w-3 mr-1" />
                           {formatDate(clip.updated_at)}
                         </div>
-                        <div className="text-xs text-green-600">
-                          ✓ Completed
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs text-green-600">
+                            ✓ Completed
+                          </div>
+                          <LoadingButton
+                            onClick={() => setShowDeleteClipConfirm(clip.id)}
+                            variant="secondary"
+                            size="sm"
+                            className="px-2 py-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            disabled={deletingClipId === clip.id}
+                            loading={deletingClipId === clip.id}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </LoadingButton>
                         </div>
                       </div>
                     </div>
@@ -834,6 +890,7 @@ export default function Dashboard() {
                             <VideoPlayer
                               src={video.file_url}
                               className="aspect-video"
+                              thumbnailWithControls={true}
                               thumbnailContent={
                                 clipImages.length > 0 ? (
                                   <div className="w-full h-full grid grid-cols-2 gap-0.5 p-1">
@@ -1001,6 +1058,54 @@ export default function Dashboard() {
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete Video
+              </LoadingButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Clip Confirmation Dialog */}
+      {showDeleteClipConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Delete Clip</h3>
+              <button
+                onClick={() => setShowDeleteClipConfirm(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-600">
+                Are you sure you want to delete this clip? This action cannot be undone.
+              </p>
+              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">
+                  <strong>Warning:</strong> This will permanently remove the clip from your account and storage.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowDeleteClipConfirm(null)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                disabled={deletingClipId === showDeleteClipConfirm}
+              >
+                Cancel
+              </button>
+              <LoadingButton
+                onClick={() => handleDeleteClip(showDeleteClipConfirm)}
+                variant="secondary"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white"
+                disabled={deletingClipId === showDeleteClipConfirm}
+                loading={deletingClipId === showDeleteClipConfirm}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Clip
               </LoadingButton>
             </div>
           </div>

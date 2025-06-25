@@ -11,11 +11,15 @@ flowchart TD
     A --> F[Supabase Auth]
     A --> G[Next.js API Routes]
     G --> D
+    A --> H[AWS Lambda]
+    H --> D
+    H --> E
     
     subgraph "Frontend (Hybrid)"
         A1[Static Pages - CDN]
         A2[Server Routes - OAuth]
         A3[React Components]
+        A4[Async Polling]
     end
     
     subgraph "Edge Functions (Deployed)"
@@ -24,38 +28,56 @@ flowchart TD
         B3[clip-details ✅]
     end
     
-    subgraph "Next.js API (Simple)"
+    subgraph "Next.js API (Enhanced)"
         G1[admin/auth]
         G2[admin/credits]
         G3[admin/system-prompt]
+        G4[compile - async invoke ✅]
+        G5[compile/status - polling ✅]
+    end
+    
+    subgraph "AWS Lambda (Video)"
+        H1[video-compiler ✅]
+        H2[FFmpeg Processing]
+        H3[Music Overlay]
+        H4[Transition Effects]
     end
     
     subgraph "Supabase Services"
         D[PostgreSQL + RLS]
-        E[File Storage]
+        E[File Storage + Final Videos]
         F[Authentication]
     end
 ```
 
-### Architecture Decision: Completed Migration ✅
+### Architecture Decision: Hybrid Backend Strategy ✅
 
-**❌ Why Next.js API Routes Failed:**
+**❌ Why Next.js API Routes Failed (For Core Logic):**
 - Poor debugging experience (console.log in terminal only)
 - Difficult error tracking and monitoring
 - Server deployment complexity
 - Serverless function limitations (timeouts, memory)
 
-**✅ Why Supabase Edge Functions Are Better:**
+**✅ Why Supabase Edge Functions Are Better (For Core Logic):**
 - Built-in logging dashboard with real-time monitoring
 - Structured error tracking and stack traces
 - Automatic scaling and reliability
 - Integrated with Supabase ecosystem
 - Deno runtime with modern JavaScript features
 
-**✅ Migration Results:**
+**✅ Why AWS Lambda Is Perfect (For Video Processing):**
+- No timeout limitations with async invocation
+- Large memory allocation (up to 10GB)
+- Custom runtime with embedded FFmpeg binaries
+- Cost-effective for compute-intensive operations
+- Mature ecosystem with AWS SDK integration
+
+**✅ Migration & Implementation Results:**
 - **3 Edge Functions deployed**: clip-generation, clip-status, clip-details
-- **Superior debugging achieved**: Real-time dashboard monitoring
-- **Frontend integration complete**: ClipGeneration.tsx updated
+- **1 AWS Lambda deployed**: video-compiler with embedded FFmpeg
+- **Async processing workflow**: API Gateway timeout bypassed
+- **Superior debugging achieved**: Real-time dashboard monitoring + CloudWatch logs
+- **Frontend integration complete**: ClipGeneration.tsx + async compilation
 - **Authentication working**: JWT tokens properly passed
 - **Build process verified**: TypeScript compilation successful
 
@@ -74,7 +96,36 @@ flowchart TD
 
 ## Core Design Patterns
 
-### 1. Auth-First Pattern
+### 1. Async Processing Pattern
+```typescript
+// Video compilation with async Lambda invocation
+interface VideoCompilationRequest {
+  clips: Clip[]
+  music?: MusicTrack
+  transitions: TransitionType
+  settings: CompilationSettings
+}
+
+// Async workflow
+const compileVideo = async (request: VideoCompilationRequest) => {
+  // 1. Create processing record immediately
+  const processingRecord = await createProcessingRecord(request)
+  
+  // 2. Invoke Lambda asynchronously (no timeout)
+  await invokeLambdaAsync(processingRecord.id, request)
+  
+  // 3. Return processing ID for polling
+  return { video_id: processingRecord.id, status: 'processing' }
+}
+
+// Status polling with token refresh
+const pollVideoStatus = async (videoId: string) => {
+  // Poll every 5 seconds with fresh session tokens
+  // Handle completion, errors, and timeouts
+}
+```
+
+### 2. Auth-First Pattern
 ```typescript
 // All routes protected by default
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -84,7 +135,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
 }
 ```
 
-### 2. Credit System Pattern
+### 3. Credit System Pattern
 ```typescript
 interface CreditTransaction {
   user_id: string
@@ -94,7 +145,7 @@ interface CreditTransaction {
 }
 ```
 
-### 3. Clip Approval Pattern
+### 4. Clip Approval Pattern
 ```typescript
 interface Clip {
   id: string
@@ -107,7 +158,7 @@ interface Clip {
 }
 ```
 
-### 4. Sequential Player Pattern
+### 5. Sequential Player Pattern
 ```typescript
 interface Project {
   id: string
@@ -126,7 +177,7 @@ class SequentialPlayer {
 }
 ```
 
-### 5. Pluggable AI Pattern
+### 6. Pluggable AI Pattern
 ```typescript
 interface AIProvider {
   generateClip(imageUrl: string, prompt: string): Promise<string>
@@ -138,6 +189,15 @@ const ACTIVE_PROVIDER = process.env.ACTIVE_AI_PROVIDER || 'runway'
 ```
 
 ## Data Flow Patterns
+
+### Complete Video Generation Flow
+```
+Photo Upload → Edge Functions → Runway API → Clip Storage
+     ↓
+Finalization Page → Clip Selection → Music Choice
+     ↓
+Async Lambda Compilation → Status Polling → Dashboard Display
+```
 
 ### Auth-First Flow
 ```
@@ -155,6 +215,17 @@ Upload → Private Storage → Edge Function → AI Provider
 Status Updates → Frontend Polling → Preview & Approve
      ↓
 Add to Sequence → Update Project Order
+```
+
+### Video Compilation Flow
+```
+Finalize Page → Create Processing Record → Async Lambda Invoke
+     ↓
+Lambda: FFmpeg Processing → Music Overlay → Transitions
+     ↓
+Upload to Storage → Update Database → Status Polling Complete
+     ↓
+Frontend Redirect → Dashboard Final Videos → Download/Share
 ```
 
 ### Payment Flow

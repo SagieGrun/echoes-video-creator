@@ -39,9 +39,19 @@ export async function GET(request: NextRequest) {
       .eq('user_id', user.id) // Ensure user can only check their own videos
       .single()
 
+    console.log('Database query result:', { finalVideo, dbError, videoId, userId: user.id })
+
     if (dbError || !finalVideo) {
+      console.error('Video not found in database:', { dbError, videoId, userId: user.id })
       return NextResponse.json({ error: 'Video not found' }, { status: 404 })
     }
+
+    console.log('Returning video status:', {
+      video_id: finalVideo.id,
+      status: finalVideo.status,
+      file_path: finalVideo.file_path,
+      error_message: finalVideo.error_message
+    })
 
     return NextResponse.json({
       video_id: finalVideo.id,
