@@ -13,7 +13,7 @@ export async function GET(
     const fullPath = join(process.cwd(), 'public', filePath)
     
     // Basic security - only allow certain file types
-    const allowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp']
+    const allowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp', '.mp4', '.webm', '.mov', '.avi']
     const fileExtension = '.' + filePath.split('.').pop()?.toLowerCase()
     
     if (!allowedExtensions.includes(fileExtension)) {
@@ -31,7 +31,11 @@ export async function GET(
       '.gif': 'image/gif',
       '.svg': 'image/svg+xml',
       '.ico': 'image/x-icon',
-      '.webp': 'image/webp'
+      '.webp': 'image/webp',
+      '.mp4': 'video/mp4',
+      '.webm': 'video/webm',
+      '.mov': 'video/quicktime',
+      '.avi': 'video/x-msvideo'
     }
     
     const contentType = contentTypes[fileExtension] || 'application/octet-stream'
