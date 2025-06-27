@@ -1,0 +1,2 @@
+This is a test file to verify static file deployment works on Vercel.
+If you can see this, static files are working. 
