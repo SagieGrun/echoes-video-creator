@@ -6,11 +6,11 @@ import { LoadingButton } from '@/components/ui/LoadingButton'
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
-  const supabase = createSupabaseBrowserClient()
 
   const handleGoogleSignIn = async () => {
     try {
       setIsLoading(true)
+      const supabase = createSupabaseBrowserClient()
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {

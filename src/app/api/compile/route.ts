@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 
+// Force this route to be dynamic (not statically generated)
+export const dynamic = 'force-dynamic'
+
 // Increase the maximum duration for this API route
 export const maxDuration = 60 // 1 minute for async processing
 
