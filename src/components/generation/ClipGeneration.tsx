@@ -6,6 +6,7 @@ import { CreditPurchase } from '@/components/credits/CreditPurchase'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { LoadingButton } from '@/components/ui/LoadingButton'
 import { ProgressBar } from '@/components/ui/ProgressBar'
+import { VideoPlayer } from '@/components/ui/VideoPlayer'
 import { uploadPhoto } from '@/lib/supabase/storage'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 
@@ -28,6 +29,9 @@ interface User {
 interface ClipGenerationProps {
   user?: User | null
 }
+
+// For the completion preview, we'll let the video determine its own aspect ratio
+// The VideoPlayer component will automatically adapt to the video's dimensions
 
 export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
   const [user, setUser] = useState<User | null>(propUser || null)
@@ -442,13 +446,16 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
           <div className="text-green-600 text-4xl mb-4">✓</div>
           <h3 className="text-xl font-semibold text-gray-900">Your clip is ready!</h3>
           
-          <video 
-            src={state.videoUrl} 
-            controls 
-            className="w-full max-w-md mx-auto rounded-lg"
-          >
-            Your browser does not support the video tag.
-          </video>
+          <div className="flex justify-center">
+            <div className="w-full max-w-sm sm:max-w-md">
+              <VideoPlayer
+                src={state.videoUrl}
+                showControls={true}
+                className="rounded-lg shadow-lg"
+                preload="metadata"
+              />
+            </div>
+          </div>
 
           <div className="flex gap-4 justify-center">
             <LoadingButton

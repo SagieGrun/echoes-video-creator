@@ -139,6 +139,12 @@ def lambda_handler(event, context):
                 download_from_supabase_storage(clip['video_file_path'], clip_path)
                 clip_files.append(str(clip_path))
             
+            # Normalize clips to target aspect ratio
+            output_aspect_ratio = settings.get('output_aspect_ratio', '16:9')
+            logger.info(f"Normalizing {len(clip_files)} clips to aspect ratio: {output_aspect_ratio}")
+            normalized_clip_files = normalize_clips_to_aspect_ratio(clip_files, output_aspect_ratio, str(temp_path))
+            logger.info(f"Aspect ratio normalization completed, using normalized clips")
+            
             # Download music if provided
             music_file = None
             if music and music.get('file_path'):
@@ -159,7 +165,7 @@ def lambda_handler(event, context):
             # Compile video
             output_file = temp_path / "final_video.mp4"
             compile_video(
-                clip_files=clip_files,
+                clip_files=normalized_clip_files,  # Use normalized clips
                 music_file=str(music_file) if music_file else None,
                 output_file=str(output_file),
                 settings=settings,
@@ -287,7 +293,7 @@ def generate_public_url(file_path: str) -> str:
     """Generate public URL for a file in the final-videos bucket"""
     try:
         # Get the Supabase project URL from environment
-        supabase_url = get_parameter('SUPABASE_URL')
+        supabase_url = get_parameter('url')
         
         # Format: https://[project-id].supabase.co/storage/v1/object/public/final-videos/[file-path]
         public_url = f"{supabase_url}/storage/v1/object/public/final-videos/{file_path}"
@@ -350,6 +356,86 @@ def get_video_duration(video_file: str) -> float:
         logger.warning(f"Error getting video duration: {str(e)}, defaulting to 5 seconds")
         return 5.0
 
+
+def normalize_clips_to_aspect_ratio(clip_files: list, target_aspect: str, temp_dir: str) -> list:
+    """Normalize all clips to target aspect ratio before concatenation"""
+    try:
+        logger.info(f"Starting aspect ratio normalization to {target_aspect}")
+        normalized_files = []
+        
+        # Define target resolutions and scale filters
+        aspect_configs = {
+            "16:9": {
+                "resolution": "1920:1080",
+                "scale_filter": "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black"
+            },
+            "9:16": {
+                "resolution": "1080:1920", 
+                "scale_filter": "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black"
+            },
+            "1:1": {
+                "resolution": "1080:1080",
+                "scale_filter": "scale=1080:1080:force_original_aspect_ratio=decrease,pad=1080:1080:(ow-iw)/2:(oh-ih)/2:black"
+            }
+        }
+        
+        if target_aspect not in aspect_configs:
+            logger.warning(f"Unknown aspect ratio {target_aspect}, defaulting to 16:9")
+            target_aspect = "16:9"
+        
+        config = aspect_configs[target_aspect]
+        logger.info(f"Using configuration: {config}")
+        
+        for i, clip_file in enumerate(clip_files):
+            output_file = os.path.join(temp_dir, f"normalized_{i:03d}.mp4")
+            
+            logger.info(f"Normalizing clip {i+1}/{len(clip_files)}: {clip_file} -> {output_file}")
+            
+            cmd = [
+                './bin/ffmpeg', '-y',  # Overwrite output files
+                '-i', clip_file,
+                '-vf', config["scale_filter"],
+                '-c:v', 'libx264',
+                '-preset', 'fast',
+                '-crf', '23',
+                '-pix_fmt', 'yuv420p',  # Ensure compatibility
+                '-movflags', '+faststart',  # Web optimization
+                output_file
+            ]
+            
+            logger.info(f"Normalization command: {' '.join(cmd)}")
+            
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=180  # 3 minute timeout per clip
+            )
+            
+            if result.returncode != 0:
+                logger.error(f"Failed to normalize clip {clip_file}: {result.stderr}")
+                # Fallback: use original clip if normalization fails
+                logger.warning(f"Using original clip as fallback: {clip_file}")
+                normalized_files.append(clip_file)
+            else:
+                logger.info(f"Successfully normalized clip {i+1}: {output_file}")
+                # Verify output file exists and has reasonable size
+                if os.path.exists(output_file) and os.path.getsize(output_file) > 1000:  # At least 1KB
+                    normalized_files.append(output_file)
+                else:
+                    logger.warning(f"Normalized file is too small or doesn't exist, using original: {clip_file}")
+                    normalized_files.append(clip_file)
+        
+        logger.info(f"Aspect ratio normalization completed. Normalized {len(normalized_files)} clips")
+        return normalized_files
+        
+    except Exception as e:
+        logger.error(f"Error in aspect ratio normalization: {str(e)}")
+        # Fallback: return original clips if normalization fails completely
+        logger.warning("Falling back to original clips without normalization")
+        return clip_files
+
+
 def compile_video(clip_files: list, music_file: str, output_file: str, settings: dict, music_volume: float = 0.3):
     """Compile video using FFmpeg with transitions and music"""
     try:
@@ -363,6 +449,7 @@ def compile_video(clip_files: list, music_file: str, output_file: str, settings:
         # Get transition settings
         transition_type = settings.get('transition_type', 'fade')
         transition_duration = float(settings.get('transition_duration', 1.0))
+        output_aspect_ratio = settings.get('output_aspect_ratio', '16:9')
         
         # Build FFmpeg command
         ffmpeg_cmd = build_ffmpeg_command(
@@ -371,7 +458,8 @@ def compile_video(clip_files: list, music_file: str, output_file: str, settings:
             output_file=output_file,
             transition_type=transition_type,
             transition_duration=transition_duration,
-            music_volume=music_volume
+            music_volume=music_volume,
+            output_aspect_ratio=output_aspect_ratio
         )
         
         logger.info(f"Executing FFmpeg command: {' '.join(ffmpeg_cmd)}")
@@ -429,7 +517,7 @@ def compile_video(clip_files: list, music_file: str, output_file: str, settings:
 
 
 def build_ffmpeg_command(clip_files: list, music_file: str, output_file: str, 
-                        transition_type: str, transition_duration: float, music_volume: float):
+                        transition_type: str, transition_duration: float, music_volume: float, output_aspect_ratio: str = '16:9'):
     """Build FFmpeg command for video compilation with transitions and music"""
     
     cmd = ['./bin/ffmpeg', '-y']  # -y to overwrite output file
@@ -506,6 +594,15 @@ def build_ffmpeg_command(clip_files: list, music_file: str, output_file: str,
         else:
             cmd.extend(['-map', '[outv]', '-an'])  # No audio output
     
+    # Define explicit video dimensions based on aspect ratio
+    aspect_dimensions = {
+        "16:9": {"width": 1920, "height": 1080},
+        "9:16": {"width": 1080, "height": 1920}, 
+        "1:1": {"width": 1080, "height": 1080}
+    }
+    
+    dimensions = aspect_dimensions.get(output_aspect_ratio, aspect_dimensions["16:9"])
+    
     # Output settings with high quality maintained and web compatibility
     video_settings = [
         '-c:v', 'libx264',
@@ -518,6 +615,7 @@ def build_ffmpeg_command(clip_files: list, music_file: str, output_file: str,
         '-avoid_negative_ts', 'make_zero',  # Handle timing issues
         '-fflags', '+genpts',      # Generate presentation timestamps
         '-max_muxing_queue_size', '1024',  # Handle complex filter chains
+        '-s', f"{dimensions['width']}x{dimensions['height']}",  # Explicit video dimensions
     ]
     
     # Add explicit duration control to prevent freezing

@@ -40,6 +40,7 @@ interface FinalVideo {
   public_url: string | null
   total_duration: number | null
   file_size: number | null
+  output_aspect_ratio?: string
   created_at: string
   completed_at: string | null
 }
@@ -686,15 +687,14 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {completedClips.map((clip, index) => (
                   <div key={clip.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
-                      <div className="aspect-square relative">
+                      <div className="relative bg-black rounded-t-xl overflow-hidden min-h-[200px] max-h-[320px] flex items-center justify-center">
                         {clip.video_url ? (
                           <VideoPlayer
                             src={clip.video_url}
                             poster={clip.image_url || undefined}
                             showControls={true}
-                            className="w-full h-full"
+                            className="w-full h-full object-contain"
                             preload="metadata"
-                            aspectRatio="1/1"
                             width={300}
                             height={300}
                           />
@@ -702,10 +702,9 @@ export default function Dashboard() {
                           <OptimizedImage
                             src={clip.image_url}
                             alt={`Clip ${index + 1}`}
-                            className="w-full h-full"
+                            className="w-full h-full object-contain"
                             fallbackIcon={<ImageIcon className="h-8 w-8" />}
                             priority={index < 4} // Prioritize first 4 clips for above-the-fold loading
-                            aspectRatio="1/1"
                             width={300}
                             height={300}
                           />
@@ -768,27 +767,33 @@ export default function Dashboard() {
             {processingFinalVideos.length > 0 && (
               <div>
                 <h3 className="text-lg font-medium text-gray-700 mb-4">Currently Compiling</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {processingFinalVideos.map((video) => (
-                    <div key={video.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
-                      <div className="aspect-video bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center">
-                        <div className="text-center">
-                          <LoadingSpinner size="lg" className="text-purple-600 mb-2 mx-auto" />
-                          <p className="text-sm text-gray-600 font-medium">Compiling Video...</p>
-                          <p className="text-xs text-gray-500 mt-1">{video.selected_clips?.length || 0} clips</p>
+                <div className="flex flex-wrap gap-6 justify-center lg:justify-start">
+                  {processingFinalVideos.map((video) => {
+                    // Processing videos default to landscape since we don't know the aspect ratio yet
+                    const processingCardStyle = { width: '400px', height: 'auto' }
+                    const processingVideoStyle = { aspectRatio: '16/9' }
+                    
+                    return (
+                      <div key={video.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 flex flex-col" style={processingCardStyle}>
+                        <div className="bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center" style={processingVideoStyle}>
+                          <div className="text-center">
+                            <LoadingSpinner size="lg" className="text-purple-600 mb-2 mx-auto" />
+                            <p className="text-sm text-gray-600 font-medium">Compiling Video...</p>
+                            <p className="text-xs text-gray-500 mt-1">{video.selected_clips?.length || 0} clips</p>
+                          </div>
+                        </div>
+                        <div className="p-4 flex-shrink-0">
+                          <div className="text-xs text-gray-500 flex items-center mb-1">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {formatDate(video.created_at)}
+                          </div>
+                          <div className="text-xs text-purple-600">
+                            Processing {video.selected_clips?.length || 0} clips
+                          </div>
                         </div>
                       </div>
-                      <div className="p-4">
-                        <div className="text-xs text-gray-500 flex items-center mb-1">
-                          <Clock className="h-3 w-3 mr-1" />
-                          {formatDate(video.created_at)}
-                        </div>
-                        <div className="text-xs text-purple-600">
-                          Processing {video.selected_clips?.length || 0} clips
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -823,44 +828,122 @@ export default function Dashboard() {
                 <h3 className="text-lg font-medium text-gray-700 mb-4">
                   Your Final Videos ({completedFinalVideos.length})
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="flex flex-wrap gap-6 justify-center lg:justify-start">
                   {completedFinalVideos.map((video) => {
                     const clipImages = getClipImages(video)
+                    
+                    // Define card dimensions based on aspect ratio
+                    const getCardStyle = () => {
+                      if (video.output_aspect_ratio === '9:16') {
+                        // Portrait: Adjusted width to account for metadata section
+                        return { width: '300px', height: 'auto' }
+                      } else if (video.output_aspect_ratio === '1:1') {
+                        // Square: Equal width and height
+                        return { width: '340px', height: 'auto' }
+                      } else {
+                        // Landscape/Default: Wide and short
+                        return { width: '420px', height: 'auto' }
+                      }
+                    }
+                    
+                    const getVideoContainerStyle = () => {
+                      if (video.output_aspect_ratio === '9:16') {
+                        // Portrait: Slightly shorter to account for metadata making total card more proportional
+                        return { aspectRatio: '10/16' }
+                      } else if (video.output_aspect_ratio === '1:1') {
+                        return { aspectRatio: '1/1' }
+                      } else {
+                        return { aspectRatio: '16/9' }
+                      }
+                    }
+                    
                     return (
-                      <div key={video.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
-                        <div className="aspect-video relative bg-gray-100">
+                      <div 
+                        key={video.id} 
+                        className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow flex flex-col"
+                        style={getCardStyle()}
+                      >
+                        <div 
+                          className="bg-black overflow-hidden relative flex items-center justify-center"
+                          style={getVideoContainerStyle()}
+                        >
                           {video.file_url ? (
                             <VideoPlayer
                               src={video.file_url}
-                              className="aspect-video"
+                              className="absolute inset-0 w-full h-full object-contain"
                               thumbnailWithControls={true}
                               preload="metadata"
-                              aspectRatio="16/9"
-                              width={400}
-                              height={225}
                               thumbnailContent={
                                 clipImages.length > 0 ? (
-                                  <div className="w-full h-full grid grid-cols-2 gap-0.5 p-1">
-                                    {Array.from({ length: 4 }).map((_, idx) => {
-                                      const clip = clipImages[idx]
-                                      return (
-                                        <div key={idx} className="relative bg-gray-200 rounded-sm overflow-hidden">
-                                          <OptimizedImage
-                                            src={clip?.image_url}
-                                            alt=""
-                                            className="w-full h-full"
-                                            fallbackIcon={<Film className="h-3 w-3" />}
-                                            aspectRatio="1/1"
-                                            width={100}
-                                            height={100}
-                                            onError={() => {
-                                              console.log(`Failed to load image for clip ${clip?.id}:`, clip?.image_url)
-                                            }}
-                                          />
+                                  clipImages.length === 1 ? (
+                                    // Single clip: Fill entire thumbnail
+                                    <div className="w-full h-full">
+                                      <OptimizedImage
+                                        src={clipImages[0]?.image_url}
+                                        alt=""
+                                        className="w-full h-full object-cover"
+                                        fallbackIcon={<Film className="h-8 w-8" />}
+                                        width={400}
+                                        height={400}
+                                        onError={() => {
+                                          console.log(`Failed to load image for clip ${clipImages[0]?.id}:`, clipImages[0]?.image_url)
+                                        }}
+                                      />
+                                    </div>
+                                  ) : (
+                                    // Multiple clips: Grid layout
+                                    <div className={`w-full h-full ${
+                                      video.output_aspect_ratio === '9:16' 
+                                        ? clipImages.length <= 2 
+                                          ? 'grid grid-cols-1 grid-rows-2' // Portrait: 1 column, 2 rows for 2 clips
+                                          : 'grid grid-cols-1 grid-rows-4' // Portrait: 1 column, 4 rows for 3+ clips
+                                        : video.output_aspect_ratio === '1:1'
+                                        ? clipImages.length <= 2
+                                          ? 'grid grid-cols-2 grid-rows-1' // Square: 2 columns, 1 row for 2 clips
+                                          : 'grid grid-cols-2 grid-rows-2' // Square: 2x2 grid for 3+ clips
+                                        : clipImages.length <= 2
+                                        ? 'grid grid-cols-2 grid-rows-1' // Landscape: 2 columns, 1 row for 2 clips
+                                        : 'grid grid-cols-2 grid-rows-2' // Landscape: 2x2 grid for 3+ clips
+                                    }`}>
+                                      {clipImages.slice(0, Math.min(clipImages.length, 4)).map((clip, idx) => {
+                                        // For mixed aspect ratios, use smart object-fit based on final video format
+                                        const getClipObjectFit = () => {
+                                          // If final video is portrait, prioritize showing full height of clips
+                                          if (video.output_aspect_ratio === '9:16') {
+                                            return 'object-cover' // Fill the grid cell completely
+                                          }
+                                          // For square and landscape final videos, balance coverage and visibility
+                                          return 'object-cover'
+                                        }
+                                        
+                                        return (
+                                          <div key={idx} className="relative bg-gray-800 overflow-hidden">
+                                            <OptimizedImage
+                                              src={clip?.image_url}
+                                              alt=""
+                                              className={`w-full h-full ${getClipObjectFit()}`}
+                                              fallbackIcon={<Film className="h-6 w-6" />}
+                                              width={200}
+                                              height={200}
+                                              onError={() => {
+                                                console.log(`Failed to load image for clip ${clip?.id}:`, clip?.image_url)
+                                              }}
+                                            />
+                                            {/* Add subtle aspect ratio indicator for mixed content */}
+                                            {clipImages.length > 1 && (
+                                              <div className="absolute top-1 right-1 w-2 h-2 bg-white/30 rounded-full opacity-60" />
+                                            )}
+                                          </div>
+                                        )
+                                      })}
+                                      {/* Fill remaining slots with "+" indicator if more clips exist */}
+                                      {clipImages.length > 4 && (
+                                        <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                          +{clipImages.length - 4}
                                         </div>
-                                      )
-                                    })}
-                                  </div>
+                                      )}
+                                    </div>
+                                  )
                                 ) : (
                                   <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                                     <Film className="h-12 w-12 text-gray-400" />
@@ -869,7 +952,7 @@ export default function Dashboard() {
                               }
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center">
+                            <div className="absolute inset-0 w-full h-full flex items-center justify-center">
                               <Film className="h-8 w-8 text-gray-400" />
                             </div>
                           )}
@@ -877,15 +960,24 @@ export default function Dashboard() {
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                               Final Video
                             </span>
-                      </div>
-                    </div>
-                    <div className="p-4">
+                          </div>
+                        </div>
+                        <div className="p-4 flex-shrink-0">
                           <div className="mb-3">
                             <p className="text-sm font-medium text-gray-900">
                               {video.selected_clips?.length || 0} clips • {video.transition_type} transitions
                             </p>
                             <p className="text-xs text-gray-500">
                               {video.music_track_id && '🎵 With music • '}
+                              {video.output_aspect_ratio ? (
+                                <>
+                                  {video.output_aspect_ratio === '9:16' && '📱 Portrait • '}
+                                  {video.output_aspect_ratio === '16:9' && '🖥️ Landscape • '}
+                                  {video.output_aspect_ratio === '1:1' && '⬜ Square • '}
+                                </>
+                              ) : (
+                                '🖥️ Legacy • ' // For older videos without aspect ratio data
+                              )}
                               {video.file_size && `${(video.file_size / (1024 * 1024)).toFixed(1)} MB`}
                             </p>
                           </div>

@@ -32,14 +32,14 @@ export function HowItWorks() {
   ]
 
   return (
-    <section id="how-it-works" className="py-20 px-4 bg-gradient-to-br from-orange-50 to-rose-50">
+    <section id="how-it-works" className="py-20 px-4 bg-gradient-to-br from-amber-100 to-rose-100">
       <div className="max-w-6xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-orange-800 mb-6">
+          <h2 className="text-4xl md:text-5xl font-bold text-amber-900 mb-6">
             How It Works
           </h2>
-          <p className="text-xl text-rose-700 max-w-2xl mx-auto">
+          <p className="text-xl text-rose-800 max-w-2xl mx-auto">
             Transform your memories in three simple steps. No technical skills needed.
           </p>
         </div>
@@ -50,24 +50,24 @@ export function HowItWorks() {
             <div key={index} className="text-center group">
               {/* Step Number */}
               <div className="relative mb-8">
-                <div className="w-20 h-20 bg-gradient-to-r from-coral-300 to-rose-200 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
+                <div className="w-20 h-20 bg-gradient-to-r from-orange-400 to-rose-300 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
                   <span className="text-2xl">{step.icon}</span>
                 </div>
-                <div className="absolute -top-2 -right-2 w-8 h-8 bg-orange-700 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                <div className="absolute -top-2 -right-2 w-8 h-8 bg-amber-700 text-white rounded-full flex items-center justify-center text-sm font-bold">
                   {step.number}
                 </div>
                 
                 {/* Connector Line (except for last item) */}
                 {index < steps.length - 1 && (
-                  <div className="hidden md:block absolute top-10 left-full w-full h-0.5 bg-gradient-to-r from-coral-300 to-rose-200 opacity-40 transform -translate-y-1/2"></div>
+                  <div className="hidden md:block absolute top-10 left-full w-full h-0.5 bg-gradient-to-r from-orange-400 to-rose-300 opacity-60 transform -translate-y-1/2"></div>
                 )}
               </div>
 
               {/* Content */}
-              <h3 className="text-2xl font-bold text-orange-800 mb-4">
+              <h3 className="text-2xl font-bold text-amber-900 mb-4">
                 {step.title}
               </h3>
-              <p className="text-rose-700 leading-relaxed">
+              <p className="text-rose-800 leading-relaxed">
                 {step.description}
               </p>
             </div>
@@ -78,7 +78,7 @@ export function HowItWorks() {
         <div className="text-center mt-16">
           <button 
             onClick={handleTryFree}
-            className="bg-gradient-to-r from-coral-400 to-rose-300 hover:from-coral-500 hover:to-rose-400 text-white font-semibold text-lg px-8 py-4 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+            className="bg-gradient-to-r from-orange-500 to-rose-400 hover:from-orange-600 hover:to-rose-500 text-white font-semibold text-lg px-8 py-4 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
           >
             Start Creating Now
           </button>

@@ -248,6 +248,8 @@ export function VideoPlayer({
 
   // If thumbnailWithControls is true and video is playing, show native controls
   if (thumbnailWithControls && showVideo) {
+    // Check if parent wants object-contain
+    const videoObjectFit = className.includes('object-contain') ? 'object-contain' : 'object-cover'
     return (
       <div className={className} style={getContainerStyle()}>
         <video
@@ -255,7 +257,7 @@ export function VideoPlayer({
           poster={poster}
           controls
           autoPlay={true} // Auto-play when switching from thumbnail to video
-          className="w-full h-full object-cover"
+          className={`w-full h-full ${videoObjectFit}`}
           preload={preload}
           width={width}
           height={height}
@@ -270,13 +272,15 @@ export function VideoPlayer({
 
   // If showControls is true, immediately show video with native controls
   if (showControls && !thumbnailWithControls) {
+    // Check if parent wants object-contain
+    const videoObjectFit = className.includes('object-contain') ? 'object-contain' : 'object-cover'
     return (
       <div className={className} style={getContainerStyle()}>
         <video
           src={src}
           poster={poster}
           controls
-          className="w-full h-full object-cover"
+          className={`w-full h-full ${videoObjectFit}`}
           preload={preload}
           width={width}
           height={height}
@@ -315,7 +319,7 @@ export function VideoPlayer({
           ref={videoRef}
           src={src}
           poster={poster}
-          className="w-full h-full object-cover"
+          className={`w-full h-full ${className.includes('object-contain') ? 'object-contain' : 'object-cover'}`}
           width={width}
           height={height}
           preload={preload}

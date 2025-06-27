@@ -12,7 +12,7 @@ export default function Homepage() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-gradient-to-br from-orange-200 via-rose-200 to-purple-200">
+      <main className="min-h-screen bg-gradient-to-br from-amber-300 via-rose-300 to-orange-300">
         <HeroSection />
         <HowItWorks />
         <ExampleGallery />

@@ -43,6 +43,7 @@ export default function FinalizePage() {
   const [selectedMusicId, setSelectedMusicId] = useState<string>('')
   const [transitionType, setTransitionType] = useState<string>('fade')
   const [musicVolume, setMusicVolume] = useState<number>(0.7)
+  const [outputAspectRatio, setOutputAspectRatio] = useState<'16:9' | '9:16' | '1:1'>('16:9')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [user, setUser] = useState<any>(null)
@@ -332,7 +333,8 @@ export default function FinalizePage() {
         settings: {
           transitionType,
           transitionDuration: 1.0,
-          musicVolume
+          musicVolume,
+          output_aspect_ratio: outputAspectRatio
         }
       }
 
@@ -490,10 +492,91 @@ export default function FinalizePage() {
 
   if (loading || !supabase) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-100 via-orange-50 to-purple-50 flex items-center justify-center">
-        <div className="text-center">
-          <LoadingSpinner size="lg" className="mb-4 mx-auto" />
-          <p className="text-gray-600">Loading your clips...</p>
+      <div className="min-h-screen bg-gradient-to-br from-orange-100 via-orange-50 to-purple-50 py-8">
+        <div className="max-w-6xl mx-auto px-4">
+          {/* Header Skeleton */}
+          <div className="mb-8">
+            <div className="h-4 bg-gray-200 rounded w-32 mb-4 animate-pulse" />
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-gray-200 rounded-lg animate-pulse" />
+              <div>
+                <div className="h-8 bg-gray-200 rounded w-80 mb-2 animate-pulse" />
+                <div className="h-4 bg-gray-200 rounded w-64 animate-pulse" />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Clip Selection Skeleton */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center mb-4">
+                  <div className="w-5 h-5 bg-gray-200 rounded mr-2 animate-pulse" />
+                  <div className="h-6 bg-gray-200 rounded w-48 animate-pulse" />
+                </div>
+                <div className="h-4 bg-gray-200 rounded w-64 mb-6 animate-pulse" />
+                
+                {/* Clips Grid Skeleton */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="border-2 border-gray-200 rounded-lg overflow-hidden">
+                      <div className="p-2">
+                        <div className="bg-gray-200 rounded overflow-hidden mb-2 w-full animate-pulse" style={{ height: '200px' }} />
+                        <div className="h-4 bg-gray-200 rounded w-16 mb-1 animate-pulse" />
+                        <div className="h-3 bg-gray-200 rounded w-20 animate-pulse" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Settings Sidebar Skeleton */}
+            <div className="space-y-6">
+              {/* Aspect Ratio Skeleton */}
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center mb-4">
+                  <div className="w-5 h-5 bg-gray-200 rounded mr-2 animate-pulse" />
+                  <div className="h-6 bg-gray-200 rounded w-32 animate-pulse" />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-20 bg-gray-200 rounded-lg animate-pulse" />
+                  ))}
+                </div>
+              </div>
+
+              {/* Music Skeleton */}
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center mb-4">
+                  <div className="w-5 h-5 bg-gray-200 rounded mr-2 animate-pulse" />
+                  <div className="h-6 bg-gray-200 rounded w-24 animate-pulse" />
+                </div>
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-12 bg-gray-200 rounded-lg animate-pulse" />
+                  ))}
+                </div>
+              </div>
+
+              {/* Settings Skeleton */}
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center mb-4">
+                  <div className="w-5 h-5 bg-gray-200 rounded mr-2 animate-pulse" />
+                  <div className="h-6 bg-gray-200 rounded w-28 animate-pulse" />
+                </div>
+                <div className="space-y-4">
+                  <div className="h-4 bg-gray-200 rounded w-32 animate-pulse" />
+                  <div className="h-8 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-4 bg-gray-200 rounded w-28 animate-pulse" />
+                  <div className="h-6 bg-gray-200 rounded animate-pulse" />
+                </div>
+              </div>
+
+              {/* Create Button Skeleton */}
+              <div className="h-12 bg-gray-200 rounded-lg animate-pulse" />
+            </div>
+          </div>
         </div>
       </div>
     )
@@ -615,13 +698,19 @@ export default function FinalizePage() {
                             </div>
                             
                             {/* Clip Thumbnail */}
-                            <div className="w-16 h-12 bg-gray-100 rounded overflow-hidden mr-3">
-                              <OptimizedImage
+                            <div className="w-16 bg-black rounded overflow-hidden mr-3 relative" style={{ height: '64px' }}>
+                              {clip.image_url ? (
+                                <img
                                   src={clip.image_url}
                                   alt={`Clip ${index + 1}`}
-                                className="w-full h-full"
-                                fallbackIcon={<Play className="h-4 w-4" />}
+                                  className="absolute inset-0 w-full h-full object-contain"
+                                  loading="lazy"
                                 />
+                              ) : (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <Play className="h-4 w-4 text-gray-400" />
+                                </div>
+                              )}
                             </div>
                             
                             {/* Clip Info */}
@@ -666,14 +755,19 @@ export default function FinalizePage() {
                         onClick={() => toggleClipSelection(clip.id)}
                       >
                         <div className="p-2">
-                          <div className="aspect-video bg-gray-100 rounded overflow-hidden mb-2">
-                            <OptimizedImage
+                          <div className="bg-black rounded overflow-hidden mb-2 w-full relative" style={{ height: '200px' }}>
+                            {clip.image_url ? (
+                              <img
                                 src={clip.image_url}
                                 alt={`Clip ${index + 1}`}
-                              className="w-full h-full"
-                              fallbackIcon={<Play className="h-6 w-6" />}
-                              priority={index < 6} // Prioritize first 6 images for above-the-fold loading
+                                className="absolute inset-0 w-full h-full object-contain"
+                                loading={index < 6 ? 'eager' : 'lazy'}
                               />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <Play className="h-6 w-6 text-gray-400" />
+                              </div>
+                            )}
                           </div>
                           
                           <div className="text-sm">
@@ -845,6 +939,60 @@ export default function FinalizePage() {
               </div>
               
               <div className="space-y-4">
+                {/* Output Aspect Ratio */}
+                <div>
+                  <label className="block text-sm font-medium mb-3">Final Video Format</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <label className="flex flex-col items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <input 
+                        type="radio" 
+                        name="aspectRatio"
+                        value="16:9" 
+                        checked={outputAspectRatio === '16:9'}
+                        onChange={(e) => setOutputAspectRatio(e.target.value as '16:9' | '9:16' | '1:1')}
+                        className="mb-2"
+                      />
+                      <div className="text-center">
+                        <div className="text-lg mb-1">🖥️</div>
+                        <div className="font-medium text-sm">Landscape</div>
+                        <div className="text-xs text-gray-600">16:9 • YouTube</div>
+                      </div>
+                    </label>
+                    
+                    <label className="flex flex-col items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <input 
+                        type="radio" 
+                        name="aspectRatio"
+                        value="9:16" 
+                        checked={outputAspectRatio === '9:16'}
+                        onChange={(e) => setOutputAspectRatio(e.target.value as '16:9' | '9:16' | '1:1')}
+                        className="mb-2"
+                      />
+                      <div className="text-center">
+                        <div className="text-lg mb-1">📱</div>
+                        <div className="font-medium text-sm">Portrait</div>
+                        <div className="text-xs text-gray-600">9:16 • TikTok</div>
+                      </div>
+                    </label>
+                    
+                    <label className="flex flex-col items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <input 
+                        type="radio" 
+                        name="aspectRatio"
+                        value="1:1" 
+                        checked={outputAspectRatio === '1:1'}
+                        onChange={(e) => setOutputAspectRatio(e.target.value as '16:9' | '9:16' | '1:1')}
+                        className="mb-2"
+                      />
+                      <div className="text-center">
+                        <div className="text-lg mb-1">⬜</div>
+                        <div className="font-medium text-sm">Square</div>
+                        <div className="text-xs text-gray-600">1:1 • Instagram</div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium mb-2">Transition Type</label>
                   <select

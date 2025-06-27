@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
       music_track_id: selectedMusic?.id || null,
       transition_type: settings?.transitionType || 'fade',
       music_volume: selectedMusic ? (settings?.musicVolume || 0.3) : null,
+      output_aspect_ratio: settings?.output_aspect_ratio || '16:9',
       status: 'processing'
     }
 
@@ -104,7 +105,8 @@ export async function POST(request: NextRequest) {
       } : null,
       settings: {
         transition_type: settings?.transitionType || 'fade',
-        transition_duration: parseFloat(settings?.transitionDuration || '1.0')
+        transition_duration: parseFloat(settings?.transitionDuration || '1.0'),
+        output_aspect_ratio: settings?.output_aspect_ratio || '16:9'
       }
     }
 
