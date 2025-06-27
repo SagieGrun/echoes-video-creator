@@ -16,7 +16,7 @@ export function Header() {
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-3">
               <img 
-                src="/echoes-logo.png" 
+                src="/api/static/api/static/echoes-logo.png" 
                 alt="Echoes Logo" 
                 className="h-8 w-8 flex-shrink-0"
               />
