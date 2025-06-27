@@ -1,0 +1,22 @@
+{
+  "name": "Echoes - Transform Photos into Animated Clips",
+  "short_name": "Echoes",
+  "description": "Create beautiful animated clips from your photos with AI",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFF7ED",
+  "theme_color": "#F97316",
+  "icons": [
+    {
+      "src": "/echoes-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/echoes-logo.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    }
+  ]
+} 
