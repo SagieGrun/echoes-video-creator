@@ -126,7 +126,7 @@ export function HeroSection() {
                     <div className="aspect-square relative overflow-hidden rounded-xl">
                       <video
                         ref={videoRef}
-                        src="/api/static/examples/family-photo-animated.mp4"
+                        src="/api/static/examples/family-photo-animated-web.mp4"
                         poster="/api/static/examples/family-photo.jpg"
                         autoPlay
                         loop
