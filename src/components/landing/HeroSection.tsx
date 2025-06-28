@@ -10,58 +10,199 @@ export function HeroSection() {
   const [showPlayButton, setShowPlayButton] = useState(false)
   const [videoPlaying, setVideoPlaying] = useState(false)
 
-  // Handle video autoplay with fallbacks
+  // Comprehensive video diagnostics
+  const logVideoState = (context: string) => {
+    const video = videoRef.current
+    if (!video) {
+      console.log(`[${context}] Video element not found`)
+      return
+    }
+
+    console.log(`[${context}] Video Diagnostics:`, {
+      src: video.src,
+      currentSrc: video.currentSrc,
+      readyState: video.readyState,
+      readyStateText: [
+        'HAVE_NOTHING',
+        'HAVE_METADATA', 
+        'HAVE_CURRENT_DATA',
+        'HAVE_FUTURE_DATA',
+        'HAVE_ENOUGH_DATA'
+      ][video.readyState],
+      networkState: video.networkState,
+      networkStateText: [
+        'NETWORK_EMPTY',
+        'NETWORK_IDLE', 
+        'NETWORK_LOADING',
+        'NETWORK_NO_SOURCE'
+      ][video.networkState],
+      error: video.error ? {
+        code: video.error.code,
+        message: video.error.message,
+        codeText: [
+          'MEDIA_ERR_ABORTED',
+          'MEDIA_ERR_NETWORK',
+          'MEDIA_ERR_DECODE', 
+          'MEDIA_ERR_SRC_NOT_SUPPORTED'
+        ][video.error.code - 1]
+      } : null,
+      canPlayType: {
+        'video/mp4': video.canPlayType('video/mp4'),
+        'video/mp4; codecs="avc1.42E01E"': video.canPlayType('video/mp4; codecs="avc1.42E01E"'),
+        'video/mp4; codecs="avc1.42001E"': video.canPlayType('video/mp4; codecs="avc1.42001E"'),
+        'video/mp4; codecs="avc1.4D401E"': video.canPlayType('video/mp4; codecs="avc1.4D401E"')
+      },
+      duration: video.duration,
+      paused: video.paused,
+      ended: video.ended,
+      seeking: video.seeking,
+      buffered: video.buffered.length > 0 ? `${video.buffered.start(0)}-${video.buffered.end(0)}` : 'none'
+    })
+  }
+
+  // Test network connectivity to the video file
+  const testVideoUrl = async () => {
+    const videoUrl = '/api/static/examples/family-photo-animated-ultra-web.mp4'
+    console.log('[Network Test] Testing video URL accessibility...')
+    
+    try {
+      const response = await fetch(videoUrl, { method: 'HEAD' })
+      console.log('[Network Test] Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        ok: response.ok
+      })
+      
+      if (response.ok) {
+        // Try to fetch a small range to test actual video data
+        const rangeResponse = await fetch(videoUrl, {
+          headers: { 'Range': 'bytes=0-1023' }
+        })
+        const buffer = await rangeResponse.arrayBuffer()
+        console.log('[Network Test] Video data accessible:', {
+          rangeStatus: rangeResponse.status,
+          bytesReceived: buffer.byteLength,
+          firstBytes: Array.from(new Uint8Array(buffer.slice(0, 16))).map(b => b.toString(16).padStart(2, '0')).join(' ')
+        })
+      }
+    } catch (error) {
+      console.error('[Network Test] Failed to access video URL:', error)
+    }
+  }
+
+  // Handle video autoplay with comprehensive logging
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
 
+    console.log('[Video Init] Starting video setup...')
+    logVideoState('Init')
+    testVideoUrl()
+
+    const handleLoadStart = () => {
+      console.log('[Video Event] Load started')
+      logVideoState('LoadStart')
+    }
+
+    const handleLoadedMetadata = () => {
+      console.log('[Video Event] Metadata loaded')
+      logVideoState('LoadedMetadata')
+    }
+
+    const handleLoadedData = () => {
+      console.log('[Video Event] Data loaded')
+      logVideoState('LoadedData')
+    }
+
     const handleCanPlay = () => {
-      console.log('Video can play')
+      console.log('[Video Event] Can play')
+      logVideoState('CanPlay')
       attemptAutoplay()
     }
 
-    const handleLoadStart = () => {
-      console.log('Video loading started')
+    const handleCanPlayThrough = () => {
+      console.log('[Video Event] Can play through')
+      logVideoState('CanPlayThrough')
     }
 
-    const handleError = (e: any) => {
-      console.log('Video failed to load:', e)
+    const handleError = (e: Event) => {
+      console.error('[Video Event] Error occurred:', e)
+      logVideoState('Error')
       setShowPlayButton(true)
     }
 
     const handlePlay = () => {
+      console.log('[Video Event] Play started')
       setVideoPlaying(true)
       setShowPlayButton(false)
+      logVideoState('Play')
     }
 
     const handlePause = () => {
+      console.log('[Video Event] Paused')
       setVideoPlaying(false)
+      logVideoState('Pause')
+    }
+
+    const handleWaiting = () => {
+      console.log('[Video Event] Waiting for data')
+      logVideoState('Waiting')
+    }
+
+    const handleSuspend = () => {
+      console.log('[Video Event] Loading suspended')
+      logVideoState('Suspend')
+    }
+
+    const handleStalled = () => {
+      console.log('[Video Event] Loading stalled')
+      logVideoState('Stalled')
     }
 
     const attemptAutoplay = async () => {
       if (!video) return
       
+      console.log('[Autoplay] Attempting autoplay...')
+      logVideoState('BeforeAutoplay')
+      
       try {
-        await video.play()
-        console.log('Video autoplay succeeded')
+        const playPromise = video.play()
+        console.log('[Autoplay] Play promise created:', playPromise)
+        
+        await playPromise
+        console.log('[Autoplay] SUCCESS - Video is playing')
         setShowPlayButton(false)
         setVideoPlaying(true)
       } catch (error) {
-        console.log('Video autoplay failed:', error)
+                 console.error('[Autoplay] FAILED:', {
+           error,
+           errorName: (error as any)?.name,
+           errorMessage: (error as any)?.message,
+           errorCode: (error as any)?.code
+         })
+        logVideoState('AutoplayFailed')
         setShowPlayButton(true)
         setVideoPlaying(false)
       }
     }
 
-    // Set up event listeners
-    video.addEventListener('canplay', handleCanPlay)
+    // Set up all event listeners
     video.addEventListener('loadstart', handleLoadStart)
+    video.addEventListener('loadedmetadata', handleLoadedMetadata)
+    video.addEventListener('loadeddata', handleLoadedData)
+    video.addEventListener('canplay', handleCanPlay)
+    video.addEventListener('canplaythrough', handleCanPlayThrough)
     video.addEventListener('error', handleError)
     video.addEventListener('play', handlePlay)
     video.addEventListener('pause', handlePause)
+    video.addEventListener('waiting', handleWaiting)
+    video.addEventListener('suspend', handleSuspend)
+    video.addEventListener('stalled', handleStalled)
 
-    // Try autoplay when component mounts
+    // Try autoplay immediately if already loaded
     if (video.readyState >= 3) { // HAVE_FUTURE_DATA
+      console.log('[Video Init] Video already loaded, attempting autoplay')
       attemptAutoplay()
     }
 
@@ -69,7 +210,14 @@ export function HeroSection() {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
+          console.log('[Intersection] Video visibility changed:', {
+            isIntersecting: entry.isIntersecting,
+            intersectionRatio: entry.intersectionRatio,
+            videoPlaying,
+            showPlayButton
+          })
           if (entry.isIntersecting && !videoPlaying && !showPlayButton) {
+            console.log('[Intersection] Attempting autoplay on scroll into view')
             attemptAutoplay()
           }
         })
@@ -80,11 +228,18 @@ export function HeroSection() {
     observer.observe(video)
 
     return () => {
-      video.removeEventListener('canplay', handleCanPlay)
+      console.log('[Video Cleanup] Removing event listeners')
       video.removeEventListener('loadstart', handleLoadStart)
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      video.removeEventListener('loadeddata', handleLoadedData)
+      video.removeEventListener('canplay', handleCanPlay)
+      video.removeEventListener('canplaythrough', handleCanPlayThrough)
       video.removeEventListener('error', handleError)
       video.removeEventListener('play', handlePlay)
       video.removeEventListener('pause', handlePause)
+      video.removeEventListener('waiting', handleWaiting)
+      video.removeEventListener('suspend', handleSuspend)
+      video.removeEventListener('stalled', handleStalled)
       observer.disconnect()
     }
   }, [videoPlaying, showPlayButton])
@@ -93,12 +248,25 @@ export function HeroSection() {
     const video = videoRef.current
     if (!video) return
 
+    console.log('[Manual Play] User clicked play button')
+    logVideoState('BeforeManualPlay')
+
     try {
-      await video.play()
+      const playPromise = video.play()
+      console.log('[Manual Play] Play promise created:', playPromise)
+      
+      await playPromise
+      console.log('[Manual Play] SUCCESS - Video is playing')
       setShowPlayButton(false)
       setVideoPlaying(true)
     } catch (error) {
-      console.log('Manual play failed:', error)
+             console.error('[Manual Play] FAILED:', {
+         error,
+         errorName: (error as any)?.name,
+         errorMessage: (error as any)?.message,
+         errorCode: (error as any)?.code
+       })
+      logVideoState('ManualPlayFailed')
     }
   }
 
