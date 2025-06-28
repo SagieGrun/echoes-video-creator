@@ -62,7 +62,7 @@ export function HeroSection() {
 
   // Test network connectivity to the video file
   const testVideoUrl = async () => {
-    const videoUrl = '/examples/family-photo-fixed.mp4'
+    const videoUrl = '/examples/family-photo-animated-square.mp4'
     console.log('[Network Test] Testing video URL accessibility...')
     
     try {
@@ -373,7 +373,7 @@ export function HeroSection() {
                     <div className="aspect-square relative overflow-hidden rounded-xl">
                       <video
                         ref={videoRef}
-                        src="/examples/family-photo-fixed.mp4"
+                        src="/examples/family-photo-animated-square.mp4"
                         poster="/examples/family-photo.jpg"
                         autoPlay
                         loop
