@@ -452,7 +452,7 @@ function DashboardContent() {
               <div className="flex items-center space-x-3">
               <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
                 <img 
-                  src="/api/static/echoes-logo.png" 
+                  src="echoes-logo.png" 
                   alt="Echoes Logo" 
                   className="h-8 w-8"
                 />
@@ -539,7 +539,7 @@ function DashboardContent() {
                 <div className="flex items-center justify-center mb-4">
                   <Link href="/" className="flex items-center mr-2 hover:opacity-80 transition-opacity">
                     <img 
-                      src="/api/static/echoes-logo.png" 
+                      src="echoes-logo.png" 
                       alt="Echoes Logo" 
                       className="h-6 w-6"
                     />

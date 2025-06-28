@@ -62,7 +62,7 @@ export function HeroSection() {
 
   // Test network connectivity to the video file
   const testVideoUrl = async () => {
-    const videoUrl = '/api/static/examples/family-photo-fixed.mp4'
+    const videoUrl = '/examples/family-photo-fixed.mp4'
     console.log('[Network Test] Testing video URL accessibility...')
     
     try {
@@ -293,7 +293,7 @@ export function HeroSection() {
               <div className="flex items-center justify-center lg:justify-start gap-6 mb-2">
                 <span>Bring Your</span>
                 <img 
-                  src="/api/static/echoes-logo.png" 
+                  src="echoes-logo.png" 
                   alt="Echoes Logo" 
                   className="h-12 w-12 md:h-16 md:w-16 lg:h-20 lg:w-20"
                 />
@@ -354,7 +354,7 @@ export function HeroSection() {
                   <div className="bg-white rounded-2xl p-2 shadow-lg mb-4">
                     <div className="aspect-square relative overflow-hidden rounded-xl">
                       <img
-                        src="/api/static/examples/family-photo.jpg"
+                        src="examples/family-photo.jpg"
                         alt="Beautiful family memory - grandparents with baby"
                         className="w-full h-full object-cover"
                       />
@@ -373,8 +373,8 @@ export function HeroSection() {
                     <div className="aspect-square relative overflow-hidden rounded-xl">
                       <video
                         ref={videoRef}
-                        src="/api/static/examples/family-photo-fixed.mp4"
-                        poster="/api/static/examples/family-photo.jpg"
+                        src="/examples/family-photo-fixed.mp4"
+                        poster="/examples/family-photo.jpg"
                         autoPlay
                         loop
                         muted

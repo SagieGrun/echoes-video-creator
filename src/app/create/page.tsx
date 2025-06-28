@@ -67,7 +67,7 @@ export default function CreatePage() {
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <div className="flex items-center justify-center mb-4">
               <img 
-                src="/api/static/echoes-logo.png" 
+                src="echoes-logo.png" 
                 alt="Echoes Logo" 
                 className="h-6 w-6 mr-2"
               />

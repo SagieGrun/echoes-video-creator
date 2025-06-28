@@ -6,21 +6,21 @@ export const metadata: Metadata = {
   description: 'Create beautiful animated clips from your photos with Echoes.',
   icons: {
     icon: [
-      { url: '/api/static/echoes-logo.png', type: 'image/png' },
+      { url: 'echoes-logo.png', type: 'image/png' },
       { url: '/favicon.ico', sizes: '32x32' }
     ],
-    apple: '/api/static/echoes-logo.png',
+    apple: 'echoes-logo.png',
   },
   openGraph: {
     title: 'Echoes - Transform Photos into Animated Clips',
     description: 'Create beautiful animated clips from your photos with Echoes.',
-    images: ['/api/static/echoes-logo.png'],
+    images: ['echoes-logo.png'],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Echoes - Transform Photos into Animated Clips',
     description: 'Create beautiful animated clips from your photos with Echoes.',
-    images: ['/api/static/echoes-logo.png'],
+    images: ['echoes-logo.png'],
   },
   manifest: '/manifest.json',
 }

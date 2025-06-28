@@ -14,7 +14,7 @@ export function Footer() {
           <div className="md:col-span-2">
             <Link href="/" className="flex items-center space-x-3 mb-4 w-fit">
               <img 
-                src="/api/static/echoes-logo.png" 
+                src="echoes-logo.png" 
                 alt="Echoes Logo" 
                 className="h-8 w-8"
               />
