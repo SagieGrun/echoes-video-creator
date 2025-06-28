@@ -1,27 +1,106 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSmartLogin } from '@/hooks/useSmartLogin'
 
 export function HeroSection() {
   const { handleSmartLogin, isLoading } = useSmartLogin()
   const videoRef = useRef<HTMLVideoElement>(null)
+  const [showPlayButton, setShowPlayButton] = useState(false)
+  const [videoPlaying, setVideoPlaying] = useState(false)
 
-  // Ensure video plays after component mounts
+  // Handle video autoplay with fallbacks
   useEffect(() => {
     const video = videoRef.current
-    if (video) {
-      // Try to play the video, handle any errors gracefully
-      const playPromise = video.play()
-      if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          console.log('Video autoplay failed:', error)
-          // Autoplay was prevented, but that's okay
-        })
+    if (!video) return
+
+    const handleCanPlay = () => {
+      console.log('Video can play')
+      attemptAutoplay()
+    }
+
+    const handleLoadStart = () => {
+      console.log('Video loading started')
+    }
+
+    const handleError = (e: any) => {
+      console.log('Video failed to load:', e)
+      setShowPlayButton(true)
+    }
+
+    const handlePlay = () => {
+      setVideoPlaying(true)
+      setShowPlayButton(false)
+    }
+
+    const handlePause = () => {
+      setVideoPlaying(false)
+    }
+
+    const attemptAutoplay = async () => {
+      if (!video) return
+      
+      try {
+        await video.play()
+        console.log('Video autoplay succeeded')
+        setShowPlayButton(false)
+        setVideoPlaying(true)
+      } catch (error) {
+        console.log('Video autoplay failed:', error)
+        setShowPlayButton(true)
+        setVideoPlaying(false)
       }
     }
-  }, [])
+
+    // Set up event listeners
+    video.addEventListener('canplay', handleCanPlay)
+    video.addEventListener('loadstart', handleLoadStart)
+    video.addEventListener('error', handleError)
+    video.addEventListener('play', handlePlay)
+    video.addEventListener('pause', handlePause)
+
+    // Try autoplay when component mounts
+    if (video.readyState >= 3) { // HAVE_FUTURE_DATA
+      attemptAutoplay()
+    }
+
+    // Intersection Observer for autoplay when visible
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !videoPlaying && !showPlayButton) {
+            attemptAutoplay()
+          }
+        })
+      },
+      { threshold: 0.5 }
+    )
+
+    observer.observe(video)
+
+    return () => {
+      video.removeEventListener('canplay', handleCanPlay)
+      video.removeEventListener('loadstart', handleLoadStart)
+      video.removeEventListener('error', handleError)
+      video.removeEventListener('play', handlePlay)
+      video.removeEventListener('pause', handlePause)
+      observer.disconnect()
+    }
+  }, [videoPlaying, showPlayButton])
+
+  const handlePlayClick = async () => {
+    const video = videoRef.current
+    if (!video) return
+
+    try {
+      await video.play()
+      setShowPlayButton(false)
+      setVideoPlaying(true)
+    } catch (error) {
+      console.log('Manual play failed:', error)
+    }
+  }
 
   return (
     <section className="relative min-h-screen flex items-center justify-center px-4 overflow-hidden pt-16">
@@ -132,18 +211,40 @@ export function HeroSection() {
                         loop
                         muted
                         playsInline
-                        preload="auto"
+                        preload="metadata"
                         controls={false}
                         disablePictureInPicture
                         className="w-full h-full object-cover"
-                        onError={() => console.log('Video failed to load')}
-                        onLoadStart={() => console.log('Video loading started')}
-                        onCanPlay={() => console.log('Video can play')}
                       />
+                      
+                      {/* Play button overlay for when autoplay fails */}
+                      {showPlayButton && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-xl">
+                          <button
+                            onClick={handlePlayClick}
+                            className="bg-orange-500 hover:bg-orange-600 text-white rounded-full p-4 shadow-lg transition-all duration-200 transform hover:scale-110"
+                            aria-label="Play video"
+                          >
+                            <svg className="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z"/>
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                      
                       {/* Animated indicator */}
                       <div className="absolute top-3 right-3 bg-orange-500 text-white text-sm px-3 py-1 rounded-full flex items-center gap-2 font-medium">
-                        <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                        Live
+                        {videoPlaying ? (
+                          <>
+                            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                            Live
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-2 h-2 bg-white rounded-full"></div>
+                            Ready
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -162,7 +263,7 @@ export function HeroSection() {
 
               <div className="text-center mt-6">
                 <p className="text-amber-900 text-base font-medium">
-                  🎬 Real family memories brought to life with gentle, natural animation
+                  {showPlayButton ? '▶️ Click to see the magic in action!' : '🎬 Real family memories brought to life with gentle, natural animation'}
                 </p>
               </div>
             </div>
