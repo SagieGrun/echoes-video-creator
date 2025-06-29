@@ -28,12 +28,13 @@ interface User {
 
 interface ClipGenerationProps {
   user?: User | null
+  onClipCompleted?: () => void  // Add callback for when clip generation completes
 }
 
 // For the completion preview, we'll let the video determine its own aspect ratio
 // The VideoPlayer component will automatically adapt to the video's dimensions
 
-export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
+export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerationProps) {
   const [user, setUser] = useState<User | null>(propUser || null)
   const [state, setState] = useState<ClipGenerationState>({
     phase: 'upload',
@@ -300,6 +301,7 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
                 message: 'AI generation completed!',
                 clipId: result.clipId
               })
+              onClipCompleted?.()
             } else if (statusData.status === 'failed') {
               console.error(`[FRONTEND-${requestId}] POLLING: Generation failed`, statusData)
               clearInterval(statusInterval)
@@ -417,19 +419,20 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
           message: getStatusMessage(status, prev.estimatedTime)
         }))
 
-        if (status === 'completed' && video_url) {
-          setState(prev => ({
-            ...prev,
-            phase: 'completed',
-            progress: 100,
-            message: 'Your video clip is ready!',
-            videoUrl: video_url
-          }))
-          if (pollingInterval) {
-            clearInterval(pollingInterval)
-            setPollingInterval(null)
-          }
-        } else if (status === 'failed') {
+                    if (status === 'completed' && video_url) {
+              setState(prev => ({
+                ...prev,
+                phase: 'completed',
+                progress: 100,
+                message: 'Your video clip is ready!',
+                videoUrl: video_url
+              }))
+              if (pollingInterval) {
+                clearInterval(pollingInterval)
+                setPollingInterval(null)
+              }
+              onClipCompleted?.()
+            } else if (status === 'failed') {
           // Create user-friendly error message
           let userErrorMessage = 'Generation failed'
           if (message) {

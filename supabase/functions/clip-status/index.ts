@@ -57,12 +57,12 @@ Deno.serve(async (req) => {
     }
     console.log(`[STATUS-${requestId}] User authenticated: ${user.id}`)
 
-    // Get clip_id from the request BODY
-    const { clip_id } = await req.json()
+    // Get clipId from the request BODY
+    const { clipId } = await req.json()
 
-    if (!clip_id) {
+    if (!clipId) {
       return new Response(
-        JSON.stringify({ error: 'clip_id is required in the request body' }),
+        JSON.stringify({ error: 'clipId is required in the request body' }),
         { 
           status: 400,
           headers: { 
@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
         }
       )
     }
-    console.log(`[STATUS-${requestId}] Step 1: Received request for clip_id: ${clip_id}`)
+    console.log(`[STATUS-${requestId}] Step 1: Received request for clipId: ${clipId}`)
 
     // Get clip details
     const serviceSupabase = createServiceSupabaseClient()
@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
     const { data: clip, error: clipError } = await serviceSupabase
       .from('clips')
       .select('*')
-      .eq('id', clip_id)
+      .eq('id', clipId)
       .single()
 
     if (clipError || !clip) {

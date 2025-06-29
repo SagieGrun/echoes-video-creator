@@ -12,6 +12,7 @@ declare const Deno: {
   env: {
     get(key: string): string | undefined
   }
+  serve: (handler: (req: Request) => Response | Promise<Response>) => void
 }
 
 interface GenerateClipRequest {
@@ -332,14 +333,21 @@ Deno.serve(async (req) => {
         timestamp: new Date().toISOString()
       })
 
+      const responsePayload = {
+        clipId: clip.id, // Changed from clip_id to match frontend expectation
+        project_id: finalProjectId,
+        status: 'processing',
+        credits_remaining: user.credit_balance - 1,
+        estimated_time: 25 // seconds
+      }
+
+      console.log(`[API-${requestId}] SENDING RESPONSE:`, {
+        payload: responsePayload,
+        timestamp: new Date().toISOString()
+      })
+
       return new Response(
-        JSON.stringify({
-          clip_id: clip.id,
-          project_id: finalProjectId,
-          status: 'processing',
-          credits_remaining: user.credit_balance - 1,
-          estimated_time: 25 // seconds
-        }),
+        JSON.stringify(responsePayload),
         { 
           status: 200,
           headers: { 

@@ -388,7 +388,7 @@ function DashboardContent() {
       
       console.log(`Successfully deleted video ${videoId}`)
       
-      // Update the UI state directly instead of reloading the page
+      // Only update UI state after successful API call
       setFinalVideos(prevVideos => prevVideos.filter(video => video.id !== videoId))
       setShowDeleteConfirm(null)
       
@@ -396,6 +396,7 @@ function DashboardContent() {
       console.error('Error deleting video:', error)
       setError(error instanceof Error ? error.message : 'Failed to delete video')
       setShowDeleteConfirm(null)
+      // Don't update videos state on error - keep the video visible
     } finally {
       setDeletingVideoId(null)
     }
@@ -430,7 +431,7 @@ function DashboardContent() {
       
       console.log(`Successfully deleted clip ${clipId}`)
       
-      // Update the UI state directly instead of reloading the page
+      // Only update UI state after successful API call
       setClips(prevClips => prevClips.filter(clip => clip.id !== clipId))
       setShowDeleteClipConfirm(null)
       
@@ -438,6 +439,7 @@ function DashboardContent() {
       console.error('Error deleting clip:', error)
       setError(error instanceof Error ? error.message : 'Failed to delete clip')
       setShowDeleteClipConfirm(null)
+      // Don't update clips state on error - keep the clip visible
     } finally {
       setDeletingClipId(null)
     }
@@ -553,7 +555,15 @@ function DashboardContent() {
                   Transform your photo into a cinematic moment. Your first clip is free!
                 </p>
                 
-                <ClipGeneration user={user} />
+                <ClipGeneration 
+                  user={user} 
+                  onClipCompleted={() => {
+                    // Refresh dashboard data when clip generation completes
+                    console.log('Clip generation completed, refreshing dashboard data...')
+                    // Re-fetch data to show the new clip immediately
+                    window.location.reload() // Simple but effective solution
+                  }}
+                />
               </div>
 
               {/* Improved Tips Section */}
