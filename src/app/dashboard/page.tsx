@@ -70,12 +70,36 @@ function DashboardContent() {
   const [deletingClipId, setDeletingClipId] = useState<string | null>(null)
   const [showDeleteClipConfirm, setShowDeleteClipConfirm] = useState<string | null>(null)
   const [showCreditPurchase, setShowCreditPurchase] = useState(false)
+  const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
 
   // Handle tab parameter from URL
   useEffect(() => {
     const tabParam = searchParams.get('tab')
     if (tabParam && ['create', 'clips', 'videos'].includes(tabParam)) {
       setActiveTab(tabParam as TabType)
+    }
+
+    // Check for successful purchase redirect
+    const purchaseSuccess = searchParams.get('purchased')
+    if (purchaseSuccess === 'true') {
+      setShowPurchaseSuccess(true)
+      setShowConfetti(true)
+      
+      // Clear the URL parameter after showing success
+      const url = new URL(window.location.href)
+      url.searchParams.delete('purchased')
+      window.history.replaceState({}, '', url.toString())
+      
+      // Hide confetti after 1 second
+      setTimeout(() => {
+        setShowConfetti(false)
+      }, 1000)
+      
+      // Hide success message after 15 seconds
+      setTimeout(() => {
+        setShowPurchaseSuccess(false)
+      }, 15000)
     }
   }, [searchParams])
 
@@ -1159,6 +1183,73 @@ function DashboardContent() {
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete Clip
               </LoadingButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Purchase Success Animation */}
+      {showPurchaseSuccess && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 pointer-events-none">
+          <div className="relative">
+            {/* Main success card */}
+            <div className="bg-white rounded-2xl p-8 shadow-2xl border border-green-200 max-w-md mx-4 pointer-events-auto">
+              <div className="text-center">
+                {/* Success icon with glow */}
+                <div className="relative mb-6">
+                  <div className="w-20 h-20 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto animate-pulse shadow-lg">
+                    <span className="text-3xl">🎉</span>
+                  </div>
+                  <div className="absolute inset-0 w-20 h-20 bg-green-400 rounded-full mx-auto animate-ping opacity-20"></div>
+                </div>
+
+                {/* Success message */}
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Purchase Successful!
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  Your credits have been added to your account. Start creating amazing clips!
+                </p>
+
+                {/* Close button */}
+                <button
+                  onClick={() => setShowPurchaseSuccess(false)}
+                  className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all duration-300 font-medium shadow-lg hover:shadow-xl"
+                >
+                  Start Creating ✨
+                </button>
+              </div>
+            </div>
+
+            {/* Confetti burst - only shows for 1 second */}
+            {showConfetti && (
+              <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                {[...Array(30)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute w-3 h-3 opacity-90"
+                    style={{
+                      backgroundColor: [
+                        '#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', 
+                        '#FFEAA7', '#A8E6CF', '#FFB6C1', '#87CEEB', '#DDA0DD',
+                        '#98FB98', '#F0E68C', '#FF69B4', '#00CED1', '#FFB347'
+                      ][i % 15],
+                      left: `${30 + Math.random() * 40}%`,
+                      top: '-10px',
+                      borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+                      animation: `confettiFall 1s ease-out forwards`,
+                      animationDelay: `${Math.random() * 0.3}s`,
+                      transform: `rotate(${Math.random() * 360}deg)`,
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Subtle background glow */}
+            <div className="absolute inset-0 pointer-events-none -z-10">
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-green-200 rounded-full animate-pulse opacity-5"></div>
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-emerald-300 rounded-full animate-pulse opacity-8" style={{ animationDelay: '1s' }}></div>
             </div>
           </div>
         </div>
