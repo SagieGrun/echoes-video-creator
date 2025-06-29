@@ -26,13 +26,30 @@ export interface Clip {
   image_file_path: string
   video_url?: string
   video_file_path?: string
-  prompt?: string
-  status: 'pending' | 'processing' | 'completed' | 'failed'
-  runway_job_id?: string
+  status: 'generating' | 'ready' | 'error'
+  approved: boolean
+  order: number
+  created_at: string
+  updated_at: string
+  regen_count?: number
   generation_job_id?: string
+}
+
+export interface FinalVideo {
+  id: string
+  user_id: string
+  project_id?: string
+  selected_clips: any[]
+  music_track_id?: string
+  transition_type: string
+  music_volume: number
+  output_aspect_ratio: string
+  status: 'draft' | 'processing' | 'completed' | 'failed'
+  file_url?: string
+  file_path?: string
+  total_duration?: number
+  file_size?: number
   error_message?: string
-  regen_count: number
-  clip_order: number
   created_at: string
   completed_at?: string
 }
@@ -43,19 +60,75 @@ export interface CreditTransaction {
   user_id: string
   amount: number // positive = credit, negative = debit
   type: 'purchase' | 'referral' | 'generation' | 'share'
-  reference_id?: string // stripe payment id, project id, etc.
+  reference_id?: string // gumroad sale id, project id, etc.
   created_at: string
 }
 
-// Payment Types
+// Payment Types - Updated for Gumroad
 export interface Payment {
   id: string
   user_id: string
-  stripe_payment_id: string
+  gumroad_sale_id: string
+  gumroad_product_id?: string
+  gumroad_product_permalink?: string
+  gumroad_order_number?: number
+  buyer_email?: string
   credits_purchased: number
   amount_cents: number
-  status: 'pending' | 'completed' | 'failed'
+  status: 'pending' | 'completed' | 'failed' | 'refunded'
   created_at: string
+  updated_at: string
+}
+
+export interface MusicTrack {
+  id: string
+  title: string
+  file_path: string
+  file_url: string
+  duration?: number
+  created_at: string
+}
+
+// Upload Types
+export interface UploadResult {
+  success: boolean
+  imageUrl?: string
+  filePath?: string
+  error?: string
+}
+
+// Generation Types
+export interface GenerationState {
+  phase: 'upload' | 'confirm' | 'generating' | 'complete' | 'error'
+  progress: number
+  message: string
+  clipId?: string
+}
+
+// Pricing Types
+export interface PricingTier {
+  id: string
+  name: string
+  credits: number
+  price_cents: number
+  gumroad_permalink?: string // Updated from stripe_price_id
+}
+
+// Admin Types
+export interface AdminConfig {
+  id: string
+  key: string
+  value: any
+  created_at: string
+  updated_at: string
+}
+
+// Social Sharing Types
+export interface SocialShareConfig {
+  platform: 'facebook' | 'instagram' | 'whatsapp'
+  enabled: boolean
+  share_text: string
+  hashtags?: string[]
 }
 
 // Referral Types
@@ -90,13 +163,4 @@ export interface GenerationStatus {
   status: 'pending' | 'processing' | 'completed' | 'failed'
   progress?: number
   error?: string
-}
-
-// Pricing Types
-export interface PricingTier {
-  id: string
-  name: string
-  credits: number
-  price_cents: number
-  stripe_price_id: string
 } 

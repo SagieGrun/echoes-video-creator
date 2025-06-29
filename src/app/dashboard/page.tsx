@@ -12,6 +12,7 @@ import { SocialShare } from '@/components/ui/SocialShare'
 import { generateClipUrls, generateVideoUrls } from '@/lib/storage-optimizer'
 import { ArrowLeft, Download, Play, Calendar, Clock, Film, Upload, Plus, Image as ImageIcon, Sparkles, User, ChevronDown, LogOut, CreditCard, Zap, Eye, Timer, Trash2, X } from 'lucide-react'
 import Link from 'next/link'
+import { AnimatedCreditBalance } from '@/components/ui/AnimatedCreditBalance'
 
 interface Clip {
   id: string
@@ -463,9 +464,7 @@ function DashboardContent() {
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">Credits</span>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
-                <span className="text-2xl font-bold text-blue-600">{user?.credit_balance}</span>
-              </div>
+              <AnimatedCreditBalance userId={user?.id || null} />
               {user?.credit_balance === 0 && (
                 <button
                   onClick={() => setActiveTab('create')}
