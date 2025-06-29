@@ -80,17 +80,42 @@ async function analyzeImageFromUrl(imageUrl: string): Promise<{ width: number; h
  * Find the best matching Runway ratio for the given aspect ratio
  */
 function findBestRatio(aspectRatio: number): RunwayRatio {
-  const ratios = Object.entries(SUPPORTED_RATIOS).map(([key, value]) => ({
-    key: key as SupportedRatio,
-    ratio: value.ratio as RunwayRatio,
-    targetRatio: value.width / value.height,
-    difference: Math.abs(aspectRatio - (value.width / value.height))
-  }))
+  // Determine orientation first
+  const isPortrait = aspectRatio < 0.9  // Less than 0.9 is clearly portrait
+  const isSquare = aspectRatio >= 0.9 && aspectRatio <= 1.1  // Between 0.9 and 1.1 is square-ish
+  const isLandscape = aspectRatio > 1.1  // Greater than 1.1 is clearly landscape
 
-  // Sort by smallest difference to find closest match
-  ratios.sort((a, b) => a.difference - b.difference)
+  // Filter ratios by orientation
+  let candidates: Array<{key: SupportedRatio, ratio: RunwayRatio, targetRatio: number}> = []
   
-  return ratios[0].ratio
+  if (isPortrait) {
+    // For portrait images, only consider portrait ratios
+    candidates = [
+      { key: 'portrait_hd', ratio: '720:1280', targetRatio: 720/1280 },      // 0.5625 (9:16)
+      { key: 'portrait_tall', ratio: '832:1104', targetRatio: 832/1104 }     // 0.754 (3:4)
+    ]
+  } else if (isLandscape) {
+    // For landscape images, only consider landscape ratios
+    candidates = [
+      { key: 'landscape_hd', ratio: '1280:720', targetRatio: 1280/720 },           // 1.778 (16:9)
+      { key: 'landscape_wide', ratio: '1584:672', targetRatio: 1584/672 },         // 2.357 (ultra-wide)
+      { key: 'landscape_cinematic', ratio: '1104:832', targetRatio: 1104/832 }     // 1.327 (4:3-ish)
+    ]
+  } else {
+    // For square-ish images, use square
+    return '960:960'
+  }
+
+  // Find the closest match within the orientation
+  const bestMatch = candidates.reduce((best, current) => {
+    const currentDiff = Math.abs(aspectRatio - current.targetRatio)
+    const bestDiff = Math.abs(aspectRatio - best.targetRatio)
+    return currentDiff < bestDiff ? current : best
+  })
+
+  console.log(`[RATIO] Selected ${bestMatch.ratio} for aspect ratio ${aspectRatio.toFixed(3)} (${isPortrait ? 'portrait' : isLandscape ? 'landscape' : 'square'})`)
+
+  return bestMatch.ratio
 }
 
 interface GenerateVideoParams {
