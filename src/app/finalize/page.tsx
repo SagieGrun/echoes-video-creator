@@ -286,7 +286,7 @@ export default function FinalizePage() {
     
     // Calculate expected duration based on clip count
     const clipCount = selectedClipIds.size
-    const secondsPerClip = 6 // Based on real performance data: 2 clips=19s, 5 clips=37s
+    const secondsPerClip = 12 // Based on updated real performance data: more accurate timing
     const baseOverhead = 7 // Base processing time
     const calculatedDuration = baseOverhead + (clipCount * secondsPerClip)
     setExpectedDuration(calculatedDuration)
