@@ -199,6 +199,53 @@ const getContainerStyle = (props: OptimizedComponentProps) => {
   
   if (props.aspectRatio) {
     baseStyle.aspectRatio = props.aspectRatio
+  }
+  
+  return baseStyle
+}
+```
+
+### 4. Adaptive Thumbnail Grid Pattern ✅ NEW
+```typescript
+// Orientation-aware thumbnail layouts
+const getThumbnailGridClass = (
+  outputAspectRatio: string, 
+  clipCount: number
+): string => {
+  if (outputAspectRatio === '9:16') {
+    // Portrait: Respect vertical orientation
+    return clipCount <= 2 
+      ? 'grid grid-cols-2 grid-rows-1'  // Side-by-side vertical strips
+      : 'grid grid-cols-2 grid-rows-2'  // 2x2 grid showing more of each image
+  } else if (outputAspectRatio === '1:1') {
+    // Square: Balanced layouts
+    return clipCount <= 2
+      ? 'grid grid-cols-2 grid-rows-1'  // 2 columns, 1 row
+      : 'grid grid-cols-2 grid-rows-2'  // 2x2 grid
+  } else {
+    // Landscape: Horizontal emphasis
+    return clipCount <= 2
+      ? 'grid grid-cols-2 grid-rows-1'  // 2 columns, 1 row  
+      : 'grid grid-cols-2 grid-rows-2'  // 2x2 grid
+  }
+}
+
+// Usage in dashboard thumbnails
+const thumbnailGrid = getThumbnailGridClass(video.output_aspect_ratio, clipImages.length)
+```
+
+## Key Design Principle: Orientation-First Logic
+**Problem**: Previous logic chose grid layouts based on numerical constraints without considering visual orientation
+**Solution**: Prioritize visual logic - portrait videos should show vertical strips, not horizontal slices
+**Result**: Thumbnails that make visual sense and accurately represent the content
+
+### 5. Layout Completion Pattern
+```typescript
+const getContainerStyle = (props: OptimizedComponentProps) => {
+  const baseStyle: React.CSSProperties = {}
+  
+  if (props.aspectRatio) {
+    baseStyle.aspectRatio = props.aspectRatio
   } else if (props.width && props.height) {
     baseStyle.aspectRatio = `${props.width}/${props.height}`
   }
@@ -222,7 +269,7 @@ const getContainerStyle = (props: OptimizedComponentProps) => {
 />
 ```
 
-### 4. Intelligent Caching Pattern ✅ NEW
+### 6. Intelligent Caching Pattern ✅ NEW
 ```typescript
 // In-memory cache with automatic cleanup
 const urlCache = new Map<string, CachedUrl>()
@@ -250,7 +297,7 @@ setInterval(() => {
 }, 10 * 60 * 1000)
 ```
 
-### 5. Async Processing Pattern
+### 7. Async Processing Pattern
 ```typescript
 // Video compilation with async Lambda invocation
 interface VideoCompilationRequest {
@@ -279,7 +326,7 @@ const pollVideoStatus = async (videoId: string) => {
 }
 ```
 
-### 6. Auth-First Pattern
+### 8. Auth-First Pattern
 ```typescript
 // All routes protected by default
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -289,7 +336,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
 }
 ```
 
-### 7. Credit System Pattern
+### 9. Credit System Pattern
 ```typescript
 interface CreditTransaction {
   user_id: string
@@ -299,7 +346,7 @@ interface CreditTransaction {
 }
 ```
 
-### 8. Clip Approval Pattern
+### 10. Clip Approval Pattern
 ```typescript
 interface Clip {
   id: string
@@ -312,7 +359,7 @@ interface Clip {
 }
 ```
 
-### 9. Sequential Player Pattern
+### 11. Sequential Player Pattern
 ```typescript
 interface Project {
   id: string
@@ -331,7 +378,7 @@ class SequentialPlayer {
 }
 ```
 
-### 10. Pluggable AI Pattern
+### 12. Pluggable AI Pattern
 ```typescript
 interface AIProvider {
   generateClip(imageUrl: string, prompt: string): Promise<string>
