@@ -48,11 +48,11 @@ export async function POST(request: NextRequest) {
     console.log(`[GUMROAD-WEBHOOK-${requestId}] Parsed webhook data:`, webhookData)
     
     // Validate required fields
-    if (!webhookData.sale_id || !webhookData.email || !webhookData.product_permalink) {
+    if (!webhookData.sale_id || !webhookData.email || !webhookData.short_product_id) {
       console.error(`[GUMROAD-WEBHOOK-${requestId}] Missing required fields:`, {
         sale_id: !!webhookData.sale_id,
         email: !!webhookData.email,
-        product_permalink: !!webhookData.product_permalink
+        short_product_id: !!webhookData.short_product_id
       })
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
@@ -77,11 +77,11 @@ export async function POST(request: NextRequest) {
       'nyoppm': 40     // Echoes Legacy Pack - $80
     }
     
-    const credits = creditMap[webhookData.product_permalink!]
-    console.log(`[GUMROAD-WEBHOOK-${requestId}] Product permalink '${webhookData.product_permalink}' maps to ${credits} credits`)
+    const credits = creditMap[webhookData.short_product_id!]
+    console.log(`[GUMROAD-WEBHOOK-${requestId}] Product ID '${webhookData.short_product_id}' maps to ${credits} credits`)
     
     if (!credits) {
-      console.error(`[GUMROAD-WEBHOOK-${requestId}] Unknown product permalink: ${webhookData.product_permalink}`)
+      console.error(`[GUMROAD-WEBHOOK-${requestId}] Unknown product ID: ${webhookData.short_product_id}`)
       return NextResponse.json({ error: 'Unknown product' }, { status: 400 })
     }
     
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
       gumroad_sale_id: webhookData.sale_id,
       gumroad_product_id: webhookData.product_id,
-      gumroad_product_permalink: webhookData.product_permalink,
+      gumroad_product_permalink: webhookData.short_product_id,
       gumroad_order_number: parseInt(webhookData.order_number || '0'),
       buyer_email: webhookData.email,
       credits_purchased: credits,
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
     console.log(`[GUMROAD-WEBHOOK-${requestId}] === WEBHOOK COMPLETED SUCCESSFULLY ===`)
     console.log(`[GUMROAD-WEBHOOK-${requestId}] Summary:`)
     console.log(`[GUMROAD-WEBHOOK-${requestId}]   User: ${user.email} (${user.id})`)
-    console.log(`[GUMROAD-WEBHOOK-${requestId}]   Product: ${webhookData.product_name} (${webhookData.product_permalink})`)
+    console.log(`[GUMROAD-WEBHOOK-${requestId}]   Product: ${webhookData.product_name} (${webhookData.short_product_id})`)
     console.log(`[GUMROAD-WEBHOOK-${requestId}]   Credits added: ${credits}`)
     console.log(`[GUMROAD-WEBHOOK-${requestId}]   New balance: ${newCreditBalance}`)
     console.log(`[GUMROAD-WEBHOOK-${requestId}]   Sale ID: ${webhookData.sale_id}`)
