@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseServiceRole } from '@/lib/supabase'
 
 interface GumroadWebhookData {
   sale_id: string
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     
     // Find user by email
     console.log(`[GUMROAD-WEBHOOK-${requestId}] Looking up user with email: ${webhookData.email}`)
-    const { data: user, error: userError } = await supabase
+    const { data: user, error: userError } = await supabaseServiceRole
       .from('users')
       .select('id, credit_balance, email')
       .eq('email', webhookData.email)
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     
     // Check for duplicate processing
     console.log(`[GUMROAD-WEBHOOK-${requestId}] Checking for duplicate sale_id: ${webhookData.sale_id}`)
-    const { data: existingPayment } = await supabase
+    const { data: existingPayment } = await supabaseServiceRole
       .from('payments')
       .select('id, status')
       .eq('gumroad_sale_id', webhookData.sale_id)
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
     const newCreditBalance = user.credit_balance + credits
     console.log(`[GUMROAD-WEBHOOK-${requestId}] Updating user credits: ${user.credit_balance} + ${credits} = ${newCreditBalance}`)
     
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseServiceRole
       .from('users')
       .update({ credit_balance: newCreditBalance })
       .eq('id', user.id)
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
     
     console.log(`[GUMROAD-WEBHOOK-${requestId}] Creating payment record:`, paymentData)
     
-    const { data: paymentRecord, error: paymentError } = await supabase
+    const { data: paymentRecord, error: paymentError } = await supabaseServiceRole
       .from('payments')
       .insert(paymentData)
       .select()
@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
     
     console.log(`[GUMROAD-WEBHOOK-${requestId}] Creating credit transaction:`, transactionData)
     
-    const { data: transactionRecord, error: transactionError } = await supabase
+    const { data: transactionRecord, error: transactionError } = await supabaseServiceRole
       .from('credit_transactions')
       .insert(transactionData)
       .select()

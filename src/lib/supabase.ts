@@ -3,9 +3,13 @@ import { createBrowserClient } from '@supabase/ssr'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-// Server-side client
+// Server-side client (anon key - for regular operations)
 export const supabase = createClient(supabaseUrl, supabaseKey)
+
+// Service role client (for webhooks and admin operations)
+export const supabaseServiceRole = createClient(supabaseUrl, supabaseServiceKey)
 
 // Singleton pattern to prevent multiple client instances
 let supabaseClient: ReturnType<typeof createBrowserClient> | null = null
