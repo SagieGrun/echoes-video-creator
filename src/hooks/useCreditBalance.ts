@@ -75,12 +75,38 @@ export function useCreditBalance(userId: string | null) {
       .subscribe((status: any) => {
         console.log('Real-time subscription status:', status)
       })
+
+    // Also poll for credit updates every 5 seconds as a fallback
+    const pollInterval = setInterval(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('credit_balance')
+          .eq('id', userId)
+          .single()
+        
+        if (data && data.credit_balance !== credits) {
+          console.log('Credit balance updated via polling:', data.credit_balance)
+          setPreviousCredits(credits)
+          setCredits(data.credit_balance)
+          
+          // Show animation if credits increased
+          if (data.credit_balance > credits) {
+            setShowAnimation(true)
+            setTimeout(() => setShowAnimation(false), 3000)
+          }
+        }
+      } catch (error) {
+        console.error('Error polling credit balance:', error)
+      }
+    }, 5000)
     
     fetchCredits()
     
     return () => {
       console.log('Cleaning up credit balance subscription')
       subscription.unsubscribe()
+      clearInterval(pollInterval)
     }
   }, [userId])
   

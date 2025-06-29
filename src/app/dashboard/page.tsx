@@ -82,7 +82,9 @@ function DashboardContent() {
 
     // Check for successful purchase redirect
     const purchaseSuccess = searchParams.get('purchased')
+    console.log('Purchase success parameter:', purchaseSuccess)
     if (purchaseSuccess === 'true') {
+      console.log('🎉 Purchase success detected! Showing confetti...')
       setShowPurchaseSuccess(true)
       setShowConfetti(true)
       
@@ -93,11 +95,13 @@ function DashboardContent() {
       
       // Hide confetti after 1 second
       setTimeout(() => {
+        console.log('Hiding confetti after 1 second')
         setShowConfetti(false)
       }, 1000)
       
       // Hide success message after 15 seconds
       setTimeout(() => {
+        console.log('Hiding success message after 15 seconds')
         setShowPurchaseSuccess(false)
       }, 15000)
     }
