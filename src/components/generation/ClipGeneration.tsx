@@ -142,15 +142,18 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
     }
 
     try {
+      // Set uploading state FIRST, then file to prevent flash
       setIsUploading(true)
       setUploadProgress(0)
-      setSelectedFile(file)
       
       setState({
         phase: 'upload',
         progress: 0,
         message: 'Processing your photo...'
       })
+      
+      // Set selected file after uploading state is ready
+      setSelectedFile(file)
 
       // Simulate upload progress
       const progressInterval = setInterval(() => {
@@ -622,7 +625,7 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
       )}
 
       {/* Phase: Upload */}
-      {state.phase === 'upload' && !selectedFile && (
+      {state.phase === 'upload' && !selectedFile && !isUploading && (
         <PhotoUpload 
           onPhotoSelected={handlePhotoSelected}
           maxSize={5 * 1024 * 1024} // 5MB
@@ -630,7 +633,7 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
       )}
 
       {/* Upload Processing State - Show preview while uploading */}
-      {state.phase === 'upload' && selectedFile && isUploading && (
+      {state.phase === 'upload' && selectedFile && (
         <div className="text-center space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
             <h3 className="text-lg font-semibold text-blue-800 mb-4">
@@ -649,7 +652,9 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
                 <div className="bg-white/90 px-4 py-2 rounded-full">
                   <div className="flex items-center space-x-2">
                     <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-                    <span className="text-blue-700 font-medium">Uploading {uploadProgress}%</span>
+                    <span className="text-blue-700 font-medium">
+                      {isUploading ? `Uploading ${uploadProgress}%` : 'Preparing...'}
+                    </span>
                   </div>
                 </div>
               </div>
