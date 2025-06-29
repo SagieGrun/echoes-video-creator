@@ -917,8 +917,8 @@ function DashboardContent() {
                                     <div className={`w-full h-full ${
                                       video.output_aspect_ratio === '9:16' 
                                         ? clipImages.length <= 2 
-                                          ? 'grid grid-cols-1 grid-rows-2' // Portrait: 1 column, 2 rows for 2 clips
-                                          : 'grid grid-cols-1 grid-rows-4' // Portrait: 1 column, 4 rows for 3+ clips
+                                          ? 'grid grid-cols-2 grid-rows-1' // Portrait: 2 columns, 1 row (side by side vertical strips)
+                                          : 'grid grid-cols-2 grid-rows-2' // Portrait: 2x2 grid (better for portrait images)
                                         : video.output_aspect_ratio === '1:1'
                                         ? clipImages.length <= 2
                                           ? 'grid grid-cols-2 grid-rows-1' // Square: 2 columns, 1 row for 2 clips
