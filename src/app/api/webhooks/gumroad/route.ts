@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseServiceRole } from '@/lib/supabase'
+import { supabaseServiceRole } from '@/lib/supabase-server'
 
 interface GumroadWebhookData {
   sale_id: string
