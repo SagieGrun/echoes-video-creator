@@ -65,19 +65,8 @@ export function CreditPurchase({ onClose, onPurchaseComplete }: CreditPurchasePr
     return `$${(price_cents / 100 / credits).toFixed(2)}`
   }
 
-  const getBestValue = (): string | null => {
-    if (creditPacks.length < 2) return null
-    
-    const bestPack = creditPacks.reduce((best, current) => {
-      const bestPrice = best.price_cents / best.credits
-      const currentPrice = current.price_cents / current.credits
-      return currentPrice < bestPrice ? current : best
-    })
-    
-    return bestPack.id
-  }
-
-  const bestValueId = getBestValue()
+  // Highlight the middle package (Social Pack - ID 2) as most popular
+  const mostPopularId = '2'
 
   if (loading) {
     return (
@@ -128,15 +117,15 @@ export function CreditPurchase({ onClose, onPurchaseComplete }: CreditPurchasePr
                 <div
                   key={pack.id}
                   className={`relative border-2 rounded-lg p-6 text-center ${
-                    pack.id === bestValueId
+                    pack.id === mostPopularId
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 bg-white'
                   }`}
                 >
-                  {pack.id === bestValueId && (
+                  {pack.id === mostPopularId && (
                     <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                       <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                        Best Value
+                        Most Popular
                       </span>
                     </div>
                   )}
@@ -169,7 +158,7 @@ export function CreditPurchase({ onClose, onPurchaseComplete }: CreditPurchasePr
                     <a
                       href={`https://sagiegrun.gumroad.com/l/${pack.gumroad_permalink}`}
                       className={`w-full py-3 px-6 rounded-lg font-medium transition-colors block text-center no-underline ${
-                        pack.id === bestValueId
+                        pack.id === mostPopularId
                           ? 'bg-blue-500 text-white hover:bg-blue-600'
                           : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
                       }`}

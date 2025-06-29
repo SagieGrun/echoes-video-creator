@@ -57,10 +57,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
     
-    // Skip test purchases in production
+    // Process ALL purchases - test and real
     if (webhookData.test === 'true') {
-      console.log(`[GUMROAD-WEBHOOK-${requestId}] Skipping test purchase`)
-      return NextResponse.json({ success: true, message: 'Test purchase skipped' })
+      console.log(`[GUMROAD-WEBHOOK-${requestId}] Processing TEST purchase`)
+    } else {
+      console.log(`[GUMROAD-WEBHOOK-${requestId}] Processing REAL purchase`)
     }
     
     // Skip refunded purchases

@@ -13,6 +13,7 @@ import { generateClipUrls, generateVideoUrls } from '@/lib/storage-optimizer'
 import { ArrowLeft, Download, Play, Calendar, Clock, Film, Upload, Plus, Image as ImageIcon, Sparkles, User, ChevronDown, LogOut, CreditCard, Zap, Eye, Timer, Trash2, X } from 'lucide-react'
 import Link from 'next/link'
 import { AnimatedCreditBalance } from '@/components/ui/AnimatedCreditBalance'
+import { CreditPurchase } from '@/components/credits/CreditPurchase'
 
 interface Clip {
   id: string
@@ -68,6 +69,7 @@ function DashboardContent() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
   const [deletingClipId, setDeletingClipId] = useState<string | null>(null)
   const [showDeleteClipConfirm, setShowDeleteClipConfirm] = useState<string | null>(null)
+  const [showCreditPurchase, setShowCreditPurchase] = useState(false)
 
   // Handle tab parameter from URL
   useEffect(() => {
@@ -465,14 +467,12 @@ function DashboardContent() {
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">Credits</span>
               <AnimatedCreditBalance userId={user?.id || null} />
-              {user?.credit_balance === 0 && (
-                <button
-                  onClick={() => setActiveTab('create')}
-                  className="text-sm bg-orange-500 text-white px-3 py-1 rounded-lg hover:bg-orange-600 transition-colors"
-                >
-                  Buy Credits
-                </button>
-              )}
+              <button
+                onClick={() => setShowCreditPurchase(true)}
+                className="text-sm bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+              >
+                Buy Credits
+              </button>
               
               {/* User Profile Dropdown */}
               <div className="relative" ref={dropdownRef}>
@@ -1162,6 +1162,18 @@ function DashboardContent() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Credit Purchase Modal */}
+      {showCreditPurchase && (
+        <CreditPurchase
+          onClose={() => setShowCreditPurchase(false)}
+          onPurchaseComplete={(credits) => {
+            console.log(`Credits purchased: ${credits}`)
+            setShowCreditPurchase(false)
+            // Credits will be automatically updated via real-time subscription
+          }}
+        />
       )}
     </div>
   )
