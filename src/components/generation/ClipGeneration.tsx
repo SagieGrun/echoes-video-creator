@@ -556,11 +556,45 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
       )}
 
       {/* Phase: Upload */}
-      {state.phase === 'upload' && (
+      {state.phase === 'upload' && !selectedFile && (
         <PhotoUpload 
           onPhotoSelected={handlePhotoSelected}
           maxSize={5 * 1024 * 1024} // 5MB
         />
+      )}
+
+      {/* Upload Processing State - Show preview while uploading */}
+      {state.phase === 'upload' && selectedFile && isUploading && (
+        <div className="text-center space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-blue-800 mb-4">
+              📤 Uploading Your Photo
+            </h3>
+            
+            {/* Keep showing the photo during upload */}
+            <div className="relative max-w-md mx-auto mb-4">
+              <img 
+                src={URL.createObjectURL(selectedFile)} 
+                alt="Uploading photo preview"
+                className="w-full rounded-lg shadow-lg"
+              />
+              {/* Upload overlay */}
+              <div className="absolute inset-0 bg-black/20 rounded-lg flex items-center justify-center">
+                <div className="bg-white/90 px-4 py-2 rounded-full">
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                    <span className="text-blue-700 font-medium">Uploading {uploadProgress}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-sm text-blue-600">
+              <p><strong>File:</strong> {selectedFile.name}</p>
+              <p><strong>Size:</strong> {(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Phase: Confirm */}
