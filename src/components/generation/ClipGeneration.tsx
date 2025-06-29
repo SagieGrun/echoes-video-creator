@@ -48,6 +48,12 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
   const [uploadProgress, setUploadProgress] = useState(0)
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
   const [showCreditPurchase, setShowCreditPurchase] = useState(false)
+  
+  // Time-based progress tracking (like final video compilation)
+  const [generationStartTime, setGenerationStartTime] = useState<number | null>(null)
+  const [elapsedTime, setElapsedTime] = useState(0)
+  const [currentPhase, setCurrentPhase] = useState<'starting' | 'processing' | 'finishing'>('starting')
+  const [expectedDuration] = useState(45) // Average clip generation time in seconds
 
   // Update user state when prop changes
   useEffect(() => {
@@ -93,6 +99,27 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
       }
     }
   }, [pollingInterval])
+
+  // Update elapsed time every second during generation (like final video compilation)
+  useEffect(() => {
+    if (state.phase !== 'generating' || !generationStartTime) return
+
+    const timer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - generationStartTime) / 1000)
+      setElapsedTime(elapsed)
+      
+      // Update phases based on elapsed time
+      if (elapsed < 5) {
+        setCurrentPhase('starting')
+      } else if (elapsed < expectedDuration * 0.8) {
+        setCurrentPhase('processing') 
+      } else {
+        setCurrentPhase('finishing')
+      }
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [state.phase, generationStartTime, expectedDuration])
 
   const handlePhotoSelected = async (file: File) => {
     if (!user) {
@@ -172,13 +199,20 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
       uploadedPhotoUrl: uploadedPhoto.url
     })
 
-    try {
-      setIsGenerating(true)
-      setState({
-        phase: 'generating',
-        progress: 0,
-        message: 'Starting AI generation...'
-      })
+          try {
+        setIsGenerating(true)
+        
+        // Start time tracking for real progress calculation
+        const generationStart = Date.now()
+        setGenerationStartTime(generationStart)
+        setElapsedTime(0)
+        setCurrentPhase('starting')
+        
+        setState({
+          phase: 'generating',
+          progress: 0,
+          message: 'Starting AI generation...'
+        })
 
       // Get the user's auth token
       console.log(`[FRONTEND-${requestId}] Step 1: Getting user session`)
@@ -301,6 +335,12 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
                 message: 'AI generation completed!',
                 clipId: result.clipId
               })
+              
+              // Reset generation timing state on completion
+              setGenerationStartTime(null)
+              setElapsedTime(0)
+              setCurrentPhase('starting')
+              
               onClipCompleted?.()
             } else if (statusData.status === 'failed') {
               console.error(`[FRONTEND-${requestId}] POLLING: Generation failed`, statusData)
@@ -329,6 +369,12 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
               }
               
               console.log(`[FRONTEND-${requestId}] POLLING: User-friendly error message:`, userErrorMessage)
+              
+              // Reset generation timing state on error
+              setGenerationStartTime(null)
+              setElapsedTime(0)
+              setCurrentPhase('starting')
+              
               throw new Error(userErrorMessage)
             }
           } else {
@@ -372,6 +418,11 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
         progress: 0,
         message: error instanceof Error ? error.message : 'Unknown error'
       })
+      
+      // Reset generation timing state on error
+      setGenerationStartTime(null)
+      setElapsedTime(0)
+      setCurrentPhase('starting')
     }
   }
 
@@ -383,6 +434,11 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
       progress: 0,
       message: 'Upload a photo to get started'
     })
+    
+    // Reset generation timing state
+    setGenerationStartTime(null)
+    setElapsedTime(0)
+    setCurrentPhase('starting')
   }
 
   const startStatusPolling = (clipId: string) => {
@@ -507,6 +563,11 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
     })
     setSelectedFile(null)
     setUploadedPhoto(null)
+    
+    // Reset generation timing state
+    setGenerationStartTime(null)
+    setElapsedTime(0)
+    setCurrentPhase('starting')
   }
 
   const handleNewClip = () => {
@@ -517,6 +578,11 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
     })
     setSelectedFile(null)
     setUploadedPhoto(null)
+    
+    // Reset generation timing state
+    setGenerationStartTime(null)
+    setElapsedTime(0)
+    setCurrentPhase('starting')
   }
 
   const handlePurchaseComplete = (credits: number) => {
@@ -646,60 +712,49 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
         </div>
       )}
 
-      {/* Generation Progress */}
+      {/* Generation Progress - Clean style matching final video compilation */}
       {state.phase === 'generating' && (
-        <div className="bg-gradient-to-br from-orange-50 to-purple-50 rounded-lg p-4 text-center space-y-3 border border-orange-100">
-          <div className="relative w-20 h-20 mx-auto">
-            <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 100 100">
-              <circle
-                cx="50"
-                cy="50"
-                r="40"
-                stroke="currentColor"
-                strokeWidth="6"
-                fill="transparent"
-                className="text-gray-200"
+        <div className="bg-gradient-to-br from-orange-500 via-purple-500 to-purple-600 rounded-xl p-6 text-white">
+          <div className="text-center mb-4">
+            <h3 className="text-lg font-semibold">🎬 AI Creating Your Video</h3>
+          </div>
+          
+          <div className="space-y-4">
+            {/* Progress Bar */}
+            <div className="bg-white/20 rounded-full h-2 overflow-hidden">
+              <div 
+                className="bg-white h-full transition-all duration-1000 ease-out"
+                style={{ 
+                  width: `${Math.min(Math.round((elapsedTime / expectedDuration) * 100), 95)}%` 
+                }}
               />
-              <circle
-                cx="50"
-                cy="50"
-                r="40"
-                stroke="currentColor"
-                strokeWidth="6"
-                fill="transparent"
-                strokeDasharray={`${2 * Math.PI * 40}`}
-                strokeDashoffset={`${2 * Math.PI * 40 * (1 - state.progress / 100)}`}
-                className="text-orange-500 transition-all duration-500 ease-out"
-                strokeLinecap="round"
-              />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <div className="text-lg font-bold text-gray-700">{state.progress}%</div>
-                <LoadingSpinner size="sm" className="mt-1 mx-auto" />
-              </div>
+            </div>
+            
+            {/* Real Time Display */}
+            <div className="flex justify-between text-xs text-purple-100">
+              <span>
+                {currentPhase === 'starting' && 'Initializing...'}
+                {currentPhase === 'processing' && 'Generating...'}
+                {currentPhase === 'finishing' && 'Finalizing...'}
+              </span>
+              <span className="font-mono">
+                {elapsedTime}s elapsed
+                {expectedDuration > 0 && (
+                  ` • ${Math.min(Math.round((elapsedTime / expectedDuration) * 100), 95)}%`
+                )}
+              </span>
             </div>
           </div>
           
-          <div className="space-y-1">
-            <p className="text-base font-semibold text-gray-900">{state.message}</p>
-            {state.estimatedTime && state.estimatedTime > 0 && (
-              <p className="text-sm text-gray-500">
-                ⏱️ Estimated time remaining: {state.estimatedTime} seconds
-              </p>
-            )}
-            <p className="text-xs text-gray-400">
-              🎬 AI is analyzing your photo and creating cinematic motion
-            </p>
+          {/* Minimal message */}
+          <div className="text-xs text-purple-100 opacity-75 text-center mt-3">
+            <div className="flex items-center justify-center mb-1">
+              <div className="w-1 h-1 bg-purple-200 rounded-full animate-pulse mr-1"></div>
+              <div className="w-1 h-1 bg-purple-200 rounded-full animate-pulse mr-1" style={{animationDelay: '0.2s'}}></div>
+              <div className="w-1 h-1 bg-purple-200 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+            </div>
+            Usually takes {expectedDuration} seconds.
           </div>
-
-          <ProgressBar 
-            progress={state.progress} 
-            label="Generation Progress"
-            variant="primary"
-            size="md"
-            className="max-w-md mx-auto"
-          />
         </div>
       )}
 
