@@ -64,25 +64,49 @@ export async function POST(request: NextRequest) {
       console.log(`[GUMROAD-WEBHOOK-${requestId}] Processing REAL purchase`)
     }
     
-    // Skip refunded purchases
+        // Skip refunded purchases
     if (webhookData.refunded === 'true') {
       console.log(`[GUMROAD-WEBHOOK-${requestId}] Skipping refunded purchase`)
       return NextResponse.json({ success: true, message: 'Refunded purchase skipped' })
     }
-    
-    // Map product permalink to credits
-    const creditMap: Record<string, number> = {
-      'hwllt': 5,      // Echoes Starter Package - $15
-      'zqbix': 20,     // Echoes Social Pack - $45
-      'nyoppm': 40     // Echoes Legacy Pack - $80
+
+    // Fetch credit packs from admin panel to get dynamic credit amounts
+    console.log(`[GUMROAD-WEBHOOK-${requestId}] Fetching credit packs from admin panel`)
+    const { data: configData, error: configError } = await supabaseServiceRole
+      .from('admin_config')
+      .select('value')
+      .eq('key', 'credit_packs')
+      .single()
+
+    if (configError && configError.code !== 'PGRST116') {
+      console.error(`[GUMROAD-WEBHOOK-${requestId}] Failed to fetch credit packs:`, configError)
+      return NextResponse.json({ error: 'Failed to fetch credit configuration' }, { status: 500 })
     }
-    
-    const credits = creditMap[webhookData.short_product_id!]
-    console.log(`[GUMROAD-WEBHOOK-${requestId}] Product ID '${webhookData.short_product_id}' maps to ${credits} credits`)
-    
-    if (!credits) {
-      console.error(`[GUMROAD-WEBHOOK-${requestId}] Unknown product ID: ${webhookData.short_product_id}`)
-      return NextResponse.json({ error: 'Unknown product' }, { status: 400 })
+
+    // Get credit packs with fallback to defaults
+    const creditPacks = configData?.value?.packs || [
+      { id: '1', credits: 5 },   // hwllt fallback
+      { id: '2', credits: 20 },  // zqbix fallback  
+      { id: '3', credits: 40 }   // nyoppm fallback
+    ]
+
+    // Map Gumroad permalinks to admin pack IDs
+    const permalinkToPackId: Record<string, string> = {
+      'hwllt': '1',     // Starter Package
+      'zqbix': '2',     // Social Pack  
+      'nyoppm': '3'     // Legacy Pack
+    }
+
+    // Find the credit pack for this purchase
+    const packId = permalinkToPackId[webhookData.short_product_id!]
+    const creditPack = creditPacks.find((pack: any) => pack.id === packId)
+    const credits = creditPack?.credits
+
+    console.log(`[GUMROAD-WEBHOOK-${requestId}] Product '${webhookData.short_product_id}' → Pack ID '${packId}' → ${credits} credits`)
+
+    if (!credits || !packId) {
+      console.error(`[GUMROAD-WEBHOOK-${requestId}] Unknown product ID or inactive pack: ${webhookData.short_product_id}`)
+      return NextResponse.json({ error: 'Unknown product or inactive pack' }, { status: 400 })
     }
     
     // Find user by email
@@ -188,6 +212,7 @@ export async function POST(request: NextRequest) {
     console.log(`[GUMROAD-WEBHOOK-${requestId}] Summary:`)
     console.log(`[GUMROAD-WEBHOOK-${requestId}]   User: ${user.email} (${user.id})`)
     console.log(`[GUMROAD-WEBHOOK-${requestId}]   Product: ${webhookData.product_name} (${webhookData.short_product_id})`)
+    console.log(`[GUMROAD-WEBHOOK-${requestId}]   Pack: ${creditPack?.name || 'Unknown'} (ID: ${packId})`)
     console.log(`[GUMROAD-WEBHOOK-${requestId}]   Credits added: ${credits}`)
     console.log(`[GUMROAD-WEBHOOK-${requestId}]   New balance: ${newCreditBalance}`)
     console.log(`[GUMROAD-WEBHOOK-${requestId}]   Sale ID: ${webhookData.sale_id}`)

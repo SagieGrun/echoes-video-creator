@@ -45,6 +45,13 @@ export default function CreditsPage() {
   const [isEditing, setIsEditing] = useState(false)
   const [editingPack, setEditingPack] = useState<Partial<CreditPack>>({})
 
+  // Gumroad permalink mapping for display
+  const gumroadPermalinks: Record<string, string> = {
+    '1': 'hwllt',     // Starter Package
+    '2': 'zqbix',     // Social Pack  
+    '3': 'nyoppm'     // Legacy Pack
+  }
+
   useEffect(() => {
     fetchCreditPacks()
   }, [])
@@ -194,6 +201,12 @@ export default function CreditsPage() {
                   <span className="text-gray-600">Per Credit:</span>
                   <span className="font-medium">
                     {calculatePricePerCredit(pack.price_cents, pack.credits)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Gumroad Link:</span>
+                  <span className="font-mono text-xs text-gray-500">
+                    {gumroadPermalinks[pack.id] || 'Not mapped'}
                   </span>
                 </div>
                 {pack.stripe_price_id && (
