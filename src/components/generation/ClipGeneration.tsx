@@ -11,7 +11,7 @@ import { uploadPhoto } from '@/lib/supabase/storage'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 
 interface ClipGenerationState {
-  phase: 'upload' | 'generating' | 'completed' | 'error'
+  phase: 'upload' | 'confirm' | 'generating' | 'completed' | 'error'
   clipId?: string
   progress: number
   message: string
@@ -40,6 +40,8 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
     progress: 0,
     message: 'Upload a photo to get started'
   })
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [uploadedPhoto, setUploadedPhoto] = useState<{url: string, path: string, projectId: string} | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -114,6 +116,7 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
     try {
       setIsUploading(true)
       setUploadProgress(0)
+      setSelectedFile(file)
       
       setState({
         phase: 'upload',
@@ -137,16 +140,30 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
       
       setUploadProgress(100)
       clearInterval(progressInterval)
+      setUploadedPhoto(result)
 
       setState({
-        phase: 'upload',
-        progress: 100,
-        message: 'Photo uploaded successfully!'
+        phase: 'confirm',
+        progress: 0,
+        message: 'Photo uploaded! Please confirm to proceed with AI generation.'
       })
 
-      // Brief pause to show completion
-      await new Promise(resolve => setTimeout(resolve, 500))
+    } catch (error) {
+      console.error('Upload error:', error)
+      setState({
+        phase: 'error',
+        progress: 0,
+        message: error instanceof Error ? error.message : 'Failed to upload photo'
+      })
+    } finally {
+      setIsUploading(false)
+    }
+  }
 
+  const handleConfirmGeneration = async () => {
+    if (!uploadedPhoto || !user) return
+
+    try {
       setIsGenerating(true)
       setState({
         phase: 'generating',
@@ -171,9 +188,9 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
           'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         },
         body: JSON.stringify({
-          image_url: result.url,        // Signed URL for immediate use
-          image_file_path: result.path, // File path for storage
-          project_id: result.projectId,
+          image_url: uploadedPhoto.url,        // Signed URL for immediate use
+          image_file_path: uploadedPhoto.path, // File path for storage
+          project_id: uploadedPhoto.projectId,
         }),
       })
 
@@ -200,25 +217,32 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
       startStatusPolling(clip_id)
 
     } catch (error) {
-      console.error('Error in clip generation:', error)
+      console.error('Generation error:', error)
       setState({
         phase: 'error',
         progress: 0,
-        message: error instanceof Error ? error.message : 'Failed to generate clip'
+        message: error instanceof Error ? error.message : 'Failed to start generation'
       })
     } finally {
-      setIsUploading(false)
       setIsGenerating(false)
-      setUploadProgress(0)
     }
   }
 
+  const handleCancelConfirmation = () => {
+    setSelectedFile(null)
+    setUploadedPhoto(null)
+    setState({
+      phase: 'upload',
+      progress: 0,
+      message: 'Upload a photo to get started'
+    })
+  }
+
   const startStatusPolling = (clipId: string) => {
-    let intervalId: NodeJS.Timeout | null = null
+    if (pollingInterval) clearInterval(pollingInterval)
     
     const poll = async () => {
       try {
-        // Get the user's auth token
         const supabase = createSupabaseBrowserClient()
         const { data: { session } } = await supabase.auth.getSession()
         
@@ -226,87 +250,81 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
           throw new Error('Authentication required')
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/clip-status?clip_id=${clipId}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/clip-status`, {
+          method: 'POST',
           headers: {
+            'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
             'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-          }
+          },
+          body: JSON.stringify({ clip_id: clipId }),
         })
-        
+
         if (!response.ok) {
-          throw new Error('Failed to check status')
+          throw new Error('Failed to fetch status')
         }
 
-        const statusData = await response.json()
-        
+        const { status, video_url, progress, message } = await response.json()
+
         setState(prev => ({
           ...prev,
-          progress: statusData.progress,
-          estimatedTime: statusData.estimated_time,
-          message: getStatusMessage(statusData.status, statusData.estimated_time)
+          progress,
+          message: getStatusMessage(status, prev.estimatedTime)
         }))
 
-        if (statusData.status === 'completed') {
-          console.log('Clip completed! Video URL received:', statusData.video_url)
-          
+        if (status === 'completed' && video_url) {
           setState(prev => ({
             ...prev,
             phase: 'completed',
             progress: 100,
-            message: 'Your clip is ready!',
-            videoUrl: statusData.video_url
+            message: 'Your video clip is ready!',
+            videoUrl: video_url
           }))
-          
-          // Clear polling immediately
-          if (intervalId) {
-            clearInterval(intervalId)
-            intervalId = null
+          if (pollingInterval) {
+            clearInterval(pollingInterval)
+            setPollingInterval(null)
           }
-          setPollingInterval(null)
-          return // Stop polling
-          
-        } else if (statusData.status === 'failed') {
+        } else if (status === 'failed') {
           setState(prev => ({
             ...prev,
             phase: 'error',
             progress: 0,
-            message: statusData.error_message || 'Generation failed'
+            message: message || 'Generation failed'
           }))
-          
-          // Clear polling immediately
-          if (intervalId) {
-            clearInterval(intervalId)
-            intervalId = null
+          if (pollingInterval) {
+            clearInterval(pollingInterval)
+            setPollingInterval(null)
           }
-          setPollingInterval(null)
-          return // Stop polling
         }
-
       } catch (error) {
-        console.error('Error polling status:', error)
+        console.error('Status polling error:', error)
+        setState(prev => ({
+          ...prev,
+          phase: 'error',
+          progress: 0,
+          message: 'Failed to check generation status'
+        }))
+        if (pollingInterval) {
+          clearInterval(pollingInterval)
+          setPollingInterval(null)
+        }
       }
     }
 
-    // Poll immediately and then every 3 seconds
-    poll().then(() => {
-      // Only set up interval if not already completed
-      if (intervalId === null) {
-        intervalId = setInterval(poll, 3000)
-        setPollingInterval(intervalId)
-      }
-    })
+    // Start polling immediately, then every 3 seconds
+    poll()
+    const interval = setInterval(poll, 3000)
+    setPollingInterval(interval)
   }
 
   const getStatusMessage = (status: string, estimatedTime?: number): string => {
     switch (status) {
-      case 'pending':
-        return 'Preparing your generation...'
       case 'processing':
-        return estimatedTime 
-          ? `Generating clip... ~${estimatedTime}s remaining`
-          : 'Generating your clip...'
+        return estimatedTime ? `AI is working on your clip... (usually takes ${estimatedTime}s)` : 'AI is working on your clip...'
+      case 'queued':
+        return 'Your clip is in the queue...'
       case 'completed':
-        return 'Your clip is ready!'
+        return 'Your video clip is ready!'
       case 'failed':
         return 'Generation failed'
       default:
@@ -318,68 +336,112 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
     setState({
       phase: 'upload',
       progress: 0,
-      message: 'Upload a photo to try again'
+      message: 'Upload a photo to get started'
     })
+    setSelectedFile(null)
+    setUploadedPhoto(null)
   }
 
   const handleNewClip = () => {
     setState({
       phase: 'upload',
       progress: 0,
-      message: 'Upload another photo to create a new clip'
+      message: 'Upload a photo to get started'
     })
+    setSelectedFile(null)
+    setUploadedPhoto(null)
   }
 
   const handlePurchaseComplete = (credits: number) => {
-    // Update user credits
-    setUser(prev => prev ? { ...prev, credit_balance: prev.credit_balance + credits } : null)
+    setUser(prev => prev ? { ...prev, credit_balance: credits } : null)
     setShowCreditPurchase(false)
-    
-    // Reset to upload state
     setState({
       phase: 'upload',
       progress: 0,
-      message: 'Credits added! Upload a photo to create your clip'
+      message: 'Upload a photo to get started'
     })
   }
 
+  // Show credit purchase modal
+  if (showCreditPurchase) {
+    return (
+             <CreditPurchase
+         onPurchaseComplete={handlePurchaseComplete}
+         onClose={() => setShowCreditPurchase(false)}
+       />
+    )
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Credit Balance Display */}
       {user && (
-        <div className="bg-gradient-to-r from-orange-50 to-purple-50 rounded-lg p-3 text-center border border-orange-100">
-          <p className="text-sm text-gray-600">
+        <div className="text-center">
+          <p className="text-gray-600">
             Credit Balance: <span className="font-semibold text-orange-600">{user.credit_balance}</span>
             {user.credit_balance === 0 && (
-              <span className="ml-2 text-red-500">(Purchase more to continue)</span>
+              <span className="text-red-500 ml-2">
+                (Purchase more to continue)
+              </span>
             )}
           </p>
         </div>
       )}
 
-      {/* Upload Phase */}
-      {state.phase === 'upload' && !isUploading && (
-        <PhotoUpload
+      {/* Phase: Upload */}
+      {state.phase === 'upload' && (
+        <PhotoUpload 
           onPhotoSelected={handlePhotoSelected}
-          maxSize={5 * 1024 * 1024}
-          acceptedTypes={['image/jpeg', 'image/png']}
+          maxSize={5 * 1024 * 1024} // 5MB
         />
       )}
 
-      {/* Upload Loading State */}
-      {isUploading && (
-        <div className="bg-gradient-to-br from-orange-50 to-purple-50 rounded-lg p-4 text-center space-y-3 border border-orange-100">
-          <LoadingSpinner size="lg" className="mx-auto" />
-          <div>
-            <p className="font-medium text-gray-900">{state.message}</p>
-            <p className="text-sm text-gray-500 mt-1">Please wait while we process your photo</p>
+      {/* Phase: Confirm */}
+      {state.phase === 'confirm' && selectedFile && uploadedPhoto && (
+        <div className="text-center space-y-6">
+          <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-green-800 mb-4">
+              📸 Photo Ready for AI Generation
+            </h3>
+            
+            {/* Photo Preview */}
+            <div className="relative max-w-md mx-auto mb-6">
+              <img 
+                src={uploadedPhoto.url} 
+                alt="Selected photo preview"
+                className="w-full rounded-lg shadow-lg"
+              />
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-green-700">
+                Your photo has been uploaded successfully! This will use <span className="font-semibold">1 credit</span> to generate your AI video clip.
+              </p>
+              
+              <div className="text-sm text-green-600 bg-green-100 rounded-lg p-3">
+                <p><strong>File:</strong> {selectedFile.name}</p>
+                <p><strong>Size:</strong> {(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                <p><strong>Generation time:</strong> Usually 30-60 seconds</p>
+              </div>
+
+              <div className="flex gap-4 justify-center">
+                <button
+                  onClick={handleCancelConfirmation}
+                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-full hover:bg-gray-50 transition-colors"
+                  disabled={isGenerating}
+                >
+                  Cancel & Choose Different Photo
+                </button>
+                <LoadingButton
+                  onClick={handleConfirmGeneration}
+                  loading={isGenerating}
+                  className="px-8 py-3 bg-gradient-to-r from-orange-500 to-purple-500 text-white rounded-full hover:from-orange-600 hover:to-purple-600 transition-all transform hover:scale-105"
+                >
+                  {isGenerating ? 'Starting Generation...' : 'Confirm & Generate Video'}
+                </LoadingButton>
+              </div>
+            </div>
           </div>
-          <ProgressBar 
-            progress={uploadProgress} 
-            label="Upload Progress"
-            variant="primary"
-            className="max-w-md mx-auto"
-          />
         </div>
       )}
 
@@ -517,14 +579,6 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
             )}
           </div>
         </div>
-      )}
-
-      {/* Credit Purchase Modal */}
-      {showCreditPurchase && (
-        <CreditPurchase
-          onClose={() => setShowCreditPurchase(false)}
-          onPurchaseComplete={handlePurchaseComplete}
-        />
       )}
     </div>
   )
