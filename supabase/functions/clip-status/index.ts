@@ -19,11 +19,9 @@ console.log("Hello from Functions!")
 
 Deno.serve(async (req) => {
   const requestId = Math.random().toString(36).substring(2, 15)
-  
-  console.log(`[STATUS-${requestId}] === STATUS CHECK START ===`, {
+  console.log(`[STATUS-${requestId}] === STATUS REQUEST START ===`, {
     timestamp: new Date().toISOString(),
-    method: req.method,
-    url: req.url
+    method: req.method
   })
 
   // Handle CORS preflight
@@ -32,13 +30,13 @@ Deno.serve(async (req) => {
       status: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
       },
     })
   }
 
-  if (req.method !== 'GET' && req.method !== 'POST') {
+  if (req.method !== 'POST') {
     return new Response(
       JSON.stringify({ error: 'Method not allowed' }),
       { 
@@ -53,29 +51,18 @@ Deno.serve(async (req) => {
 
   try {
     // Check authentication
-    console.log(`[STATUS-${requestId}] Step 1: Checking authentication`)
     const user = await getAuthenticatedUser(req)
     if (!user) {
-      console.log(`[STATUS-${requestId}] Authentication failed - no user`)
-      return new Response(
-        JSON.stringify({ error: 'Authentication required' }),
-        { 
-          status: 401,
-          headers: { 
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      )
+      return new Response(JSON.stringify({ error: 'Authentication required' }), { status: 401, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }})
     }
+    console.log(`[STATUS-${requestId}] User authenticated: ${user.id}`)
 
-    // Get clip ID from URL
-    const url = new URL(req.url)
-    const clipId = url.searchParams.get('clip_id')
-    
-    if (!clipId) {
+    // Get clip_id from the request BODY
+    const { clip_id } = await req.json()
+
+    if (!clip_id) {
       return new Response(
-        JSON.stringify({ error: 'clip_id parameter is required' }),
+        JSON.stringify({ error: 'clip_id is required in the request body' }),
         { 
           status: 400,
           headers: { 
@@ -85,7 +72,9 @@ Deno.serve(async (req) => {
         }
       )
     }
+    console.log(`[STATUS-${requestId}] Step 1: Received request for clip_id: ${clip_id}`)
 
+    // Get clip details
     const serviceSupabase = createServiceSupabaseClient()
 
     // Get the clip from database
@@ -93,7 +82,7 @@ Deno.serve(async (req) => {
     const { data: clip, error: clipError } = await serviceSupabase
       .from('clips')
       .select('*')
-      .eq('id', clipId)
+      .eq('id', clip_id)
       .single()
 
     if (clipError || !clip) {

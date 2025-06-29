@@ -188,8 +188,8 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
           'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         },
         body: JSON.stringify({
-          image_url: uploadedPhoto.url,        // Signed URL for immediate use
-          image_file_path: uploadedPhoto.path, // File path for storage
+          image_url: uploadedPhoto.url,
+          image_file_path: uploadedPhoto.path,
           project_id: uploadedPhoto.projectId,
         }),
       })

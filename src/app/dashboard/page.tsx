@@ -644,8 +644,20 @@ function DashboardContent() {
                           <Clock className="h-3 w-3 mr-1" />
                           {formatDate(clip.created_at)}
                         </div>
-                        <div className="text-xs text-blue-600 mt-1">
-                          {clip.status === 'processing' ? 'Generating...' : 'Queued'}
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs text-blue-600">
+                            {clip.status === 'processing' ? 'Generating...' : 'Queued'}
+                          </div>
+                          <LoadingButton
+                            onClick={() => setShowDeleteClipConfirm(clip.id)}
+                            variant="secondary"
+                            size="sm"
+                            className="px-2 py-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            disabled={deletingClipId === clip.id}
+                            loading={deletingClipId === clip.id}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </LoadingButton>
                         </div>
                   </div>
                 </div>
