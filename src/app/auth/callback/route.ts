@@ -112,7 +112,7 @@ export async function GET(request: Request) {
   const isDevelopment = process.env.NODE_ENV === 'development'
   const redirectUrl = isDevelopment 
     ? new URL(redirectPath, request.url)
-    : `https://app.get-echoes.com${redirectPath}`
+    : `${process.env.NEXT_PUBLIC_APP_URL}${redirectPath}`
   
   return NextResponse.redirect(redirectUrl)
 } 

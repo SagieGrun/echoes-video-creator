@@ -20,20 +20,7 @@ const nextConfig = {
       },
     ],
   },
-  async rewrites() {
-    return [
-      {
-        source: '/:path*',
-        destination: '/create/:path*',
-        has: [
-          {
-            type: 'host',
-            value: 'app.get-echoes.com',
-          },
-        ],
-      },
-    ];
-  },
+  // Removed old domain rewrites - no longer needed
   async headers() {
     return [
       {
