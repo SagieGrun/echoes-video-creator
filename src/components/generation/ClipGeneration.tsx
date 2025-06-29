@@ -163,6 +163,14 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
   const handleConfirmGeneration = async () => {
     if (!uploadedPhoto || !user) return
 
+    const requestId = Math.random().toString(36).substring(2, 15)
+    console.log(`[FRONTEND-${requestId}] === GENERATION REQUEST START ===`, {
+      timestamp: new Date().toISOString(),
+      uploadedPhoto: selectedFile?.name || 'unknown',
+      fileSize: selectedFile?.size || 0,
+      uploadedPhotoUrl: uploadedPhoto.url
+    })
+
     try {
       setIsGenerating(true)
       setState({
@@ -172,14 +180,34 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
       })
 
       // Get the user's auth token
+      console.log(`[FRONTEND-${requestId}] Step 1: Getting user session`)
       const supabase = createSupabaseBrowserClient()
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {
+        console.error(`[FRONTEND-${requestId}] ERROR: No session found`)
         throw new Error('Authentication required')
       }
+      console.log(`[FRONTEND-${requestId}] Step 1 SUCCESS: Session obtained`)
 
       // Start clip generation using Edge Function
+      console.log(`[FRONTEND-${requestId}] Step 2: Preparing fetch request`)
+      const requestPayload = {
+        image_url: uploadedPhoto.url,
+        image_file_path: uploadedPhoto.path,
+        project_id: uploadedPhoto.projectId
+      }
+      
+      console.log(`[FRONTEND-${requestId}] Step 2: Request payload prepared`, {
+        hasImageUrl: !!requestPayload.image_url,
+        imageUrlLength: requestPayload.image_url?.length,
+        hasImageFilePath: !!requestPayload.image_file_path,
+        hasProjectId: !!requestPayload.project_id
+      })
+
+      const startTime = Date.now()
+      console.log(`[FRONTEND-${requestId}] Step 3: Starting fetch call at ${startTime}`)
+      
       const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/clip-generation`, {
         method: 'POST',
         headers: {
@@ -187,44 +215,161 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
           'Authorization': `Bearer ${session.access_token}`,
           'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         },
-        body: JSON.stringify({
-          image_url: uploadedPhoto.url,
-          image_file_path: uploadedPhoto.path,
-          project_id: uploadedPhoto.projectId,
-        }),
+        body: JSON.stringify(requestPayload)
+      })
+
+      const endTime = Date.now()
+      const duration = endTime - startTime
+      
+      console.log(`[FRONTEND-${requestId}] Step 3 RESPONSE: Fetch completed`, {
+        duration: `${duration}ms`,
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to start generation')
+        const errorText = await response.text()
+        console.error(`[FRONTEND-${requestId}] ERROR: Bad response`, {
+          status: response.status,
+          statusText: response.statusText,
+          errorText
+        })
+        throw new Error(`Failed to generate clip: ${response.status} - ${errorText}`)
       }
 
-      const { clip_id, credits_remaining, estimated_time } = await response.json()
+      console.log(`[FRONTEND-${requestId}] Step 4: Parsing response body`)
+      const result = await response.json()
+      
+      console.log(`[FRONTEND-${requestId}] Step 4 SUCCESS: Response parsed`, {
+        result,
+        totalDuration: `${Date.now() - startTime}ms`
+      })
 
+      // Start polling for clip status
+      console.log(`[FRONTEND-${requestId}] Step 5: Starting status polling`)
       setState({
         phase: 'generating',
         progress: 10,
-        message: 'AI is creating your video clip...',
-        clipId: clip_id,
-        creditsRemaining: credits_remaining,
-        estimatedTime: estimated_time
+        message: 'AI generation in progress...',
+        clipId: result.clipId
       })
 
-      // Update user credit balance
-      setUser(prev => prev ? { ...prev, credit_balance: credits_remaining } : null)
+      // Poll for status updates
+      const statusInterval = setInterval(async () => {
+        try {
+          console.log(`[FRONTEND-${requestId}] POLLING: Checking clip status`)
+          const statusResponse = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/clip-status`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+              'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            },
+            body: JSON.stringify({ clipId: result.clipId })
+          })
 
-      // Start polling for status updates
-      startStatusPolling(clip_id)
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json()
+            console.log(`[FRONTEND-${requestId}] POLLING: Status update`, statusData)
+            
+            // ADD DETAILED LOGGING OF STATUS DATA
+            console.log(`[FRONTEND-${requestId}] POLLING: Detailed status analysis`, {
+              status: statusData.status,
+              progress: statusData.progress,
+              hasErrorMessage: !!statusData.error_message,
+              errorMessage: statusData.error_message,
+              hasVideoUrl: !!statusData.video_url,
+              allKeys: Object.keys(statusData)
+            })
+            
+            setState({
+              phase: 'generating',
+              progress: Math.min(statusData.progress || 0, 95),
+              message: `AI generation ${statusData.progress || 0}% complete...`,
+              clipId: result.clipId
+            })
+
+            if (statusData.status === 'completed') {
+              console.log(`[FRONTEND-${requestId}] POLLING: Generation completed!`)
+              clearInterval(statusInterval)
+              setState({
+                phase: 'completed',
+                progress: 100,
+                message: 'AI generation completed!',
+                clipId: result.clipId
+              })
+            } else if (statusData.status === 'failed') {
+              console.error(`[FRONTEND-${requestId}] POLLING: Generation failed`, statusData)
+              clearInterval(statusInterval)
+              
+              // Create user-friendly error message based on the specific error
+              let userErrorMessage = 'Generation failed'
+              
+              if (statusData.error_message) {
+                const errorMsg = statusData.error_message.toLowerCase()
+                
+                if (errorMsg.includes('content moderation') || errorMsg.includes('public figure') || errorMsg.includes('safety')) {
+                  userErrorMessage = 'Image rejected by AI content policy. Please try landscapes, objects, or images without recognizable people.'
+                } else if (errorMsg.includes('timeout') || errorMsg.includes('time')) {
+                  userErrorMessage = 'Generation timed out. Please try again with a simpler image.'
+                } else if (errorMsg.includes('invalid') || errorMsg.includes('format')) {
+                  userErrorMessage = 'Invalid image format. Please use JPEG or PNG files.'
+                } else if (errorMsg.includes('resolution') || errorMsg.includes('size')) {
+                  userErrorMessage = 'Image size issue. Please use images between 512x512 and 2048x2048 pixels.'
+                } else {
+                  // Show the actual error message if it's not too technical
+                  userErrorMessage = statusData.error_message.length > 100 
+                    ? 'Generation failed due to technical issue. Please try a different image.'
+                    : statusData.error_message
+                }
+              }
+              
+              console.log(`[FRONTEND-${requestId}] POLLING: User-friendly error message:`, userErrorMessage)
+              throw new Error(userErrorMessage)
+            }
+          } else {
+            console.warn(`[FRONTEND-${requestId}] POLLING: Status check failed`, {
+              status: statusResponse.status,
+              statusText: statusResponse.statusText
+            })
+          }
+        } catch (error) {
+          console.error(`[FRONTEND-${requestId}] POLLING ERROR:`, error)
+        }
+      }, 5000)
+
+      // Set timeout for polling
+      setTimeout(() => {
+        clearInterval(statusInterval)
+        console.log(`[FRONTEND-${requestId}] TIMEOUT: Polling timeout reached`)
+        setState({
+          phase: 'completed',
+          progress: 100,
+          message: 'Generation started! Check your dashboard for results.',
+          clipId: result.clipId
+        })
+      }, 180000) // 3 minutes timeout
 
     } catch (error) {
-      console.error('Generation error:', error)
+      const errorEndTime = Date.now()
+      console.error(`[FRONTEND-${requestId}] === GENERATION REQUEST FAILED ===`, {
+        error: error instanceof Error ? {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        } : error,
+        timestamp: new Date().toISOString(),
+        duration: `${errorEndTime - (Date.now() - 1000)}ms` // Approximate duration
+      })
+      
+      setIsGenerating(false)
       setState({
         phase: 'error',
         progress: 0,
-        message: error instanceof Error ? error.message : 'Failed to start generation'
+        message: error instanceof Error ? error.message : 'Unknown error'
       })
-    } finally {
-      setIsGenerating(false)
     }
   }
 
@@ -285,11 +430,30 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
             setPollingInterval(null)
           }
         } else if (status === 'failed') {
+          // Create user-friendly error message
+          let userErrorMessage = 'Generation failed'
+          if (message) {
+            const errorMsg = message.toLowerCase()
+            if (errorMsg.includes('content moderation') || errorMsg.includes('public figure') || errorMsg.includes('safety')) {
+              userErrorMessage = 'Image rejected by AI content policy. Please try landscapes, objects, or images without recognizable people.'
+            } else if (errorMsg.includes('timeout') || errorMsg.includes('time')) {
+              userErrorMessage = 'Generation timed out. Please try again with a simpler image.'
+            } else if (errorMsg.includes('invalid') || errorMsg.includes('format')) {
+              userErrorMessage = 'Invalid image format. Please use JPEG or PNG files.'
+            } else if (errorMsg.includes('resolution') || errorMsg.includes('size')) {
+              userErrorMessage = 'Image size issue. Please use images between 512x512 and 2048x2048 pixels.'
+            } else {
+              userErrorMessage = message.length > 100 
+                ? 'Generation failed due to technical issue. Please try a different image.'
+                : message
+            }
+          }
+          
           setState(prev => ({
             ...prev,
             phase: 'error',
             progress: 0,
-            message: message || 'Generation failed'
+            message: userErrorMessage
           }))
           if (pollingInterval) {
             clearInterval(pollingInterval)
@@ -326,7 +490,7 @@ export function ClipGeneration({ user: propUser }: ClipGenerationProps) {
       case 'completed':
         return 'Your video clip is ready!'
       case 'failed':
-        return 'Generation failed'
+        return 'Generation failed. Please try a different image.'
       default:
         return 'Processing...'
     }
