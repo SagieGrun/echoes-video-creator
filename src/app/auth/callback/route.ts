@@ -4,24 +4,29 @@ import { NextResponse } from 'next/server'
 import { determinePostLoginRoute } from '@/lib/auth-routing'
 
 export async function GET(request: Request) {
-  console.log('Auth callback received')
+  console.log('🔥 AUTH CALLBACK RECEIVED')
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   const error = requestUrl.searchParams.get('error')
   const error_description = requestUrl.searchParams.get('error_description')
 
-  console.log('Auth callback params:', {
+  console.log('🔥 Auth callback params:', {
     hasCode: !!code,
     error,
     error_description
   })
 
   if (error || !code) {
-    console.error('Auth callback error:', { error, error_description })
+    console.error('🔥 Auth callback error:', { error, error_description })
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/auth-error`)
   }
 
   const cookieStore = cookies()
+  
+  // DEBUGGING: Check if referral cookie exists at this point
+  const referralCookieCheck = cookieStore.get('referral_code')?.value
+  console.log('🔥 REFERRAL COOKIE CHECK AT START:', referralCookieCheck)
+  
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -40,21 +45,21 @@ export async function GET(request: Request) {
     }
   )
 
-  console.log('Exchanging code for session...')
+  console.log('🔥 Exchanging code for session...')
   const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code)
   
   if (sessionError) {
-    console.error('Session exchange error:', sessionError)
+    console.error('🔥 Session exchange error:', sessionError)
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/auth-error`)
   }
 
-  console.log('Session exchange successful, checking/creating user profile')
+  console.log('🔥 Session exchange successful, checking/creating user profile')
   
   // Get the user session to access user details
   const { data: { user } } = await supabase.auth.getUser()
   
   if (user) {
-    console.log('User found:', { id: user.id, email: user.email })
+    console.log('🔥 User found:', { id: user.id, email: user.email })
     
     // Check if user profile exists in our users table
     const { data: existingUser, error: fetchError } = await supabase
@@ -65,11 +70,11 @@ export async function GET(request: Request) {
     
     if (fetchError && fetchError.code === 'PGRST116') {
       // User doesn't exist, create them with 1 free credit
-      console.log('Creating new user profile with 1 free credit')
+      console.log('🔥🔥🔥 CREATING NEW USER PROFILE WITH 1 FREE CREDIT')
       
       // Check for referral cookie
       const referralCode = cookieStore.get('referral_code')?.value
-      console.log('Referral code from cookie:', referralCode)
+      console.log('🔥🔥🔥 REFERRAL CODE FROM COOKIE:', referralCode)
       
       const { data: newUser, error: createError } = await supabase
         .from('users')
@@ -83,9 +88,9 @@ export async function GET(request: Request) {
         .single()
       
       if (createError) {
-        console.error('Error creating user profile:', createError)
+        console.error('🔥🔥🔥 ERROR CREATING USER PROFILE:', createError)
       } else {
-        console.log('User profile created successfully:', newUser)
+        console.log('🔥🔥🔥 USER PROFILE CREATED SUCCESSFULLY:', newUser)
         
         // Log the initial free credit transaction
         await supabase
@@ -99,49 +104,52 @@ export async function GET(request: Request) {
         
         // Process referral if cookie exists
         if (referralCode) {
-          console.log('Processing referral signup for code:', referralCode)
+          console.log('🔥🔥🔥 PROCESSING REFERRAL SIGNUP FOR CODE:', referralCode)
           try {
             // Simple referral processing (just self-referral prevention)
+            console.log('🔥🔥🔥 CALLING process_referral_signup FUNCTION...')
             const { data: referralResult, error: referralError } = await supabase.rpc('process_referral_signup', {
               new_user_id: user.id,
               referrer_code: referralCode
             })
             
             if (referralError) {
-              console.error('Database error processing referral:', referralError)
+              console.error('🔥🔥🔥 DATABASE ERROR PROCESSING REFERRAL:', referralError)
             } else if (referralResult) {
-              console.log('Referral processing result:', referralResult)
+              console.log('🔥🔥🔥 REFERRAL PROCESSING RESULT:', referralResult)
               
               if (referralResult.success) {
-                console.log('Referral signup processed successfully')
+                console.log('🔥🔥🔥 ✅ REFERRAL SIGNUP PROCESSED SUCCESSFULLY')
               } else {
-                console.warn('Referral signup blocked:', referralResult.reason)
+                console.warn('🔥🔥🔥 ❌ REFERRAL SIGNUP BLOCKED:', referralResult.reason)
                 
                 // Only log self-referral attempts (simple abuse detection)
                 if (referralResult.reason === 'self_referral_blocked') {
-                  console.warn('Self-referral attempt blocked for user:', user.id)
+                  console.warn('🔥🔥🔥 Self-referral attempt blocked for user:', user.id)
                 }
               }
             }
           } catch (referralError) {
-            console.error('Error processing referral signup:', referralError)
+            console.error('🔥🔥🔥 EXCEPTION PROCESSING REFERRAL SIGNUP:', referralError)
           }
+        } else {
+          console.log('🔥🔥🔥 NO REFERRAL CODE FOUND IN COOKIE')
         }
       }
     } else if (existingUser) {
-      console.log('Existing user found:', existingUser)
+      console.log('🔥 EXISTING USER FOUND:', existingUser)
     } else {
-      console.error('Error fetching user:', fetchError)
+      console.error('🔥 ERROR FETCHING USER:', fetchError)
     }
   }
   
   // Determine where to redirect based on user's clip history
-  let redirectPath = '/create' // Default fallback
+  let redirectPath = '/dashboard' // Updated default
   
   if (user) {
-    console.log('Determining post-login route based on user clip history')
+    console.log('🔥 Determining post-login route based on user clip history')
     redirectPath = await determinePostLoginRoute(user.id, supabase)
-    console.log('Redirecting to:', redirectPath)
+    console.log('🔥 Redirecting to:', redirectPath)
   }
   
   const isDevelopment = process.env.NODE_ENV === 'development'
@@ -149,5 +157,6 @@ export async function GET(request: Request) {
     ? new URL(redirectPath, request.url)
     : `${process.env.NEXT_PUBLIC_APP_URL}${redirectPath}`
   
+  console.log('🔥 FINAL REDIRECT URL:', redirectUrl.toString())
   return NextResponse.redirect(redirectUrl)
 } 
