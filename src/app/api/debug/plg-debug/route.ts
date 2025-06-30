@@ -35,12 +35,15 @@ export async function GET(request: NextRequest) {
     console.log('🔥 User data test:', { userData, userError })
 
     // Test PLG settings
-    const { data: plgSettings, error: plgError } = await supabase
+    const { data: plgSettingsData, error: plgError } = await supabase
       .from('admin_config')
       .select('key, value')
-      .in('key', ['plg_referral_reward', 'plg_share_reward'])
+      .eq('key', 'plg_settings')
+      .single()
     
-    console.log('🔥 PLG settings test:', { plgSettings, plgError })
+    console.log('🔥 PLG settings test:', { plgSettingsData, plgError })
+    
+    const plgSettings = plgSettingsData?.value || { referral_reward_credits: 5, share_reward_credits: 2 }
 
     // Test share_submissions table
     const { data: shareSubmission, error: shareError } = await supabase

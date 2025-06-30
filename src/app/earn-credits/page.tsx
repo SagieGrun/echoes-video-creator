@@ -49,15 +49,19 @@ export default async function EarnCreditsPage() {
     }
 
     // Get PLG settings from admin config
-    const { data: plgSettings, error: plgError } = await supabase
+    const { data: plgSettingsData, error: plgError } = await supabase
       .from('admin_config')
       .select('key, value')
-      .in('key', ['plg_referral_reward', 'plg_share_reward'])
+      .eq('key', 'plg_settings')
+      .single()
 
-    console.log('🔥 EARN CREDITS: PLG settings query:', { plgSettings, plgError })
+    console.log('🔥 EARN CREDITS: PLG settings query:', { plgSettingsData, plgError })
 
-    const referralReward = plgSettings?.find((s: any) => s.key === 'plg_referral_reward')?.value || 5
-    const shareReward = plgSettings?.find((s: any) => s.key === 'plg_share_reward')?.value || 2
+    const plgSettings = plgSettingsData?.value || { referral_reward_credits: 5, share_reward_credits: 2 }
+    const referralReward = plgSettings.referral_reward_credits || 5
+    const shareReward = plgSettings.share_reward_credits || 2
+
+    console.log('🔥 EARN CREDITS: PLG reward values:', { referralReward, shareReward })
 
     // Check if user has already earned share reward
     const { data: shareSubmission, error: shareError } = await supabase
