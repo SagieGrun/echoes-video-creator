@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Add credits to user
-    const newCreditBalance = user.credit_balance + credits
+    let newCreditBalance = user.credit_balance + credits
     console.log(`[GUMROAD-WEBHOOK-${requestId}] Updating user credits: ${user.credit_balance} + ${credits} = ${newCreditBalance}`)
     
     const { error: updateError } = await supabaseServiceRole
@@ -207,6 +207,147 @@ export async function POST(request: NextRequest) {
     }
     
     console.log(`[GUMROAD-WEBHOOK-${requestId}] Created transaction record:`, transactionRecord)
+    
+    // === PLG REFERRAL REWARD PROCESSING ===
+    console.log(`[GUMROAD-WEBHOOK-${requestId}] === CHECKING FOR REFERRAL REWARDS ===`)
+    
+    // Check if this user was referred by someone
+    const { data: referralData, error: referralError } = await supabaseServiceRole
+      .from('referrals')
+      .select('id, referrer_id, reward_granted')
+      .eq('referred_id', user.id)
+      .eq('reward_granted', false)
+      .single()
+    
+    if (referralError && referralError.code !== 'PGRST116') {
+      console.error(`[GUMROAD-WEBHOOK-${requestId}] Error checking referrals:`, referralError)
+      // Don't fail the whole webhook for referral errors, just log and continue
+    } else if (referralData) {
+      console.log(`[GUMROAD-WEBHOOK-${requestId}] Found unrewarded referral:`, referralData)
+      
+      // Check if this is the user's first purchase
+      const { data: previousPurchases, error: purchaseError } = await supabaseServiceRole
+        .from('payments')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('status', 'completed')
+        .neq('gumroad_sale_id', webhookData.sale_id) // Exclude current purchase
+      
+      if (purchaseError) {
+        console.error(`[GUMROAD-WEBHOOK-${requestId}] Error checking previous purchases:`, purchaseError)
+      } else {
+        const isFirstPurchase = !previousPurchases || previousPurchases.length === 0
+        console.log(`[GUMROAD-WEBHOOK-${requestId}] Is first purchase: ${isFirstPurchase}`)
+        
+        if (isFirstPurchase) {
+          // Get PLG settings for referral reward amount
+          const { data: plgSettings, error: plgError } = await supabaseServiceRole
+            .from('admin_config')
+            .select('value')
+            .eq('key', 'plg_settings')
+            .single()
+          
+          const referralCredits = plgSettings?.value?.referral_reward_credits || 5
+          console.log(`[GUMROAD-WEBHOOK-${requestId}] Referral reward credits: ${referralCredits}`)
+          
+          // Get referrer user details
+          const { data: referrerUser, error: referrerError } = await supabaseServiceRole
+            .from('users')
+            .select('id, email, credit_balance')
+            .eq('id', referralData.referrer_id)
+            .single()
+          
+          if (referrerError || !referrerUser) {
+            console.error(`[GUMROAD-WEBHOOK-${requestId}] Referrer user not found:`, referrerError)
+          } else {
+            console.log(`[GUMROAD-WEBHOOK-${requestId}] Found referrer:`, { 
+              id: referrerUser.id, 
+              email: referrerUser.email, 
+              current_credits: referrerUser.credit_balance 
+            })
+            
+            try {
+              // Award credits to referrer
+              const referrerNewBalance = referrerUser.credit_balance + referralCredits
+              const { error: referrerUpdateError } = await supabaseServiceRole
+                .from('users')
+                .update({ credit_balance: referrerNewBalance })
+                .eq('id', referrerUser.id)
+              
+              if (referrerUpdateError) {
+                throw new Error(`Failed to update referrer credits: ${referrerUpdateError.message}`)
+              }
+              
+              console.log(`[GUMROAD-WEBHOOK-${requestId}] Updated referrer credits: ${referrerUser.credit_balance} + ${referralCredits} = ${referrerNewBalance}`)
+              
+              // Award credits to referred user (current user)
+              const referredNewBalance = newCreditBalance + referralCredits
+              const { error: referredUpdateError } = await supabaseServiceRole
+                .from('users')
+                .update({ credit_balance: referredNewBalance })
+                .eq('id', user.id)
+              
+              if (referredUpdateError) {
+                throw new Error(`Failed to update referred user credits: ${referredUpdateError.message}`)
+              }
+              
+              console.log(`[GUMROAD-WEBHOOK-${requestId}] Updated referred user credits: ${newCreditBalance} + ${referralCredits} = ${referredNewBalance}`)
+              
+              // Create referral credit transactions for both users
+              const referralTransactions = [
+                {
+                  user_id: referrerUser.id,
+                  amount: referralCredits,
+                  type: 'referral',
+                  reference_id: `referral-${referralData.id}-${webhookData.sale_id}`
+                },
+                {
+                  user_id: user.id,
+                  amount: referralCredits,
+                  type: 'referral_bonus',
+                  reference_id: `referral-bonus-${referralData.id}-${webhookData.sale_id}`
+                }
+              ]
+              
+              const { error: transactionInsertError } = await supabaseServiceRole
+                .from('credit_transactions')
+                .insert(referralTransactions)
+              
+              if (transactionInsertError) {
+                throw new Error(`Failed to create referral transactions: ${transactionInsertError.message}`)
+              }
+              
+              console.log(`[GUMROAD-WEBHOOK-${requestId}] Created referral transactions for both users`)
+              
+              // Mark referral as rewarded
+              const { error: markRewardedError } = await supabaseServiceRole
+                .from('referrals')
+                .update({ reward_granted: true })
+                .eq('id', referralData.id)
+              
+              if (markRewardedError) {
+                throw new Error(`Failed to mark referral as rewarded: ${markRewardedError.message}`)
+              }
+              
+              console.log(`[GUMROAD-WEBHOOK-${requestId}] === REFERRAL REWARDS PROCESSED SUCCESSFULLY ===`)
+              console.log(`[GUMROAD-WEBHOOK-${requestId}] Referrer (${referrerUser.email}): +${referralCredits} credits (${referrerNewBalance} total)`)
+              console.log(`[GUMROAD-WEBHOOK-${requestId}] Referred (${user.email}): +${referralCredits} bonus credits (${referredNewBalance} total)`)
+              
+              // Update the newCreditBalance for final summary
+              newCreditBalance = referredNewBalance
+              
+            } catch (referralRewardError) {
+              console.error(`[GUMROAD-WEBHOOK-${requestId}] Error processing referral rewards:`, referralRewardError)
+              // Don't fail the whole webhook for referral processing errors
+            }
+          }
+        } else {
+          console.log(`[GUMROAD-WEBHOOK-${requestId}] Not first purchase - no referral rewards`)
+        }
+      }
+    } else {
+      console.log(`[GUMROAD-WEBHOOK-${requestId}] No unrewarded referral found for this user`)
+    }
     
     console.log(`[GUMROAD-WEBHOOK-${requestId}] === WEBHOOK COMPLETED SUCCESSFULLY ===`)
     console.log(`[GUMROAD-WEBHOOK-${requestId}] Summary:`)

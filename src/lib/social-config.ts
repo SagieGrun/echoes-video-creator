@@ -35,26 +35,53 @@ export async function getSocialConfig(): Promise<SocialSharingConfig> {
   configCache.loading = true
   
   try {
-    const response = await fetch('/api/admin/social', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+    // Check if we're running on the server or client
+    const isServer = typeof window === 'undefined'
     
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
-    
-    const data = await response.json()
-    
-    if (data.config) {
+    if (isServer) {
+      // Server-side: Access database directly instead of making HTTP calls
+      const { supabaseServiceRole } = await import('@/lib/supabase-server')
+      
+      const { data: configs, error } = await supabaseServiceRole
+        .from('admin_config')
+        .select('key, value')
+        .eq('key', 'social_sharing')
+        .single()
+      
+      if (error && error.code !== 'PGRST116') {
+        throw new Error(`Database error: ${error.message}`)
+      }
+      
+      const socialConfig = configs?.value || DEFAULT_SOCIAL_CONFIG
+      
       // Update cache
-      configCache.config = data.config
+      configCache.config = socialConfig
       configCache.timestamp = now
-      return data.config
+      return socialConfig
+      
     } else {
-      throw new Error('Invalid response format')
+      // Client-side: Use fetch as before
+      const response = await fetch('/api/admin/plg', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.socialConfig) {
+        // Update cache
+        configCache.config = data.socialConfig
+        configCache.timestamp = now
+        return data.socialConfig
+      } else {
+        throw new Error('Invalid response format')
+      }
     }
     
   } catch (error) {

@@ -42,10 +42,10 @@ export default function AdminLayout({
                 </li>
                 <li>
                   <a
-                    href="/admin/social"
+                    href="/admin/plg"
                     className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
                   >
-                    Social Sharing
+                    PLG
                   </a>
                 </li>
                 <li>
