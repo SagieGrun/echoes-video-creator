@@ -364,7 +364,7 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
                   {shareSubmitting ? 'Processing...' : `I Shared - Claim My +${rewards.share} Credits!`}
                 </button>
                 <p className="text-sm text-gray-600 mt-2">
-                  Click after sharing to claim your reward. Honor system - we trust you! 😊
+                  Share on any social platform and click to claim your reward.
                 </p>
               </div>
             )}
