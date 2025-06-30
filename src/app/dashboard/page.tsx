@@ -871,35 +871,6 @@ function DashboardContent() {
 
         {activeTab === 'videos' && (
           <div className="space-y-8">
-            {/* PLG Success CTA - Show after completing videos */}
-            {completedFinalVideos.length > 0 && (
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
-                <div className="flex items-center space-x-4">
-                  <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
-                    <Gift className="w-6 h-6 text-white" />
-                  </div>
-                  
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-green-900 mb-1">
-                      🎉 Amazing video! Love sharing your memories?
-                    </h3>
-                    <p className="text-green-700">
-                      Share Echoes with friends or on social media to earn <strong>free credits</strong> and create even more videos!
-                    </p>
-                  </div>
-                  
-                  <div className="flex space-x-3">
-                    <Link
-                      href="/earn-credits"
-                      className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
-                    >
-                      <Gift className="w-4 h-4" />
-                      <span>Get Free Credits</span>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Processing Final Videos */}
             {processingFinalVideos.length > 0 && (
@@ -1179,6 +1150,30 @@ function DashboardContent() {
                     Upload photos and create clips first
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* PLG Success CTA - Show after completing videos (moved to bottom, smaller size) */}
+            {completedFinalVideos.length > 0 && (
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
+                      <Gift className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-green-900">🎉 Love sharing your memories?</h3>
+                      <p className="text-sm text-green-700">Share Echoes with friends to earn <strong>free credits</strong> and create more videos!</p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/earn-credits"
+                    className="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
+                  >
+                    <Gift className="h-4 w-4 mr-2" />
+                    Get Free Credits
+                  </Link>
+                </div>
               </div>
             )}
         </div>

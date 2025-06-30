@@ -42,21 +42,7 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
 
   const referralLink = `${process.env.NEXT_PUBLIC_APP_URL}?ref=${user.referralCode}`
   
-  // Check for referral attribution in URL and set cookie
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const refCode = urlParams.get('ref')
-    
-    if (refCode && refCode !== user.referralCode) {
-      // Set referral cookie for 365 days
-      const expiryDate = new Date()
-      expiryDate.setTime(expiryDate.getTime() + (365 * 24 * 60 * 60 * 1000))
-      document.cookie = `referral_code=${refCode}; expires=${expiryDate.toUTCString()}; path=/`
-      
-      // Clean URL
-      window.history.replaceState({}, '', window.location.pathname)
-    }
-  }, [user.referralCode])
+  // Referral tracking is now handled globally by ReferralTracker component
 
   // Set up real-time credit updates
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { Metadata, Viewport } from 'next'
 import './globals.css'
+import ReferralTracker from '@/components/ReferralTracker'
 
 export const metadata: Metadata = {
   title: 'Echoes - Transform Photos into Animated Clips',
@@ -40,6 +41,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen">
+        <ReferralTracker />
         <main className="min-h-screen">
           {children}
         </main>
