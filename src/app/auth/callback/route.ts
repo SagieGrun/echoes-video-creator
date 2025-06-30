@@ -67,6 +67,10 @@ export async function GET(request: Request) {
       // User doesn't exist, create them with 1 free credit
       console.log('Creating new user profile with 1 free credit')
       
+      // Check for referral cookie
+      const referralCode = cookieStore.get('referral_code')?.value
+      console.log('Referral code from cookie:', referralCode)
+      
       const { data: newUser, error: createError } = await supabase
         .from('users')
         .insert({
@@ -92,6 +96,20 @@ export async function GET(request: Request) {
             type: 'referral', // Using 'referral' type for signup bonus
             reference_id: 'signup_bonus'
           })
+        
+        // Process referral if cookie exists
+        if (referralCode) {
+          console.log('Processing referral signup for code:', referralCode)
+          try {
+            await supabase.rpc('process_referral_signup', {
+              new_user_id: user.id,
+              referrer_code: referralCode
+            })
+            console.log('Referral signup processed successfully')
+          } catch (referralError) {
+            console.error('Error processing referral signup:', referralError)
+          }
+        }
       }
     } else if (existingUser) {
       console.log('Existing user found:', existingUser)

@@ -10,10 +10,11 @@ import { VideoPlayer } from '@/components/ui/VideoPlayer'
 import { OptimizedImage } from '@/components/ui/OptimizedImage'
 import { SocialShare } from '@/components/ui/SocialShare'
 import { generateClipUrls, generateVideoUrls } from '@/lib/storage-optimizer'
-import { ArrowLeft, Download, Play, Calendar, Clock, Film, Upload, Plus, Image as ImageIcon, Sparkles, User, ChevronDown, LogOut, CreditCard, Zap, Eye, Timer, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Download, Play, Calendar, Clock, Film, Upload, Plus, Image as ImageIcon, Sparkles, User, ChevronDown, LogOut, CreditCard, Zap, Eye, Timer, Trash2, X, Gift } from 'lucide-react'
 import Link from 'next/link'
 import { AnimatedCreditBalance } from '@/components/ui/AnimatedCreditBalance'
 import { CreditPurchase } from '@/components/credits/CreditPurchase'
+import { ReferralBanner } from '@/components/credits/ReferralBanner'
 
 interface Clip {
   id: string
@@ -115,8 +116,17 @@ function DashboardContent() {
       }
     }
 
+    const handleOpenCreditPurchase = () => {
+      setShowCreditPurchase(true)
+    }
+
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    window.addEventListener('openCreditPurchase', handleOpenCreditPurchase)
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      window.removeEventListener('openCreditPurchase', handleOpenCreditPurchase)
+    }
   }, [])
 
   useEffect(() => {
@@ -495,6 +505,13 @@ function DashboardContent() {
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">Credits</span>
               <AnimatedCreditBalance userId={user?.id || null} />
+              <Link
+                href="/earn-credits"
+                className="text-sm bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-4 py-2 rounded-lg transition-all font-medium flex items-center space-x-2"
+              >
+                <Gift className="w-4 h-4" />
+                <span>Get Free Credits</span>
+              </Link>
               <button
                 onClick={() => setShowCreditPurchase(true)}
                 className="text-sm bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
@@ -533,6 +550,48 @@ function DashboardContent() {
             </div>
           </div>
         </div>
+
+        {/* Referral Banner - Show for referred users */}
+        <ReferralBanner user={user} />
+
+        {/* Low Credits Warning */}
+        {user && user.credit_balance <= 2 && (
+          <div className="mb-8">
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4">
+              <div className="flex items-center space-x-4">
+                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">{user.credit_balance}</span>
+                </div>
+                
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-amber-900 mb-1">
+                    Running low on credits!
+                  </h3>
+                  <p className="text-amber-700">
+                    You have {user.credit_balance} credit{user.credit_balance !== 1 ? 's' : ''} left. 
+                    Get more credits to keep creating amazing videos.
+                  </p>
+                </div>
+                
+                <div className="flex space-x-3">
+                  <Link
+                    href="/earn-credits"
+                    className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors text-sm flex items-center space-x-2"
+                  >
+                    <Gift className="w-4 h-4" />
+                    <span>Get Free Credits</span>
+                  </Link>
+                  <button
+                    onClick={() => setShowCreditPurchase(true)}
+                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm"
+                  >
+                    Buy Credits
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="mb-8">
@@ -812,6 +871,36 @@ function DashboardContent() {
 
         {activeTab === 'videos' && (
           <div className="space-y-8">
+            {/* PLG Success CTA - Show after completing videos */}
+            {completedFinalVideos.length > 0 && (
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
+                <div className="flex items-center space-x-4">
+                  <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
+                    <Gift className="w-6 h-6 text-white" />
+                  </div>
+                  
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-green-900 mb-1">
+                      🎉 Amazing video! Love sharing your memories?
+                    </h3>
+                    <p className="text-green-700">
+                      Share Echoes with friends or on social media to earn <strong>free credits</strong> and create even more videos!
+                    </p>
+                  </div>
+                  
+                  <div className="flex space-x-3">
+                    <Link
+                      href="/earn-credits"
+                      className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
+                    >
+                      <Gift className="w-4 h-4" />
+                      <span>Get Free Credits</span>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Processing Final Videos */}
             {processingFinalVideos.length > 0 && (
               <div>
