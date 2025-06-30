@@ -57,14 +57,14 @@ BEGIN
     IF referrer_user_id IS NOT NULL THEN
       INSERT INTO referrals (
         referrer_id,
-        referred_user_id,
+        referred_id,
         reward_granted
       ) VALUES (
         referrer_user_id,
         new_user_id,
         false
       )
-      ON CONFLICT (referrer_id, referred_user_id) DO NOTHING;
+      ON CONFLICT (referrer_id, referred_id) DO NOTHING;
     END IF;
   END IF;
 END;

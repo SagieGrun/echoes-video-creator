@@ -101,11 +101,28 @@ export async function GET(request: Request) {
         if (referralCode) {
           console.log('Processing referral signup for code:', referralCode)
           try {
-            await supabase.rpc('process_referral_signup', {
+            // Simple referral processing (just self-referral prevention)
+            const { data: referralResult, error: referralError } = await supabase.rpc('process_referral_signup', {
               new_user_id: user.id,
               referrer_code: referralCode
             })
-            console.log('Referral signup processed successfully')
+            
+            if (referralError) {
+              console.error('Database error processing referral:', referralError)
+            } else if (referralResult) {
+              console.log('Referral processing result:', referralResult)
+              
+              if (referralResult.success) {
+                console.log('Referral signup processed successfully')
+              } else {
+                console.warn('Referral signup blocked:', referralResult.reason)
+                
+                // Only log self-referral attempts (simple abuse detection)
+                if (referralResult.reason === 'self_referral_blocked') {
+                  console.warn('Self-referral attempt blocked for user:', user.id)
+                }
+              }
+            }
           } catch (referralError) {
             console.error('Error processing referral signup:', referralError)
           }

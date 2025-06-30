@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 
 async function getPLGStatistics() {
   try {
-    // Get referral statistics
+    // Get simple referral statistics
     const { data: referralStats, error: referralError } = await supabaseServiceRole
       .from('referrals')
       .select('id, referrer_id, reward_granted, created_at')
@@ -94,7 +94,7 @@ async function getPLGStatistics() {
       console.error('Error fetching referral stats:', referralError)
     }
 
-    // Get share submission statistics  
+    // Get simple share submission statistics
     const { data: shareStats, error: shareError } = await supabaseServiceRole
       .from('share_submissions')
       .select('id, status, created_at')
@@ -113,7 +113,7 @@ async function getPLGStatistics() {
       console.error('Error fetching credit stats:', creditError)
     }
 
-    // Calculate statistics
+    // Calculate simple statistics
     const totalReferrals = referralStats?.length || 0
     const rewardedReferrals = referralStats?.filter(r => r.reward_granted).length || 0
     const totalShares = shareStats?.length || 0

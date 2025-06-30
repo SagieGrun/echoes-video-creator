@@ -184,6 +184,8 @@ export default function PLGPage() {
         </div>
       )}
 
+
+
       <div className="space-y-8">
         {/* PLG Reward Settings */}
         <div className="bg-white rounded-lg shadow">

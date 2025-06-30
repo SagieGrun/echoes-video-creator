@@ -27,11 +27,11 @@ export function ReferralBanner({ user }: Props) {
       try {
         const supabase = createSupabaseBrowserClient()
         
-        // Check if user was referred (exists in referrals table as referred_user_id)
+        // Check if user was referred (exists in referrals table as referred_id)
         const { data: referralData } = await supabase
           .from('referrals')
           .select('id, reward_granted')
-          .eq('referred_user_id', user.id)
+          .eq('referred_id', user.id)
           .single()
 
         if (referralData) {

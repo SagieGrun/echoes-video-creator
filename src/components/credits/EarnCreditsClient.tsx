@@ -142,15 +142,10 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
     try {
       const supabase = createSupabaseBrowserClient()
       
-      // Submit share for automatic approval and reward
-      const { error } = await supabase
-        .from('share_submissions')
-        .insert({
-          user_id: user.id,
-          platform: 'social_media',
-          content_url: referralLink,
-          status: 'approved'
-        })
+      // Simple share submission (no complex tracking)
+      const { data: result, error } = await supabase.rpc('submit_share_for_reward', {
+        target_user_id: user.id
+      })
       
       if (error) {
         console.error('Error submitting share:', error)
@@ -158,18 +153,24 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
         return
       }
       
-      // Award share credits
-      const { error: creditError } = await supabase.rpc('award_share_credits', {
-        target_user_id: user.id,
-        credit_amount: rewards.share
-      })
-      
-      if (creditError) {
-        console.error('Error awarding share credits:', creditError)
+      // Handle response
+      if (result.success) {
+        setShareSubmitted(true)
+        
+        // Show success message with earned credits
+        const creditsEarned = result.credits_awarded || rewards.share
+        alert(`🎉 Success! You earned ${creditsEarned} credits for sharing!`)
+        
+        // Update local credits display will happen via real-time subscription
+      } else {
+        // Simple error handling
+        if (result.reason === 'already_claimed') {
+          alert('You have already claimed your share reward!')
+          setShareSubmitted(true) // Update UI to reflect already claimed
+        } else {
+          alert('Could not process share reward. Please try again later.')
+        }
       }
-      
-      setShareSubmitted(true)
-      setCurrentCredits(prev => prev + rewards.share)
       
     } catch (error) {
       console.error('Error in share submission:', error)

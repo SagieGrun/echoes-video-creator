@@ -62,25 +62,25 @@ export async function getSocialConfig(): Promise<SocialSharingConfig> {
     } else {
       // Client-side: Use fetch as before
       const response = await fetch('/api/admin/plg', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-      
-      const data = await response.json()
-      
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+    
+    const data = await response.json()
+    
       if (data.socialConfig) {
-        // Update cache
+      // Update cache
         configCache.config = data.socialConfig
-        configCache.timestamp = now
+      configCache.timestamp = now
         return data.socialConfig
-      } else {
-        throw new Error('Invalid response format')
+    } else {
+      throw new Error('Invalid response format')
       }
     }
     
