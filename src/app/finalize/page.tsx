@@ -27,7 +27,6 @@ interface MusicTrack {
 interface FinalizationSettings {
   selectedClips: { clip_id: string; order: number }[]
   musicTrackId: string | null
-  transitionType: string
   musicVolume: number
 }
 
@@ -41,7 +40,6 @@ export default function FinalizePage() {
   const [selectedClipIds, setSelectedClipIds] = useState<Set<string>>(new Set())
   const [clipOrder, setClipOrder] = useState<string[]>([])
   const [selectedMusicId, setSelectedMusicId] = useState<string>('')
-  const [transitionType, setTransitionType] = useState<string>('fade')
   const [musicVolume, setMusicVolume] = useState<number>(0.7)
   const [outputAspectRatio, setOutputAspectRatio] = useState<'16:9' | '9:16' | '1:1'>('16:9')
   const [loading, setLoading] = useState(true)
@@ -331,8 +329,6 @@ export default function FinalizePage() {
           volume: musicVolume
         } : null,
         settings: {
-          transitionType,
-          transitionDuration: 1.0,
           musicVolume,
           output_aspect_ratio: outputAspectRatio
         }
@@ -1038,20 +1034,6 @@ export default function FinalizePage() {
                       </div>
                     </label>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Transition Type</label>
-                  <select
-                    value={transitionType}
-                    onChange={(e) => setTransitionType(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="fade">Fade</option>
-                    <option value="cut">Cut</option>
-                    <option value="dissolve">Dissolve</option>
-                    <option value="slide">Slide</option>
-                  </select>
                 </div>
 
                 <div>

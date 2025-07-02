@@ -7,10 +7,51 @@ from pathlib import Path
 import boto3
 from supabase import create_client, Client
 import logging
+import psutil
+import gc
+import time
 
 # Configure logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+# Memory monitoring utilities
+def get_memory_usage():
+    """Get current memory usage in MB"""
+    try:
+        process = psutil.Process()
+        memory_info = process.memory_info()
+        return {
+            'rss_mb': memory_info.rss / 1024 / 1024,  # Resident Set Size
+            'vms_mb': memory_info.vms / 1024 / 1024,  # Virtual Memory Size
+            'percent': process.memory_percent()
+        }
+    except Exception as e:
+        logger.error(f"Failed to get memory usage: {e}")
+        return {'rss_mb': 0, 'vms_mb': 0, 'percent': 0}
+
+def log_memory_usage(stage, extra_info=""):
+    """Log current memory usage with stage information"""
+    memory = get_memory_usage()
+    logger.info(f"🧠 MEMORY [{stage}]: RSS={memory['rss_mb']:.1f}MB, VMS={memory['vms_mb']:.1f}MB, %={memory['percent']:.1f}% {extra_info}")
+    return memory
+
+def cleanup_and_gc(stage=""):
+    """Force garbage collection and log memory impact"""
+    memory_before = get_memory_usage()
+    gc.collect()
+    memory_after = get_memory_usage()
+    freed_mb = memory_before['rss_mb'] - memory_after['rss_mb']
+    logger.info(f"🗑️  CLEANUP [{stage}]: Freed {freed_mb:.1f}MB (Before: {memory_before['rss_mb']:.1f}MB, After: {memory_after['rss_mb']:.1f}MB)")
+
+def emergency_memory_cleanup():
+    """Emergency cleanup when memory usage is high"""
+    memory = get_memory_usage()
+    if memory['rss_mb'] > 2500:  # If over 2.5GB
+        logger.warning(f"⚠️  EMERGENCY CLEANUP: Memory usage high at {memory['rss_mb']:.1f}MB")
+        cleanup_and_gc("EMERGENCY")
+        return True
+    return False
 
 # Initialize AWS clients
 ssm_client = boto3.client('ssm')
@@ -45,7 +86,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 def lambda_handler(event, context):
     """
-    Main Lambda handler for video compilation
+    Main Lambda handler for video compilation with memory optimization
     
     Expected input:
     {
@@ -64,11 +105,13 @@ def lambda_handler(event, context):
             "volume": 0.5
         },
         "settings": {
-            "transition_type": "fade",
-            "transition_duration": 1.0
+            "output_aspect_ratio": "9:16"
         }
     }
     """
+    start_time = time.time()
+    log_memory_usage("LAMBDA_START", f"Request ID: {context.aws_request_id}")
+    
     try:
         # Parse request body
         if isinstance(event.get('body'), str):
@@ -86,6 +129,7 @@ def lambda_handler(event, context):
         settings = body.get('settings', {})
         
         logger.info(f"Request parameters: user_id={user_id}, video_id={video_id}, clips_count={len(clips)}, music={music}, settings={settings}")
+        log_memory_usage("PARAMS_PARSED", f"Processing {len(clips)} clips")
         
         if not user_id or not clips:
             # Update status to failed if we have video_id
@@ -131,19 +175,28 @@ def lambda_handler(event, context):
         # Create temporary directory for processing
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
+            log_memory_usage("TEMP_DIR_CREATED")
             
-            # Download clips from Supabase storage
+            # Download clips from Supabase storage with memory monitoring
             clip_files = []
+            logger.info(f"Starting download of {len(valid_clips)} clips")
             for i, clip in enumerate(sorted(valid_clips, key=lambda x: x.get('order', 0))):
                 clip_path = temp_path / f"clip_{i:03d}.mp4"
                 download_from_supabase_storage(clip['video_file_path'], clip_path)
                 clip_files.append(str(clip_path))
+                
+                # Log progress and check memory every 5 clips
+                if (i + 1) % 5 == 0 or i == len(valid_clips) - 1:
+                    log_memory_usage("DOWNLOAD_PROGRESS", f"Downloaded {i+1}/{len(valid_clips)} clips")
+                    emergency_memory_cleanup()
             
-            # Normalize clips to target aspect ratio
+            # Streaming normalization with aggressive cleanup
             output_aspect_ratio = settings.get('output_aspect_ratio', '16:9')
-            logger.info(f"Normalizing {len(clip_files)} clips to aspect ratio: {output_aspect_ratio}")
-            normalized_clip_files = normalize_clips_to_aspect_ratio(clip_files, output_aspect_ratio, str(temp_path))
-            logger.info(f"Aspect ratio normalization completed, using normalized clips")
+            logger.info(f"Starting streaming normalization of {len(clip_files)} clips to {output_aspect_ratio}")
+            log_memory_usage("NORMALIZATION_START")
+            
+            normalized_clip_files = normalize_clips_streaming(clip_files, output_aspect_ratio, str(temp_path))
+            cleanup_and_gc("NORMALIZATION_COMPLETE")
             
             # Download music if provided
             music_file = None
@@ -151,6 +204,7 @@ def lambda_handler(event, context):
                 logger.info(f"Music requested: {music}")
                 music_file = temp_path / "music.mp3"
                 download_music_from_supabase_storage(music['file_path'], music_file)
+                log_memory_usage("MUSIC_DOWNLOADED")
                 
                 # Verify music file was downloaded
                 if music_file.exists():
@@ -162,22 +216,34 @@ def lambda_handler(event, context):
             else:
                 logger.info("No music requested or no file_path provided")
             
-            # Compile video
+            # Compile video with basic fades (memory optimized)
             output_file = temp_path / "final_video.mp4"
-            compile_video(
-                clip_files=normalized_clip_files,  # Use normalized clips
+            log_memory_usage("COMPILATION_START", f"Processing {len(normalized_clip_files)} normalized clips")
+            
+            compile_video_basic_fades(
+                clip_files=normalized_clip_files,
                 music_file=str(music_file) if music_file else None,
                 output_file=str(output_file),
-                settings=settings,
-                music_volume=music.get('volume', 0.3) if music else 0.3
+                music_volume=music.get('volume', 0.3) if music else 0.3,
+                output_aspect_ratio=output_aspect_ratio
             )
+            
+            cleanup_and_gc("COMPILATION_COMPLETE")
             
             # Upload result to Supabase storage
             final_video_path = f"final_videos/{user_id}/{context.aws_request_id}.mp4"
+            output_file_size = os.path.getsize(str(output_file)) / 1024 / 1024  # MB
+            log_memory_usage("UPLOAD_START", f"Uploading {output_file_size:.1f}MB video")
+            
             upload_to_supabase_storage(str(output_file), final_video_path)
+            cleanup_and_gc("UPLOAD_COMPLETE")
             
             # Generate public URL for the video
             public_url = generate_public_url(final_video_path)
+            
+            # Calculate total processing time and final memory stats
+            total_time = time.time() - start_time
+            final_memory = log_memory_usage("PROCESSING_COMPLETE", f"Total time: {total_time:.1f}s, Output: {output_file_size:.1f}MB")
             
             # Update existing record in database
             if video_id:
@@ -191,12 +257,21 @@ def lambda_handler(event, context):
                 
                 result = supabase.from_('final_videos').update(update_data).eq('id', video_id).execute()
                 
+                # Log final success metrics
+                logger.info(f"🎉 VIDEO COMPILATION SUCCESS: {len(valid_clips)} clips → {output_file_size:.1f}MB in {total_time:.1f}s (Peak Memory: {final_memory['rss_mb']:.1f}MB)")
+                
                 return {
                     'statusCode': 200,
                     'body': json.dumps({
                         'message': 'Video compilation completed successfully',
                         'video_id': video_id,
-                        'video_file_path': final_video_path
+                        'video_file_path': final_video_path,
+                        'processing_stats': {
+                            'clips_processed': len(valid_clips),
+                            'output_size_mb': round(output_file_size, 1),
+                            'processing_time_seconds': round(total_time, 1),
+                            'peak_memory_mb': round(final_memory['rss_mb'], 1)
+                        }
                     })
                 }
             else:
@@ -357,25 +432,25 @@ def get_video_duration(video_file: str) -> float:
         return 5.0
 
 
-def normalize_clips_to_aspect_ratio(clip_files: list, target_aspect: str, temp_dir: str) -> list:
-    """Normalize all clips to target aspect ratio before concatenation"""
+def normalize_clips_streaming(clip_files: list, target_aspect: str, temp_dir: str) -> list:
+    """Normalize clips one at a time with memory optimization and cleanup"""
     try:
-        logger.info(f"Starting aspect ratio normalization to {target_aspect}")
+        logger.info(f"Starting streaming normalization to {target_aspect}")
         normalized_files = []
         
-        # Define target resolutions and scale filters
+        # Define target resolutions and scale filters (optimized for memory)
         aspect_configs = {
             "16:9": {
-                "resolution": "1920:1080",
-                "scale_filter": "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black"
+                "resolution": "1280:720",  # Reduced from 1920:1080 for memory efficiency
+                "scale_filter": "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black"
             },
             "9:16": {
-                "resolution": "1080:1920", 
-                "scale_filter": "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black"
+                "resolution": "720:1280", # Reduced from 1080:1920 for memory efficiency
+                "scale_filter": "scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:black"
             },
             "1:1": {
-                "resolution": "1080:1080",
-                "scale_filter": "scale=1080:1080:force_original_aspect_ratio=decrease,pad=1080:1080:(ow-iw)/2:(oh-ih)/2:black"
+                "resolution": "720:720",  # Reduced from 1080:1080 for memory efficiency
+                "scale_filter": "scale=720:720:force_original_aspect_ratio=decrease,pad=720:720:(ow-iw)/2:(oh-ih)/2:black"
             }
         }
         
@@ -384,32 +459,35 @@ def normalize_clips_to_aspect_ratio(clip_files: list, target_aspect: str, temp_d
             target_aspect = "16:9"
         
         config = aspect_configs[target_aspect]
-        logger.info(f"Using configuration: {config}")
+        logger.info(f"Using memory-optimized configuration: {config}")
         
         for i, clip_file in enumerate(clip_files):
+            log_memory_usage("NORMALIZE_CLIP_START", f"Clip {i+1}/{len(clip_files)}")
+            
             output_file = os.path.join(temp_dir, f"normalized_{i:03d}.mp4")
             
             logger.info(f"Normalizing clip {i+1}/{len(clip_files)}: {clip_file} -> {output_file}")
             
+            # Memory-optimized FFmpeg command
             cmd = [
                 './bin/ffmpeg', '-y',  # Overwrite output files
                 '-i', clip_file,
                 '-vf', config["scale_filter"],
                 '-c:v', 'libx264',
-                '-preset', 'fast',
-                '-crf', '23',
-                '-pix_fmt', 'yuv420p',  # Ensure compatibility
-                '-movflags', '+faststart',  # Web optimization
+                '-preset', 'faster',  # Faster preset for lower memory usage
+                '-crf', '24',  # Slightly higher CRF for smaller files
+                '-pix_fmt', 'yuv420p',
+                '-movflags', '+faststart',
+                '-bufsize', '1M',  # Limit buffer size for memory efficiency
+                '-maxrate', '2M',  # Limit bitrate for memory efficiency
                 output_file
             ]
-            
-            logger.info(f"Normalization command: {' '.join(cmd)}")
             
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=180  # 3 minute timeout per clip
+                timeout=120  # Reduced timeout per clip
             )
             
             if result.returncode != 0:
@@ -420,17 +498,30 @@ def normalize_clips_to_aspect_ratio(clip_files: list, target_aspect: str, temp_d
             else:
                 logger.info(f"Successfully normalized clip {i+1}: {output_file}")
                 # Verify output file exists and has reasonable size
-                if os.path.exists(output_file) and os.path.getsize(output_file) > 1000:  # At least 1KB
+                if os.path.exists(output_file) and os.path.getsize(output_file) > 1000:
                     normalized_files.append(output_file)
+                    
+                    # CRITICAL: Remove original clip immediately after successful normalization
+                    try:
+                        os.remove(clip_file)
+                        logger.info(f"✅ Removed original clip: {clip_file}")
+                    except Exception as e:
+                        logger.warning(f"Failed to remove original clip {clip_file}: {e}")
                 else:
                     logger.warning(f"Normalized file is too small or doesn't exist, using original: {clip_file}")
                     normalized_files.append(clip_file)
+            
+            # Force cleanup after each clip
+            cleanup_and_gc(f"CLIP_{i+1}_COMPLETE")
+            
+            # Emergency cleanup check
+            emergency_memory_cleanup()
         
-        logger.info(f"Aspect ratio normalization completed. Normalized {len(normalized_files)} clips")
+        logger.info(f"Streaming normalization completed. Normalized {len(normalized_files)} clips")
         return normalized_files
         
     except Exception as e:
-        logger.error(f"Error in aspect ratio normalization: {str(e)}")
+        logger.error(f"Error in streaming normalization: {str(e)}")
         # Fallback: return original clips if normalization fails completely
         logger.warning("Falling back to original clips without normalization")
         return clip_files
@@ -513,6 +604,138 @@ def compile_video(clip_files: list, music_file: str, output_file: str, settings:
         raise Exception("Video compilation timed out")
     except Exception as e:
         logger.error(f"Error in video compilation: {str(e)}")
+        raise
+
+
+def compile_video_basic_fades(clip_files: list, music_file: str, output_file: str, 
+                             music_volume: float = 0.3, output_aspect_ratio: str = '9:16'):
+    """
+    Memory-optimized video compilation with basic fades and simple concatenation.
+    No complex transitions - just simple concat + fade in/out on final video.
+    """
+    try:
+        logger.info(f"Starting BASIC FADES compilation with {len(clip_files)} clips")
+        log_memory_usage("BASIC_COMPILATION_START")
+        
+        if not clip_files:
+            raise Exception("No clip files provided for compilation")
+            
+        # Calculate total duration of all clips
+        total_duration = sum(get_video_duration(clip) for clip in clip_files)
+        logger.info(f"Total video duration: {total_duration:.2f} seconds")
+        
+        # Build memory-optimized FFmpeg command
+        cmd = ['./bin/ffmpeg', '-y']  # Overwrite output
+        
+        # Add all clip inputs
+        for clip_file in clip_files:
+            cmd.extend(['-i', clip_file])
+        
+        # Add music input if provided
+        has_music = music_file and os.path.exists(music_file) and music_volume > 0
+        if has_music:
+            cmd.extend(['-i', music_file])
+        
+        # Simple filter complex for basic fades
+        if len(clip_files) == 1:
+            # Single clip - just add fade in/out
+            fade_duration = min(0.5, total_duration / 4)  # Max 0.5s fade, or 1/4 of video
+            fade_out_start = max(fade_duration, total_duration - fade_duration)
+            
+            if has_music:
+                filter_complex = (
+                    f'[0:v]fade=t=in:st=0:d={fade_duration},'
+                    f'fade=t=out:st={fade_out_start}:d={fade_duration}[v];'
+                    f'[{len(clip_files)}:a]atrim=duration={total_duration},'
+                    f'volume={music_volume},'
+                    f'afade=t=in:st=0:d=1,'
+                    f'afade=t=out:st={max(1, total_duration-1)}:d=1[a]'
+                )
+                cmd.extend(['-filter_complex', filter_complex, '-map', '[v]', '-map', '[a]'])
+            else:
+                filter_complex = (
+                    f'[0:v]fade=t=in:st=0:d={fade_duration},'
+                    f'fade=t=out:st={fade_out_start}:d={fade_duration}[v]'
+                )
+                cmd.extend(['-filter_complex', filter_complex, '-map', '[v]', '-an'])
+        else:
+            # Multiple clips - concatenate then add fade in/out
+            fade_duration = min(0.5, total_duration / 8)  # Max 0.5s fade, or 1/8 of total
+            fade_out_start = max(fade_duration, total_duration - fade_duration)
+            
+            # Build concat filter
+            concat_filter = ''.join(f'[{i}:v]' for i in range(len(clip_files)))
+            concat_filter += f'concat=n={len(clip_files)}:v=1:a=0[concatenated];'
+            
+            # Add fade in/out on concatenated video
+            concat_filter += (
+                f'[concatenated]fade=t=in:st=0:d={fade_duration},'
+                f'fade=t=out:st={fade_out_start}:d={fade_duration}[v]'
+            )
+            
+            if has_music:
+                concat_filter += (
+                    f';[{len(clip_files)}:a]atrim=duration={total_duration},'
+                    f'volume={music_volume},'
+                    f'afade=t=in:st=0:d=1,'
+                    f'afade=t=out:st={max(1, total_duration-1)}:d=1[a]'
+                )
+                cmd.extend(['-filter_complex', concat_filter, '-map', '[v]', '-map', '[a]'])
+            else:
+                cmd.extend(['-filter_complex', concat_filter, '-map', '[v]', '-an'])
+        
+        # Memory-optimized output settings
+        cmd.extend([
+            '-c:v', 'libx264',
+            '-preset', 'faster',       # Faster encoding = less memory usage
+            '-crf', '24',              # Good quality with smaller file size
+            '-pix_fmt', 'yuv420p',     # Web compatibility
+            '-movflags', '+faststart', # Progressive download
+            '-bufsize', '1M',          # Limit buffer size
+            '-maxrate', '2M',          # Limit maximum bitrate
+            '-avoid_negative_ts', 'make_zero',
+            '-t', str(total_duration), # Explicit duration limit
+        ])
+        
+        # Add audio settings if we have music
+        if has_music:
+            cmd.extend(['-c:a', 'aac', '-b:a', '96k'])  # Lower bitrate for memory efficiency
+        
+        cmd.append(output_file)
+        
+        logger.info(f"Basic fades FFmpeg command: {' '.join(cmd)}")
+        log_memory_usage("FFMPEG_COMMAND_BUILT")
+        
+        # Execute FFmpeg
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minute timeout - should be enough for simple concatenation
+        )
+        
+        log_memory_usage("FFMPEG_EXECUTION_COMPLETE")
+        
+        if result.returncode != 0:
+            logger.error(f"Basic fades FFmpeg failed: {result.stderr}")
+            raise Exception(f"FFmpeg basic fades compilation failed: {result.stderr}")
+        
+        # Verify output
+        if not os.path.exists(output_file):
+            raise Exception("Output file was not created")
+        
+        file_size = os.path.getsize(output_file)
+        if file_size == 0:
+            raise Exception("Output file is empty")
+        
+        logger.info(f"✅ Basic fades compilation successful: {file_size/1024/1024:.1f}MB output")
+        log_memory_usage("BASIC_COMPILATION_SUCCESS")
+        
+    except subprocess.TimeoutExpired:
+        logger.error("Basic fades compilation timed out")
+        raise Exception("Basic fades compilation timed out")
+    except Exception as e:
+        logger.error(f"Error in basic fades compilation: {str(e)}")
         raise
 
 

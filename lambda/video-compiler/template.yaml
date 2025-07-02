@@ -5,7 +5,7 @@ Description: Echoes Video Compilation Lambda Function
 Globals:
   Function:
     Timeout: 900  # 15 minutes - maximum for Lambda
-    MemorySize: 3008  # Maximum memory for better performance
+    MemorySize: 3008  # 3008MB - actual maximum memory for Lambda
     Runtime: python3.9
 
 Parameters:
