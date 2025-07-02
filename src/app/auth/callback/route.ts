@@ -27,6 +27,10 @@ export async function GET(request: Request) {
   const referralCookieCheck = cookieStore.get('referral_code')?.value
   console.log('🔥 REFERRAL COOKIE CHECK AT START:', referralCookieCheck)
   
+  // Additional debugging for all cookies
+  const allCookies = Array.from(cookieStore.getAll())
+  console.log('🔥 ALL COOKIES IN AUTH CALLBACK:', allCookies.map(c => `${c.name}=${c.value}`).join('; '))
+  
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -75,6 +79,7 @@ export async function GET(request: Request) {
       // Check for referral cookie
       const referralCode = cookieStore.get('referral_code')?.value
       console.log('🔥🔥🔥 REFERRAL CODE FROM COOKIE:', referralCode)
+      console.log('🔥🔥🔥 REFERRAL COOKIE STATUS:', referralCode ? 'FOUND' : 'NOT FOUND')
       
       const { data: newUser, error: createError } = await supabase
         .from('users')

@@ -14,12 +14,19 @@ export default function ReferralTracker() {
     if (refCode) {
       console.log('🔗 Referral code detected:', refCode)
       
-      // Set referral cookie for 365 days
+      // Set referral cookie for 365 days with production-safe settings
       const expiryDate = new Date()
       expiryDate.setTime(expiryDate.getTime() + (365 * 24 * 60 * 60 * 1000))
-      document.cookie = `referral_code=${refCode}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Lax`
       
-      console.log('✅ Referral cookie set for 365 days')
+      // Production-safe cookie settings for OAuth compatibility
+      const isProduction = window.location.protocol === 'https:'
+      const cookieString = isProduction 
+        ? `referral_code=${refCode}; expires=${expiryDate.toUTCString()}; path=/; SameSite=None; Secure`
+        : `referral_code=${refCode}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Lax`
+      
+      document.cookie = cookieString
+      
+      console.log('✅ Referral cookie set for 365 days', isProduction ? '(Production: Secure, SameSite=None)' : '(Development: SameSite=Lax)')
       
       // Clean URL to remove the ref parameter (optional, for cleaner URLs)
       const cleanUrl = new URL(window.location.href)
