@@ -24,48 +24,50 @@ export async function GET(request: NextRequest) {
       }
     )
     
-    // Test the referral function with proper UUID
-    const testUserId = crypto.randomUUID()
-    const testReferralCode = 'c1641393' // The code from your logs
+    const testReferralCode = 'c1641393'
     
-    console.log('🧪 Testing referral function with:', { testUserId, testReferralCode })
-    
-    const { data, error } = await supabase.rpc('process_referral_signup', {
-      new_user_id: testUserId,
-      referrer_code: testReferralCode
-    })
-    
-    console.log('🧪 Referral function result:', { data, error })
-    
-    // Also check if the referrer exists (use correct column name)
+    // Check if referrer user exists
     const { data: referrerData, error: referrerError } = await supabase
       .from('users')
-      .select('id, referral_code, credit_balance')
+      .select('id, email, referral_code, credit_balance, created_at')
       .eq('referral_code', testReferralCode)
       .single()
     
-    console.log('🧪 Referrer lookup:', { referrerData, referrerError })
+    console.log('🔍 Referrer lookup:', { referrerData, referrerError })
     
-    // Check current referrals
+    // Also check all users to see if anyone has this referral code
+    const { data: allUsers, error: allUsersError } = await supabase
+      .from('users')
+      .select('id, email, referral_code, credit_balance')
+      .order('created_at', { ascending: false })
+      .limit(10)
+    
+    // Check current referrals table
     const { data: referrals, error: referralsError } = await supabase
       .from('referrals')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(5)
+      .limit(10)
     
     return NextResponse.json({
       success: true,
-      test: {
-        testUserId,
-        testReferralCode,
-        functionResult: { data, error: error?.message },
-        referrerData: { data: referrerData, error: referrerError?.message },
-        recentReferrals: { data: referrals, error: referralsError?.message }
+      referralCode: testReferralCode,
+      referrer: {
+        data: referrerData,
+        error: referrerError?.message
+      },
+      recentUsers: {
+        data: allUsers,
+        error: allUsersError?.message
+      },
+      recentReferrals: {
+        data: referrals,
+        error: referralsError?.message
       }
     })
     
   } catch (error) {
-    console.error('Referral function test error:', error)
+    console.error('Referrer check error:', error)
     return NextResponse.json({ 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error' 
