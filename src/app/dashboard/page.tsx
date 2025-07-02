@@ -73,6 +73,8 @@ function DashboardContent() {
   const [showCreditPurchase, setShowCreditPurchase] = useState(false)
   const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
+  const [completedVideoId, setCompletedVideoId] = useState<string | null>(null)
+  const [currentTime, setCurrentTime] = useState(Date.now())
 
   // Handle tab parameter from URL
   useEffect(() => {
@@ -289,6 +291,111 @@ function DashboardContent() {
 
     fetchUserData()
   }, [])
+
+  // Real-time polling for processing videos
+  useEffect(() => {
+    if (!user || finalVideos.length === 0) return
+
+    const processingVideos = finalVideos.filter(video => video.status === 'processing')
+    
+    if (processingVideos.length === 0) {
+      console.log('No processing videos, skipping polling')
+      return
+    }
+
+    console.log(`📹 Starting polling for ${processingVideos.length} processing videos:`, 
+      processingVideos.map(v => v.id))
+
+    const pollProcessingVideos = async () => {
+      try {
+        const supabase = createSupabaseBrowserClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (!session) {
+          console.log('No session, stopping video polling')
+          return
+        }
+
+        // Check each processing video
+        for (const video of processingVideos) {
+          try {
+            console.log(`🔄 Polling status for video ${video.id}`)
+            
+            const response = await fetch(`/api/compile/status?video_id=${video.id}`, {
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`
+              }
+            })
+
+            if (!response.ok) {
+              console.error(`❌ Failed to check status for video ${video.id}:`, response.status)
+              continue
+            }
+
+            const status = await response.json()
+            console.log(`📊 Video ${video.id} status:`, status.status)
+
+            if (status.status === 'completed' || status.status === 'failed') {
+              console.log(`✅ Video ${video.id} compilation ${status.status}! Refreshing dashboard...`)
+              
+              // Show success notification for completed videos
+              if (status.status === 'completed') {
+                setCompletedVideoId(video.id)
+                // Hide notification after 5 seconds
+                setTimeout(() => setCompletedVideoId(null), 5000)
+              }
+              
+              // Refresh final videos data
+              const { data: updatedVideos } = await supabase
+                .from('final_videos')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .order('created_at', { ascending: false })
+
+              if (updatedVideos) {
+                const videosWithUrls = updatedVideos.map((v: any) => ({
+                  ...v,
+                  file_url: v.public_url || null
+                }))
+                setFinalVideos(videosWithUrls)
+                console.log(`🔄 Updated dashboard with latest video statuses`)
+              }
+            }
+          } catch (error) {
+            console.error(`Error polling video ${video.id}:`, error)
+          }
+        }
+      } catch (error) {
+        console.error('Error during video polling:', error)
+      }
+    }
+
+    // Poll immediately, then every 10 seconds
+    pollProcessingVideos()
+    const pollingInterval = setInterval(pollProcessingVideos, 10000)
+
+    return () => {
+      console.log('🛑 Stopping video polling')
+      clearInterval(pollingInterval)
+    }
+  }, [user, finalVideos])
+
+  // Update current time every second to show live elapsed time
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Date.now())
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  // Helper function to calculate elapsed time
+  const getElapsedTime = (createdAt: string) => {
+    const created = new Date(createdAt).getTime()
+    const elapsed = Math.floor((currentTime - created) / 1000)
+    const minutes = Math.floor(elapsed / 60)
+    const seconds = elapsed % 60
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`
+  }
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -593,6 +700,43 @@ function DashboardContent() {
           </div>
         )}
 
+        {/* Video Compilation Success Notification */}
+        {completedVideoId && (
+          <div className="mb-8">
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 animate-pulse">
+              <div className="flex items-center space-x-4">
+                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
+                  <Film className="w-5 h-5 text-white" />
+                </div>
+                
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-green-900 mb-1">
+                    🎉 Video Compilation Complete!
+                  </h3>
+                  <p className="text-green-700">
+                    Your final video is ready and has been added to your collection. Check it out in the Final Videos tab!
+                  </p>
+                </div>
+                
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setActiveTab('videos')}
+                    className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors text-sm"
+                  >
+                    View Video
+                  </button>
+                  <button
+                    onClick={() => setCompletedVideoId(null)}
+                    className="px-4 py-2 bg-white border border-green-200 text-green-700 rounded-lg font-medium hover:bg-green-50 transition-colors text-sm"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Tab Navigation */}
         <div className="mb-8">
           <div className="border-b border-gray-200">
@@ -889,15 +1033,19 @@ function DashboardContent() {
                             <LoadingSpinner size="lg" className="text-purple-600 mb-2 mx-auto" />
                             <p className="text-sm text-gray-600 font-medium">Compiling Video...</p>
                             <p className="text-xs text-gray-500 mt-1">{video.selected_clips?.length || 0} clips</p>
+                            <p className="text-xs text-purple-600 mt-1 font-mono">
+                              ⏱️ {getElapsedTime(video.created_at)}
+                            </p>
                           </div>
                         </div>
                         <div className="p-4 flex-shrink-0">
                           <div className="text-xs text-gray-500 flex items-center mb-1">
                             <Clock className="h-3 w-3 mr-1" />
-                            {formatDate(video.created_at)}
+                            Started {formatDate(video.created_at)}
                           </div>
-                          <div className="text-xs text-purple-600">
-                            Processing {video.selected_clips?.length || 0} clips
+                          <div className="text-xs text-purple-600 flex items-center">
+                            <Timer className="h-3 w-3 mr-1" />
+                            Processing {video.selected_clips?.length || 0} clips • Usually takes 2-4 minutes
                           </div>
                         </div>
                       </div>
