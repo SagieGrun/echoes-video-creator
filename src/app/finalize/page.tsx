@@ -403,27 +403,41 @@ export default function FinalizePage() {
     const maxAttempts = 60 // Poll for up to 5 minutes (60 * 5 seconds)
     let attempts = 0
     
+    console.log('🎬 Starting video status polling:', { videoId, maxAttempts, timestamp: new Date().toISOString() })
+    
     const poll = async (): Promise<void> => {
       try {
-        console.log(`Polling video status (attempt ${attempts + 1}/${maxAttempts})...`)
+        attempts++
+        console.log(`🔄 Polling attempt ${attempts}/${maxAttempts} at ${new Date().toISOString()}`)
         
         // Get fresh session token for each request to avoid expiration
         const { data: { session } } = await supabase.auth.getSession()
         const currentAccessToken = session?.access_token || initialAccessToken
+        console.log('🔐 Using access token:', currentAccessToken ? 'Present' : 'Missing')
         
-        const response = await fetch(`/api/compile/status?video_id=${videoId}`, {
+        const statusUrl = `/api/compile/status?video_id=${videoId}`
+        console.log('📞 Making status request to:', statusUrl)
+        
+        const response = await fetch(statusUrl, {
           headers: {
             'Authorization': `Bearer ${currentAccessToken}`
           }
         })
         
+        console.log('📡 Response received:', { 
+          status: response.status, 
+          statusText: response.statusText, 
+          ok: response.ok,
+          url: response.url
+        })
+        
         if (!response.ok) {
           const errorText = await response.text()
-          console.error('Status check failed:', response.status, errorText)
+          console.error('❌ Status check failed:', response.status, errorText)
           
           // If it's an auth error, try to refresh the session
           if (response.status === 401) {
-            console.log('Authentication failed, attempting to refresh session...')
+            console.log('🔄 Authentication failed, attempting to refresh session...')
             const { data: { session: refreshedSession } } = await supabase.auth.getSession()
             if (!refreshedSession) {
               throw new Error('Session expired. Please refresh the page and try again.')
@@ -434,37 +448,72 @@ export default function FinalizePage() {
         }
         
         const status = await response.json()
-        console.log('Video status:', status)
+        console.log('📊 Raw API response:', JSON.stringify(status, null, 2))
+        console.log('🔍 Status analysis:', {
+          'status object': status,
+          'status.status': status.status,
+          'typeof status.status': typeof status.status,
+          'status === completed': status.status === 'completed',
+          'status === processing': status.status === 'processing',
+          'status === failed': status.status === 'failed',
+        })
         
         if (status.status === 'completed') {
           // Video is ready, navigate to dashboard
-          console.log('Video compilation completed successfully!')
+          console.log('✅ Video compilation completed successfully!')
+          console.log('🎯 Final success data:', {
+            video_id: status.video_id,
+            file_path: status.file_path,
+            completed_at: status.completed_at
+          })
           
           // Reset UI state before navigation
           setSaving(false)
           setStartTime(null)
           setCurrentPhase('starting')
           
+          console.log('🚀 Navigating to dashboard...')
           router.push('/dashboard?tab=videos')
           return
         } else if (status.status === 'failed') {
+          console.error('💥 Video compilation failed:', status.error_message)
           throw new Error(status.error_message || 'Video compilation failed')
         } else if (status.status === 'processing') {
           // Still processing, continue polling
-          attempts++
+          console.log(`⏳ Video still processing (attempt ${attempts}/${maxAttempts})`)
+          
           if (attempts < maxAttempts) {
-            console.log(`Video still processing, will check again in 5 seconds...`)
+            console.log(`⏰ Scheduling next poll in 5 seconds...`)
             // Switch to finishing phase if we've been processing for a while
             if (attempts > 4) {
+              console.log('🏁 Switching to finishing phase')
               setCurrentPhase('finishing')
             }
             setTimeout(poll, 5000) // Poll every 5 seconds
           } else {
+            console.error('⏰ Polling timeout reached after 5 minutes')
             throw new Error('Video compilation timed out after 5 minutes')
+          }
+        } else {
+          console.warn('❓ Unexpected status received:', status.status)
+          console.log('🤔 Full status object:', status)
+          // Continue polling for unexpected statuses
+          if (attempts < maxAttempts) {
+            console.log(`⏰ Scheduling next poll in 5 seconds for unexpected status...`)
+            setTimeout(poll, 5000)
+          } else {
+            throw new Error(`Unexpected status after ${maxAttempts} attempts: ${status.status}`)
           }
         }
       } catch (error) {
-        console.error('Error polling video status:', error)
+        console.error('💀 Error polling video status:', error)
+        console.error('📍 Error details:', {
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          attempt: attempts,
+          videoId: videoId
+        })
+        
         alert('Error checking video status: ' + (error instanceof Error ? error.message : 'Unknown error'))
         
         // Reset UI state when polling fails
@@ -475,6 +524,7 @@ export default function FinalizePage() {
     }
     
     // Start polling
+    console.log('🚀 Starting first poll...')
     poll()
   }
 
@@ -828,13 +878,10 @@ export default function FinalizePage() {
                           className="bg-gradient-to-r from-white to-purple-200 h-2 rounded-full transition-all duration-1000 ease-out relative"
                           style={{ 
                             width: (() => {
-                              if (!expectedDuration || !startTime) return '5%'
+                              if (!expectedDuration || !startTime) return '2%'
                               const progressPercent = Math.min((elapsedTime / expectedDuration) * 100, 95)
-                              // Use phase-based minimums, but cap at 95% to prevent >100%
-                              if (currentPhase === 'starting') return Math.max(progressPercent, 5) + '%'
-                              if (currentPhase === 'processing') return Math.max(progressPercent, 20) + '%'
-                              if (currentPhase === 'finishing') return Math.max(progressPercent, 75) + '%'
-                              return Math.min(progressPercent, 95) + '%'  // Hard cap at 95%
+                              // Show actual progress without artificial minimums
+                              return Math.max(progressPercent, 2) + '%'  // Only minimum 2% for visibility
                             })()
                           }}
                         >
