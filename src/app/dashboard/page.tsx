@@ -661,8 +661,36 @@ function DashboardContent() {
         {/* Referral Banner - Show for referred users */}
         <ReferralBanner user={user} />
 
-        {/* Low Credits Warning */}
-        {user && user.credit_balance <= 2 && (
+        {/* Welcome Message for First-Time Users vs Low Credits Warning */}
+        {user && user.credit_balance === 1 && clips.length === 0 ? (
+          <div className="mb-8">
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-4">
+              <div className="flex items-center space-x-4">
+                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">🎉</span>
+                </div>
+                
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-blue-900 mb-1">
+                    Welcome to Echoes!
+                  </h3>
+                  <p className="text-blue-700">
+                    You have 1 free credit to try creating your first AI video clip. Transform any photo into a cinematic moment!
+                  </p>
+                </div>
+                
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setActiveTab('create')}
+                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors text-sm"
+                  >
+                    Start Creating
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : user && user.credit_balance <= 2 && clips.length > 0 ? (
           <div className="mb-8">
             <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4">
               <div className="flex items-center space-x-4">
@@ -698,7 +726,7 @@ function DashboardContent() {
               </div>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Video Compilation Success Notification */}
         {completedVideoId && (
