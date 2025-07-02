@@ -215,7 +215,7 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
             <div className="flex items-center space-x-3">
               <Gift className="w-8 h-8 text-green-500" />
               <div>
-                <div className="text-2xl font-bold text-gray-900">{stats.rewardedReferrals * rewards.referral}</div>
+                <div className="text-2xl font-bold text-gray-900">{stats.rewardedReferrals * rewards.referral + (stats.hasEarnedShareReward ? rewards.share : 0)}</div>
                 <div className="text-sm text-gray-600">Credits Earned</div>
               </div>
             </div>
