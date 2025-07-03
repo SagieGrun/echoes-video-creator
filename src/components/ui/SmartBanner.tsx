@@ -20,7 +20,7 @@ interface SmartBannerProps {
   onViewVideo: () => void
 }
 
-type BannerType = 'video-complete' | 'referral' | 'welcome' | 'low-credits' | null
+type BannerType = 'video-complete' | 'referrer-success' | 'referral' | 'welcome' | 'low-credits' | null
 
 export function SmartBanner({ 
   user, 
@@ -34,6 +34,7 @@ export function SmartBanner({
   const [bannerType, setBannerType] = useState<BannerType>(null)
   const [isReferred, setIsReferred] = useState(false)
   const [referralRewardGranted, setReferralRewardGranted] = useState(false)
+  const [recentReferrerSuccess, setRecentReferrerSuccess] = useState(false)
   const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -43,6 +44,7 @@ export function SmartBanner({
       try {
         const supabase = createSupabaseBrowserClient()
         
+        // Check if user was referred
         const { data: referralData, error } = await supabase
           .from('referrals')
           .select('id, reward_granted')
@@ -52,6 +54,21 @@ export function SmartBanner({
         if (referralData && !error) {
           setIsReferred(true)
           setReferralRewardGranted(referralData.reward_granted)
+        }
+
+        // Check if user has recent successful referrals (they are the referrer)
+        const { data: referrerData, error: referrerError } = await supabase
+          .from('referrals')
+          .select('id, reward_granted, created_at')
+          .eq('referrer_id', user.id)
+          .eq('reward_granted', true)
+          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours
+
+        if (referrerData && referrerData.length > 0 && !referrerError) {
+          const recentSuccess = `referrer-success-${referrerData[0].id}`
+          if (!dismissedBanners.has(recentSuccess)) {
+            setRecentReferrerSuccess(true)
+          }
         }
       } catch (error) {
         console.error('Error checking referral status:', error)
@@ -72,12 +89,15 @@ export function SmartBanner({
 
     // Priority order (highest to lowest):
     // 1. Video completion (highest priority)
-    // 2. Referral bonus (for referred users who haven't purchased)
-    // 3. Welcome message (first-time users)
-    // 4. Low credits warning (existing users)
+    // 2. Referrer success celebration (you earned credits from referrals!)
+    // 3. Referral bonus (for referred users who haven't purchased)
+    // 4. Welcome message (first-time users)
+    // 5. Low credits warning (existing users)
 
     if (completedVideoId) {
       setBannerType('video-complete')
+    } else if (recentReferrerSuccess) {
+      setBannerType('referrer-success')
     } else if (isReferred && !referralRewardGranted && !dismissedBanners.has('referral')) {
       setBannerType('referral')
     } else if (user.credit_balance === 1 && clips.length === 0) {
@@ -87,7 +107,7 @@ export function SmartBanner({
     } else {
       setBannerType(null)
     }
-  }, [user, completedVideoId, isReferred, referralRewardGranted, clips, dismissedBanners])
+  }, [user, completedVideoId, isReferred, referralRewardGranted, recentReferrerSuccess, clips, dismissedBanners])
 
   const dismissBanner = (bannerKey: string) => {
     const newDismissed = new Set(dismissedBanners)
@@ -127,6 +147,46 @@ export function SmartBanner({
               <Button variant="ghost" size="sm" onClick={onDismissVideo}>
                 <X className="w-4 h-4" />
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Referrer Success Banner */}
+      {bannerType === 'referrer-success' && (
+        <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-xl p-4 relative">
+          <button
+            onClick={() => {
+              dismissBanner('referrer-success')
+              setRecentReferrerSuccess(false)
+            }}
+            className="absolute top-4 right-4 text-emerald-400 hover:text-emerald-600 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          
+          <div className="flex items-center space-x-4">
+            <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-emerald-500 to-green-500 rounded-full flex items-center justify-center">
+              <Gift className="w-6 h-6 text-white" />
+            </div>
+            
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-emerald-900 mb-1">
+                🎉 Referral Success! You earned credits!
+              </h3>
+              <p className="text-emerald-700">
+                One of your friends just purchased credits and you both earned bonus credits! 
+                Keep sharing to earn more <strong>free credits</strong>.
+              </p>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <Link href="/earn-credits">
+                <Button variant="success" size="sm">
+                  <Gift className="w-4 h-4 mr-2" />
+                  Share More
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

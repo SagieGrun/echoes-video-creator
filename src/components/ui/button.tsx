@@ -18,7 +18,7 @@ export function Button({
     <button
       className={cn(
         // Base styles
-        'inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
+        'inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
         
         // Size variants
         {
@@ -27,13 +27,13 @@ export function Button({
           'px-6 py-3 text-base': size === 'lg',
         },
         
-        // Color variants
+        // Color variants - Professional blue-based theme
         {
-          'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500': variant === 'primary',
-          'bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500': variant === 'secondary',
-          'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500': variant === 'success',
-          'bg-orange-600 text-white hover:bg-orange-700 focus:ring-orange-500': variant === 'warning',
-          'bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-500': variant === 'ghost',
+          'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 shadow-sm hover:shadow-md': variant === 'primary',
+          'bg-gray-50 text-gray-700 hover:bg-gray-100 focus:ring-gray-500 border border-gray-200 hover:border-gray-300': variant === 'secondary',
+          'bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500 shadow-sm hover:shadow-md': variant === 'success',
+          'bg-amber-600 text-white hover:bg-amber-700 focus:ring-amber-500 shadow-sm hover:shadow-md': variant === 'warning',
+          'bg-transparent text-gray-600 hover:bg-gray-50 focus:ring-gray-500': variant === 'ghost',
         },
         
         className
@@ -57,7 +57,7 @@ export function ButtonLink({
     <span
       className={cn(
         // Base styles
-        'inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2',
+        'inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 cursor-pointer',
         
         // Size variants
         {
@@ -66,13 +66,13 @@ export function ButtonLink({
           'px-6 py-3 text-base': size === 'lg',
         },
         
-        // Color variants
+        // Color variants - Professional blue-based theme
         {
-          'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500': variant === 'primary',
-          'bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500': variant === 'secondary',
-          'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500': variant === 'success',
-          'bg-orange-600 text-white hover:bg-orange-700 focus:ring-orange-500': variant === 'warning',
-          'bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-500': variant === 'ghost',
+          'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 shadow-sm hover:shadow-md': variant === 'primary',
+          'bg-gray-50 text-gray-700 hover:bg-gray-100 focus:ring-gray-500 border border-gray-200 hover:border-gray-300': variant === 'secondary',
+          'bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500 shadow-sm hover:shadow-md': variant === 'success',
+          'bg-amber-600 text-white hover:bg-amber-700 focus:ring-amber-500 shadow-sm hover:shadow-md': variant === 'warning',
+          'bg-transparent text-gray-600 hover:bg-gray-50 focus:ring-gray-500': variant === 'ghost',
         },
         
         className

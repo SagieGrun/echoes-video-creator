@@ -689,15 +689,17 @@ function DashboardContent() {
               
               {/* User Profile Dropdown */}
               <div className="relative" ref={dropdownRef}>
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setShowUserDropdown(!showUserDropdown)}
-                  className="flex items-center space-x-2 bg-white border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors"
+                  className="flex items-center space-x-2"
                 >
-                  <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                    <User className="h-4 w-4 text-gray-600" />
+                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                    <User className="h-3 w-3 text-blue-600" />
                   </div>
                   <ChevronDown className="h-4 w-4 text-gray-600" />
-                </button>
+                </Button>
                 
                 {showUserDropdown && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10">
@@ -916,12 +918,11 @@ function DashboardContent() {
                         </p>
                       </div>
                   </div>
-                  <Link
-                    href="/finalize"
-                      className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors font-medium"
-                  >
+                  <Link href="/finalize">
+                    <Button variant="primary" size="sm">
                       <Film className="h-4 w-4 mr-2" />
-                    Create Final Video
+                      Create Final Video
+                    </Button>
                   </Link>
                 </div>
               </div>
@@ -1061,12 +1062,11 @@ function DashboardContent() {
                       <p className="text-sm text-gray-600">Combine your clips with music and transitions to create a professional video compilation</p>
                     </div>
                   </div>
-                  <Link
-                    href="/finalize"
-                    className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors font-medium"
-                  >
-                    <Film className="h-4 w-4 mr-2" />
-                    Create Final Video
+                  <Link href="/finalize">
+                    <Button variant="primary" size="sm">
+                      <Film className="h-4 w-4 mr-2" />
+                      Create Final Video
+                    </Button>
                   </Link>
                 </div>
               </div>
@@ -1279,12 +1279,11 @@ function DashboardContent() {
                   Combine your clips with music to create professional video compilations
                 </p>
                 {completedClips.length > 0 ? (
-          <Link
-                    href="/finalize"
-                    className="inline-flex items-center px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors font-medium"
-          >
-                    <Film className="h-5 w-5 mr-2" />
-                    Create Final Video
+          <Link href="/finalize">
+            <Button variant="primary" size="lg">
+              <Film className="h-5 w-5 mr-2" />
+              Create Final Video
+            </Button>
           </Link>
                 ) : (
                   <div className="text-sm text-gray-500">
