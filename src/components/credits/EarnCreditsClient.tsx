@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
-import { ArrowLeft, Copy, Share2, Users, Gift, CheckCircle, ExternalLink, Facebook, Twitter, Instagram } from 'lucide-react'
+import { ArrowLeft, Copy, Share2, Users, Gift, CheckCircle, ExternalLink, Facebook, Twitter, Instagram, Upload, X } from 'lucide-react'
 import Link from 'next/link'
 import { AnimatedCreditBalance } from '@/components/ui/AnimatedCreditBalance'
+import { Button } from '@/components/ui/button'
 
 interface User {
   id: string
@@ -39,6 +40,9 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
   const [shareSubmitting, setShareSubmitting] = useState(false)
   const [shareSubmitted, setShareSubmitted] = useState(stats.hasEarnedShareReward)
   const [currentCredits, setCurrentCredits] = useState(user.credits)
+  const [showScreenshotModal, setShowScreenshotModal] = useState(false)
+  const [screenshot, setScreenshot] = useState<File | null>(null)
+  const [processingScreenshot, setProcessingScreenshot] = useState(false)
 
   const referralLink = `${process.env.NEXT_PUBLIC_APP_URL}?ref=${user.referralCode}`
   
@@ -120,12 +124,23 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
     }
   }
 
+  const handleScreenshotUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      setScreenshot(file)
+    }
+  }
+
   const submitShareForReward = async () => {
-    if (shareSubmitted || shareSubmitting) return
+    if (!screenshot || shareSubmitted || shareSubmitting) return
     
+    setProcessingScreenshot(true)
     setShareSubmitting(true)
     
     try {
+      // Simulate AI processing for 5 seconds
+      await new Promise(resolve => setTimeout(resolve, 5000))
+      
       const supabase = createSupabaseBrowserClient()
       
       // Simple share submission (no complex tracking)
@@ -142,10 +157,11 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
       // Handle response
       if (result.success) {
         setShareSubmitted(true)
+        setShowScreenshotModal(false)
         
         // Show success message with earned credits
         const creditsEarned = result.credits_awarded || rewards.share
-        alert(`🎉 Success! You earned ${creditsEarned} credits for sharing!`)
+        alert(`🎉 Screenshot verified! You earned ${creditsEarned} credits for sharing!`)
         
         // Update local credits display will happen via real-time subscription
       } else {
@@ -153,6 +169,7 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
         if (result.reason === 'already_claimed') {
           alert('You have already claimed your share reward!')
           setShareSubmitted(true) // Update UI to reflect already claimed
+          setShowScreenshotModal(false)
         } else {
           alert('Could not process share reward. Please try again later.')
         }
@@ -163,6 +180,7 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
       alert('Error submitting share. Please try again.')
     } finally {
       setShareSubmitting(false)
+      setProcessingScreenshot(false)
     }
   }
 
@@ -267,9 +285,10 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
                   readOnly
                   className="flex-1 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm"
                 />
-                <button
+                <Button
+                  variant="primary"
                   onClick={copyReferralLink}
-                  className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+                  className="flex items-center justify-center space-x-2"
                 >
                   {copiedLink ? (
                     <>
@@ -282,7 +301,7 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
                       <span>Copy Link</span>
                     </>
                   )}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -312,45 +331,50 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
             </div>
 
             <div className="flex flex-wrap gap-4">
-              <button
+              <Button
+                variant="primary"
                 onClick={() => shareOnSocial('facebook')}
-                className="flex items-center space-x-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                className="flex items-center space-x-2"
               >
-                <Facebook className="w-5 h-5" />
+                <Facebook className="w-4 h-4" />
                 <span>Facebook</span>
-                <ExternalLink className="w-4 h-4" />
-              </button>
+                <ExternalLink className="w-3 h-3" />
+              </Button>
               
-              <button
+              <Button
+                variant="primary"
                 onClick={() => shareOnSocial('twitter')}
-                className="flex items-center space-x-2 px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-medium transition-colors"
+                className="flex items-center space-x-2"
               >
-                <Twitter className="w-5 h-5" />
+                <Twitter className="w-4 h-4" />
                 <span>Twitter</span>
-                <ExternalLink className="w-4 h-4" />
-              </button>
+                <ExternalLink className="w-3 h-3" />
+              </Button>
               
-              <button
+              <Button
+                variant="primary"
                 onClick={() => shareOnSocial('instagram')}
-                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg font-medium transition-all"
+                className="flex items-center space-x-2"
               >
-                <Instagram className="w-5 h-5" />
+                <Instagram className="w-4 h-4" />
                 <span>Instagram</span>
-                <Copy className="w-4 h-4" />
-              </button>
+                <Copy className="w-3 h-3" />
+              </Button>
             </div>
 
             {!shareSubmitted && (
               <div className="pt-4 border-t border-gray-200">
-                <button
-                  onClick={submitShareForReward}
+                <Button
+                  variant="success"
+                  size="lg"
+                  onClick={() => setShowScreenshotModal(true)}
                   disabled={shareSubmitting}
-                  className="w-full sm:w-auto px-8 py-3 bg-purple-500 hover:bg-purple-600 disabled:bg-purple-300 text-white rounded-lg font-medium transition-colors"
+                  className="w-full sm:w-auto"
                 >
                   {shareSubmitting ? 'Processing...' : `I Shared - Claim My +${rewards.share} Credits!`}
-                </button>
+                </Button>
                 <p className="text-sm text-gray-600 mt-2">
-                  Share on any social platform and click to claim your reward.
+                  Share on any social platform and submit a screenshot to claim your reward.
                 </p>
               </div>
             )}
@@ -370,6 +394,94 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
                   You have {stats.pendingReferrals} friend{stats.pendingReferrals > 1 ? 's' : ''} who signed up but haven't purchased credits yet. 
                   You'll earn +{rewards.referral} credits when they make their first purchase!
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Screenshot Submission Modal */}
+        {showScreenshotModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
+            <div className="bg-white rounded-xl p-6 shadow-2xl border border-gray-200 max-w-md w-full">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Submit Share Screenshot</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowScreenshotModal(false)
+                    setScreenshot(null)
+                  }}
+                  className="p-1"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Please upload a screenshot of your social media share to verify and claim your +{rewards.share} credits.
+                </p>
+
+                {/* File Upload */}
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleScreenshotUpload}
+                    className="hidden"
+                    id="screenshot-upload"
+                  />
+                  <label htmlFor="screenshot-upload" className="cursor-pointer">
+                    <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">
+                      {screenshot ? screenshot.name : 'Click to upload screenshot'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      PNG, JPG up to 10MB
+                    </p>
+                  </label>
+                </div>
+
+                {/* Processing State */}
+                {processingScreenshot && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent"></div>
+                      <div>
+                        <p className="text-sm font-medium text-blue-900">
+                          🤖 AI Verification in Progress...
+                        </p>
+                        <p className="text-xs text-blue-700">
+                          Analyzing your screenshot for authenticity
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setShowScreenshotModal(false)
+                      setScreenshot(null)
+                    }}
+                    disabled={processingScreenshot}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="success"
+                    onClick={submitShareForReward}
+                    disabled={!screenshot || processingScreenshot}
+                    className="flex-1"
+                  >
+                    {processingScreenshot ? 'Verifying...' : 'Submit & Claim Credits'}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
