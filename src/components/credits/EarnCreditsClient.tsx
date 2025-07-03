@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
-import { ArrowLeft, Copy, Share2, Users, Gift, CheckCircle, ExternalLink, Facebook, Twitter, Instagram, Upload, X } from 'lucide-react'
+import { ArrowLeft, Copy, Share2, Users, Gift, CheckCircle, ExternalLink, Upload, X } from 'lucide-react'
 import Link from 'next/link'
 import { AnimatedCreditBalance } from '@/components/ui/AnimatedCreditBalance'
 import { Button } from '@/components/ui/button'
@@ -43,6 +43,8 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
   const [showScreenshotModal, setShowScreenshotModal] = useState(false)
   const [screenshot, setScreenshot] = useState<File | null>(null)
   const [processingScreenshot, setProcessingScreenshot] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
+  const [creditsAnimation, setCreditsAnimation] = useState<{ amount: number; id: string } | null>(null)
 
   const referralLink = `${process.env.NEXT_PUBLIC_APP_URL}?ref=${user.referralCode}`
   
@@ -64,7 +66,25 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
         },
         (payload: any) => {
           if (payload.new && 'credit_balance' in payload.new) {
-            setCurrentCredits(payload.new.credit_balance)
+            const newBalance = payload.new.credit_balance
+            const oldBalance = currentCredits
+            
+            // Only update if there's a real change
+            if (newBalance !== oldBalance) {
+              setCurrentCredits(newBalance)
+              
+              // If credits increased, show animation
+              if (newBalance > oldBalance) {
+                const creditsEarned = newBalance - oldBalance
+                const animationId = `realtime-credits-${Date.now()}`
+                setCreditsAnimation({ amount: creditsEarned, id: animationId })
+                
+                // Hide animation after 3 seconds
+                setTimeout(() => {
+                  setCreditsAnimation(prev => prev?.id === animationId ? null : prev)
+                }, 3000)
+              }
+            }
           }
         }
       )
@@ -73,7 +93,7 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [user.id])
+  }, [user.id, currentCredits])
 
   const copyReferralLink = async () => {
     try {
@@ -99,7 +119,7 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
     }
   }
 
-  const shareOnSocial = (platform: 'facebook' | 'twitter' | 'instagram') => {
+  const shareOnSocial = (platform: 'facebook' | 'x' | 'instagram') => {
     const message = `Check out Echoes Video Creator - turn your photos into amazing AI videos! 🎬✨`
     const url = referralLink
     
@@ -109,7 +129,7 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
       case 'facebook':
         shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(message)}`
         break
-      case 'twitter':
+      case 'x':
         shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(url)}`
         break
       case 'instagram':
@@ -128,6 +148,29 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
     const file = event.target.files?.[0]
     if (file) {
       setScreenshot(file)
+    }
+  }
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true)
+    } else if (e.type === "dragleave") {
+      setDragActive(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0]
+      if (file.type.startsWith('image/')) {
+        setScreenshot(file)
+      }
     }
   }
 
@@ -161,9 +204,20 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
         
         // Show success message with earned credits
         const creditsEarned = result.credits_awarded || rewards.share
-        alert(`🎉 Screenshot verified! You earned ${creditsEarned} credits for sharing!`)
         
-        // Update local credits display will happen via real-time subscription
+        // Trigger credit animation
+        const animationId = `share-credits-${Date.now()}`
+        setCreditsAnimation({ amount: creditsEarned, id: animationId })
+        
+        // Update local credits
+        setCurrentCredits(prev => prev + creditsEarned)
+        
+        // Hide animation after 3 seconds
+        setTimeout(() => {
+          setCreditsAnimation(prev => prev?.id === animationId ? null : prev)
+        }, 3000)
+        
+        alert(`🎉 Screenshot verified! You earned ${creditsEarned} credits for sharing!`)
       } else {
         // Simple error handling
         if (result.reason === 'already_claimed') {
@@ -336,18 +390,18 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
                 onClick={() => shareOnSocial('facebook')}
                 className="flex items-center space-x-2"
               >
-                <Facebook className="w-4 h-4" />
+                <img src="/logos/facebook.png" alt="Facebook" className="w-4 h-4" />
                 <span>Facebook</span>
                 <ExternalLink className="w-3 h-3" />
               </Button>
               
               <Button
                 variant="primary"
-                onClick={() => shareOnSocial('twitter')}
+                onClick={() => shareOnSocial('x')}
                 className="flex items-center space-x-2"
               >
-                <Twitter className="w-4 h-4" />
-                <span>Twitter</span>
+                <img src="/logos/x.png" alt="X" className="w-4 h-4" />
+                <span>X</span>
                 <ExternalLink className="w-3 h-3" />
               </Button>
               
@@ -356,7 +410,7 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
                 onClick={() => shareOnSocial('instagram')}
                 className="flex items-center space-x-2"
               >
-                <Instagram className="w-4 h-4" />
+                <img src="/logos/instagram.png" alt="Instagram" className="w-4 h-4" />
                 <span>Instagram</span>
                 <Copy className="w-3 h-3" />
               </Button>
@@ -424,7 +478,17 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
                 </p>
 
                 {/* File Upload */}
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                <div 
+                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                    dragActive 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-300 hover:border-blue-400'
+                  }`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                >
                   <input
                     type="file"
                     accept="image/*"
@@ -435,7 +499,7 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
                   <label htmlFor="screenshot-upload" className="cursor-pointer">
                     <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                     <p className="text-sm text-gray-600">
-                      {screenshot ? screenshot.name : 'Click to upload screenshot'}
+                      {screenshot ? screenshot.name : 'Drag & drop or click to upload screenshot'}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       PNG, JPG up to 10MB
@@ -483,6 +547,21 @@ export default function EarnCreditsClient({ user, rewards, stats }: Props) {
                   </Button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Credit Animation */}
+        {creditsAnimation && (
+          <div className="fixed top-20 right-6 z-50 pointer-events-none">
+            <div 
+              key={creditsAnimation.id}
+              className="bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg font-medium text-sm"
+              style={{
+                animation: 'fadeInUp 0.5s ease-out, fadeOut 0.5s ease-out 2.5s forwards'
+              }}
+            >
+              +{creditsAnimation.amount} Credits! 🎉
             </div>
           </div>
         )}
