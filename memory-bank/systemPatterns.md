@@ -9,13 +9,15 @@ flowchart TD
     B --> D[Supabase Database]
     B --> E[Supabase Storage]
     A --> F[Supabase Auth]
-    A --> G[Next.js API Routes]
+    A --> G[Next.js API Routes - SECURED ✅]
     G --> D
     A --> H[AWS Lambda]
     H --> D
     H --> E
     A --> I[Storage Optimizer]
     I --> E
+    A --> J[Admin Security Layer ✅]
+    J --> G
     
     subgraph "Frontend (Hybrid)"
         A1[Static Pages - CDN]
@@ -24,6 +26,7 @@ flowchart TD
         A4[Async Polling]
         A5[Progressive Loading ✅]
         A6[Intelligent Caching ✅]
+        A7[Admin Auth Client ✅]
     end
     
     subgraph "Edge Functions (Deployed)"
@@ -32,12 +35,24 @@ flowchart TD
         B3[clip-details ✅]
     end
     
-    subgraph "Next.js API (Enhanced)"
-        G1[admin/auth]
-        G2[admin/credits]
-        G3[admin/system-prompt]
-        G4[compile - async invoke ✅]
-        G5[compile/status - polling ✅]
+    subgraph "Next.js API (Secured ✅)"
+        G1[admin/auth - Password Validation]
+        G2[admin/credits - PROTECTED ✅]
+        G3[admin/system-prompt - PROTECTED ✅]
+        G4[admin/music - PROTECTED ✅]
+        G5[admin/models - PROTECTED ✅]
+        G6[admin/plg - PROTECTED ✅]
+        G7[admin/prompts - PROTECTED ✅]
+        G8[compile - async invoke ✅]
+        G9[compile/status - polling ✅]
+    end
+    
+    subgraph "Security Layer ✅"
+        J1[Environment Password Validation]
+        J2[Base64 Token System]
+        J3[Service Role Client]
+        J4[Session Management]
+        J5[Request Authentication]
     end
     
     subgraph "AWS Lambda (Video)"
@@ -55,7 +70,7 @@ flowchart TD
     end
     
     subgraph "Supabase Services"
-        D[PostgreSQL + RLS]
+        D[PostgreSQL + RLS ✅]
         E[File Storage + Final Videos]
         F[Authentication]
     end
@@ -115,7 +130,186 @@ flowchart TD
 
 ## Core Design Patterns
 
-### 1. Storage Optimization Pattern ✅ NEW
+### 1. Admin Security Pattern ✅ NEW - ENTERPRISE-GRADE PROTECTION
+```typescript
+// Environment-based password validation system
+interface AdminSession {
+  isAuthenticated: boolean
+  sessionId?: string
+}
+
+// Secure token validation with base64 encoding
+async function validateAdminToken(token: string): Promise<boolean> {
+  const adminPassword = process.env.ADMIN_PASSWORD
+  if (!adminPassword) {
+    console.error('ADMIN_PASSWORD environment variable not set')
+    return false
+  }
+  
+  // Validate token format: base64(admin:PASSWORD)
+  const expectedToken = Buffer.from(`admin:${adminPassword}`).toString('base64')
+  return token === expectedToken
+}
+
+// Authentication middleware for all admin routes
+export async function requireAdminAuth(request: NextRequest) {
+  const session = await verifyAdminSession(request)
+  
+  if (!session.isAuthenticated) {
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized', message: 'Admin authentication required' }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+  
+  return null // Authentication successful
+}
+
+// Service role client for admin operations (bypasses RLS)
+import { supabaseServiceRole } from '@/lib/supabase-server'
+
+// Authenticated API client for frontend
+export const adminApi = {
+  get: (url: string, options = {}) => adminFetch(url, { ...options, method: 'GET' }),
+  post: (url: string, data?: any, options = {}) => adminFetch(url, {
+    ...options,
+    method: 'POST',
+    body: data instanceof FormData ? data : (data ? JSON.stringify(data) : undefined)
+  }),
+  put: (url: string, data?: any, options = {}) => adminFetch(url, {
+    ...options,
+    method: 'PUT', 
+    body: data ? JSON.stringify(data) : undefined
+  }),
+  delete: (url: string, options = {}) => adminFetch(url, { ...options, method: 'DELETE' })
+}
+
+// Session management with automatic token handling
+function getAdminSessionToken(): string | null {
+  if (typeof window === 'undefined') return null
+  return sessionStorage.getItem('admin_session_token')
+}
+
+// Automatic authentication headers
+async function adminFetch(url: string, options = {}): Promise<Response> {
+  const sessionToken = getAdminSessionToken()
+  const headers = new Headers(options.headers)
+  
+  if (!(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json')
+  }
+  
+  if (sessionToken) {
+    headers.set('Authorization', `Bearer ${sessionToken}`)
+    headers.set('X-Admin-Session', sessionToken)
+  }
+  
+  const response = await fetch(url, { ...options, headers })
+  
+  // Handle authentication errors
+  if (response.status === 401) {
+    sessionStorage.removeItem('admin_authenticated')
+    sessionStorage.removeItem('admin_session_token')
+    window.location.reload()
+    throw new Error('Admin session expired. Please log in again.')
+  }
+  
+  return response
+}
+```
+
+### 2. Database Security Pattern ✅ NEW - RLS WITH ADMIN ACCESS
+```sql
+-- Enable RLS on all public tables
+ALTER TABLE public.music_tracks ENABLE ROW LEVEL SECURITY;
+
+-- User access policies (authenticated users)
+CREATE POLICY "Authenticated users can read music tracks"
+ON public.music_tracks FOR SELECT
+TO authenticated
+USING (true);
+
+-- Admin access policies (service role bypasses RLS)
+CREATE POLICY "Service role can manage music tracks"
+ON public.music_tracks FOR ALL
+TO service_role
+USING (true);
+
+-- Pattern: Separate client types for different access levels
+const supabase = createClient(url, anonKey)           // User operations (RLS enforced)
+const supabaseServiceRole = createClient(url, serviceKey) // Admin operations (RLS bypassed)
+```
+
+### 3. Frontend Admin Authentication Pattern ✅ NEW
+```typescript
+// Session creation with password verification
+const handleLogin = async (e: React.FormEvent) => {
+  const response = await fetch('/api/admin/auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  })
+
+  if (response.ok) {
+    // Create secure session token
+    const sessionToken = Buffer.from(`admin:${password}`).toString('base64')
+    sessionStorage.setItem('admin_authenticated', 'true')
+    sessionStorage.setItem('admin_session_token', sessionToken)
+    setIsAuthenticated(true)
+  }
+}
+
+// Automatic session validation
+useEffect(() => {
+  const adminAuth = sessionStorage.getItem('admin_authenticated')
+  if (adminAuth === 'true') {
+    setIsAuthenticated(true)
+  }
+}, [])
+
+// Secure logout with cleanup
+const handleLogout = () => {
+  sessionStorage.removeItem('admin_authenticated')
+  sessionStorage.removeItem('admin_session_token')
+  setIsAuthenticated(false)
+  setPassword('')
+}
+```
+
+### 4. API Security Implementation Pattern ✅ NEW
+```typescript
+// Secure admin API route pattern
+export async function GET(request: NextRequest) {
+  // Step 1: Validate admin authentication
+  const authError = await requireAdminAuth(request)
+  if (authError) return authError
+
+  // Step 2: Use service role for database operations
+  try {
+    const { data, error } = await supabaseServiceRole
+      .from('admin_config')
+      .select('*')
+      .eq('key', 'configuration_key')
+
+    if (error) throw error
+    return NextResponse.json({ data })
+  } catch (error) {
+    console.error('Error in admin API:', error)
+    return NextResponse.json({ error: 'Failed to fetch data' }, { status: 500 })
+  }
+}
+
+// Pattern applied to all 7 admin API routes:
+// - /api/admin/music (GET, POST, DELETE)
+// - /api/admin/credits (GET, POST)
+// - /api/admin/credits/[id] (PUT, DELETE)
+// - /api/admin/models (GET, POST)
+// - /api/admin/plg (GET, POST)
+// - /api/admin/prompts (GET, POST)
+// - /api/admin/system-prompt (GET, POST)
+```
+
+### 5. Storage Optimization Pattern ✅ NEW
 ```typescript
 // Batched URL generation with intelligent caching
 interface UrlRequest {

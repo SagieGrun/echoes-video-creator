@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServiceRole } from '@/lib/supabase-server'
 import { requireAdminAuth } from '@/lib/admin-auth'
 
+// Configure route for file uploads
+export const maxDuration = 60 // 60 seconds for file uploads
+
 export async function GET(request: NextRequest) {
   // Check admin authentication
   const authError = await requireAdminAuth(request)
@@ -34,6 +37,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File is required' }, { status: 400 })
     }
 
+    // Validate file size (50MB max)
+    const maxSizeInBytes = 50 * 1024 * 1024; // 50MB
+    if (file.size > maxSizeInBytes) {
+      return NextResponse.json({ 
+        error: `File size too large. Maximum allowed size is 50MB. Your file is ${Math.round(file.size / (1024 * 1024))}MB.` 
+      }, { status: 413 })
+    }
+
+    // Validate file type
+    const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/ogg', 'audio/m4a'];
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json({ 
+        error: `Invalid file type. Allowed types: ${allowedTypes.join(', ')}` 
+      }, { status: 400 })
+    }
+
     const fileBuffer = await file.arrayBuffer();
     const filePath = `music/${Date.now()}_${file.name}`
 
@@ -44,7 +63,10 @@ export async function POST(request: NextRequest) {
         contentType: file.type,
       })
 
-    if (uploadError) throw uploadError
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError)
+      throw new Error(`Failed to upload file to storage: ${uploadError.message}`)
+    }
 
     const { data: urlData } = supabaseServiceRole.storage
       .from('music-tracks')
@@ -63,12 +85,20 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
-    if (dbError) throw dbError
+    if (dbError) {
+      console.error('Database insert error:', dbError)
+      // Clean up uploaded file if database insert fails
+      await supabaseServiceRole.storage
+        .from('music-tracks')
+        .remove([filePath])
+      throw new Error(`Failed to save track to database: ${dbError.message}`)
+    }
 
     return NextResponse.json({ success: true, track: dbData })
   } catch (error) {
     console.error('Error uploading music track:', error)
-    return NextResponse.json({ error: 'Failed to upload music track' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    return NextResponse.json({ error: `Failed to upload music track: ${errorMessage}` }, { status: 500 })
   }
 }
 
@@ -77,33 +107,39 @@ export async function DELETE(request: NextRequest) {
   const authError = await requireAdminAuth(request)
   if (authError) return authError
 
-  const { id, file_path } = await request.json()
+  try {
+    const body = await request.json()
+    const { id, file_path } = body
 
-  if (!id || !file_path) {
-    return NextResponse.json({ error: 'Track ID and file path are required' }, { status: 400 })
-  }
-  
-    try {
-      // Delete from storage
-      const { error: storageError } = await supabaseServiceRole.storage
-        .from('music-tracks')
-        .remove([file_path])
-      
-      if (storageError) {
-        console.error('Error deleting from storage:', storageError)
-      }
-  
-      // Delete from database
-      const { error: dbError } = await supabaseServiceRole
-        .from('music_tracks')
-        .delete()
-        .eq('id', id)
-  
-      if (dbError) throw dbError
-  
-      return NextResponse.json({ success: true })
-    } catch (error) {
-      console.error('Error deleting music track:', error)
-      return NextResponse.json({ error: 'Failed to delete music track' }, { status: 500 })
+    if (!id || !file_path) {
+      return NextResponse.json({ error: 'Track ID and file path are required' }, { status: 400 })
     }
-  } 
+    
+    // Delete from storage first
+    const { error: storageError } = await supabaseServiceRole.storage
+      .from('music-tracks')
+      .remove([file_path])
+    
+    if (storageError) {
+      console.error('Error deleting from storage:', storageError)
+      // Continue with database deletion even if storage fails
+    }
+
+    // Delete from database
+    const { error: dbError } = await supabaseServiceRole
+      .from('music_tracks')
+      .delete()
+      .eq('id', id)
+
+    if (dbError) {
+      console.error('Database deletion error:', dbError)
+      throw new Error(`Failed to delete track from database: ${dbError.message}`)
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting music track:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    return NextResponse.json({ error: `Failed to delete music track: ${errorMessage}` }, { status: 500 })
+  }
+} 

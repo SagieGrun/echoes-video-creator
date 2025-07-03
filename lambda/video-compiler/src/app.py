@@ -136,6 +136,7 @@ def lambda_handler(event, context):
             if video_id:
                 try:
                     supabase.from_('final_videos').update({
+                        'user_id': user_id,  # FIX: Include user_id for consistency
                         'status': 'failed',
                         'error_message': 'Missing required parameters: user_id and clips'
                     }).eq('id', video_id).execute()
@@ -161,6 +162,7 @@ def lambda_handler(event, context):
             if video_id:
                 try:
                     supabase.from_('final_videos').update({
+                        'user_id': user_id,  # FIX: Include user_id for consistency
                         'status': 'failed',
                         'error_message': 'No clips with valid video_file_path found'
                     }).eq('id', video_id).execute()
@@ -249,6 +251,7 @@ def lambda_handler(event, context):
             if video_id:
                 # Update the existing processing record
                 update_data = {
+                    'user_id': user_id,  # FIX: Include user_id so status API can find the record
                     'file_path': final_video_path,
                     'public_url': public_url,
                     'status': 'completed',
@@ -305,6 +308,7 @@ def lambda_handler(event, context):
         if 'video_id' in locals() and video_id:
             try:
                 supabase.from_('final_videos').update({
+                    'user_id': user_id,  # FIX: Include user_id for consistency
                     'status': 'failed',
                     'error_message': str(e)
                 }).eq('id', video_id).execute()

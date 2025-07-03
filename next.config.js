@@ -20,6 +20,7 @@ const nextConfig = {
       },
     ],
   },
+
   // Removed old domain rewrites - no longer needed
   async headers() {
     return [

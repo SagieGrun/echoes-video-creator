@@ -80,7 +80,11 @@ export const adminApi = {
     }),
     
   delete: (url: string, options: AdminFetchOptions = {}) =>
-    adminFetch(url, { ...options, method: 'DELETE' })
+    adminFetch(url, { 
+      ...options, 
+      method: 'DELETE',
+      body: options.body ? (typeof options.body === 'string' ? options.body : JSON.stringify(options.body)) : undefined
+    })
 }
 
 /**

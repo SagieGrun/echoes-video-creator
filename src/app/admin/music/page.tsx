@@ -39,6 +39,31 @@ export default function AdminMusicPage() {
     }
   }
 
+  // Handle file selection with validation
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null
+    
+    if (file) {
+      // Validate file size (50MB max)
+      const maxSizeInBytes = 50 * 1024 * 1024; // 50MB
+      if (file.size > maxSizeInBytes) {
+        alert(`File size too large. Maximum allowed size is 50MB. Your file is ${Math.round(file.size / (1024 * 1024))}MB.`)
+        e.target.value = '' // Clear the input
+        return
+      }
+      
+      // Validate file type
+      const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/ogg', 'audio/m4a'];
+      if (!allowedTypes.includes(file.type)) {
+        alert(`Invalid file type. Please select an audio file (${allowedTypes.join(', ')})`)
+        e.target.value = '' // Clear the input
+        return
+      }
+    }
+    
+    setNewTrackFile(file)
+  }
+
   // Upload new track
   const uploadTrack = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -53,8 +78,15 @@ export default function AdminMusicPage() {
       const response = await adminApi.post('/api/admin/music', formData)
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to upload track');
+        let errorMessage = 'Failed to upload track';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json()
@@ -62,6 +94,10 @@ export default function AdminMusicPage() {
 
       // Reset form and reload
       setNewTrackFile(null)
+      // Clear the file input
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
+      if (fileInput) fileInput.value = ''
+      
       loadTracks() // This will now fetch the updated list
     } catch (error) {
       console.error('Error uploading track:', error)
@@ -88,12 +124,19 @@ export default function AdminMusicPage() {
     console.log("Attempting to delete track:", id);
     try {
         const response = await adminApi.delete('/api/admin/music', {
-            body: JSON.stringify({ id, file_path: filePath }),
+            body: JSON.stringify({ id, file_path: filePath })
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to delete track');
+            let errorMessage = 'Failed to delete track';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorMessage;
+            } catch {
+                // If response is not JSON, use status text
+                errorMessage = response.statusText || errorMessage;
+            }
+            throw new Error(errorMessage);
         }
 
         console.log("Track deleted successfully");
@@ -122,14 +165,17 @@ export default function AdminMusicPage() {
           <h2 className="text-xl font-semibold mb-4">Upload New Track</h2>
           <form onSubmit={uploadTrack} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Audio File *</label>
+              <label className="block text-sm font-medium mb-2">Audio File * (Max 50MB)</label>
               <input
                 type="file"
                 accept="audio/*"
-                onChange={(e) => setNewTrackFile(e.target.files?.[0] || null)}
+                onChange={handleFileSelect}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
+              <p className="text-sm text-gray-500 mt-1">
+                Supported formats: MP3, WAV, OGG, M4A
+              </p>
             </div>
             <button
               type="submit"
