@@ -73,26 +73,37 @@ export default function CreditsPage() {
 
   const handleSavePack = async () => {
     try {
-      const method = editingPack.id ? 'PUT' : 'POST'
-      const url = editingPack.id 
-        ? `/api/admin/credits/${editingPack.id}` 
-        : '/api/admin/credits'
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(editingPack),
-      })
+      let response
+      
+      if (editingPack.id) {
+        // Update existing pack
+        response = await adminApi.put(`/api/admin/credits/${editingPack.id}`, editingPack)
+      } else {
+        // Create new pack
+        response = await adminApi.post('/api/admin/credits', editingPack)
+      }
 
       if (response.ok) {
         await fetchCreditPacks()
         setIsEditing(false)
         setEditingPack({})
+      } else {
+        let errorMessage = 'Failed to save credit pack'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch {
+          errorMessage = response.statusText || errorMessage
+        }
+        throw new Error(errorMessage)
       }
     } catch (error) {
       console.error('Failed to save credit pack:', error)
+      if (error instanceof Error) {
+        alert(`Error saving credit pack: ${error.message}`)
+      } else {
+        alert('An unknown error occurred while saving the credit pack.')
+      }
     }
   }
 
