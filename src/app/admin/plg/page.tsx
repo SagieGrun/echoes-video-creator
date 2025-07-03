@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { adminApi } from '@/lib/admin-api'
 import { SocialSharingConfig, DEFAULT_SOCIAL_CONFIG } from '@/types/social'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 interface PLGSettings {
   referral_reward_credits: number
@@ -15,7 +17,13 @@ interface PLGStats {
   approvedShares: number
   totalCreditsAwarded: number
   topReferrers: { userId: string; referralCount: number }[]
+  referralConversionRate: string
+  shareApprovalRate: string
   thisMonth: {
+    referrals: number
+    shares: number
+  }
+  thisWeek: {
     referrals: number
     shares: number
   }
@@ -43,7 +51,7 @@ export default function PLGPage() {
 
   const fetchConfigs = async () => {
     try {
-      const response = await fetch('/api/admin/plg')
+      const response = await adminApi.get('/api/admin/plg')
       const data = await response.json()
       if (data.socialConfig) {
         setSocialConfig(data.socialConfig)
@@ -70,15 +78,9 @@ export default function PLGPage() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      const response = await fetch('/api/admin/plg', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          socialConfig: editingSocialConfig,
-          plgSettings: editingPLGSettings
-        }),
+      const response = await adminApi.post('/api/admin/plg', { 
+        socialConfig: editingSocialConfig,
+        plgSettings: editingPLGSettings
       })
 
       if (response.ok) {
@@ -155,36 +157,123 @@ export default function PLGPage() {
 
       {/* PLG Statistics */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Total Referrals</h3>
-            <div className="text-3xl font-bold text-blue-600">{stats.totalReferrals}</div>
-            <div className="text-sm text-gray-500">{stats.rewardedReferrals} rewarded</div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Share Submissions</h3>
-            <div className="text-3xl font-bold text-green-600">{stats.totalShares}</div>
-            <div className="text-sm text-gray-500">{stats.approvedShares} approved</div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Credits Awarded</h3>
-            <div className="text-3xl font-bold text-purple-600">{stats.totalCreditsAwarded}</div>
-            <div className="text-sm text-gray-500">Via PLG system</div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">This Month</h3>
-            <div className="text-lg font-semibold text-gray-900">
-              {stats.thisMonth.referrals} referrals
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-lg font-medium text-gray-900">Total Referrals</h3>
+                <Tooltip content="Total number of referral signups tracked by the system. 'Rewarded' shows how many resulted in credited purchases (both referrer and referee got credits).">
+                  <div className="w-4 h-4 rounded-full bg-gray-300 text-white text-xs flex items-center justify-center cursor-help">
+                    ?
+                  </div>
+                </Tooltip>
+              </div>
+              <div className="text-3xl font-bold text-blue-600">{stats.totalReferrals}</div>
+              <div className="text-sm text-gray-500">{stats.rewardedReferrals} rewarded</div>
             </div>
-            <div className="text-sm text-gray-500">{stats.thisMonth.shares} shares</div>
+            
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-lg font-medium text-gray-900">Share Submissions</h3>
+                <Tooltip content={`Total social media share submissions. Users upload screenshots to claim their one-time +${plgSettings.share_reward_credits} credit bonus. 'Approved' shows successful verifications.`}>
+                  <div className="w-4 h-4 rounded-full bg-gray-300 text-white text-xs flex items-center justify-center cursor-help">
+                    ?
+                  </div>
+                </Tooltip>
+              </div>
+              <div className="text-3xl font-bold text-green-600">{stats.totalShares}</div>
+              <div className="text-sm text-gray-500">{stats.approvedShares} approved</div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-lg font-medium text-gray-900">Credits Awarded</h3>
+                <Tooltip content={`Total credits distributed through the PLG system. Includes referral bonuses (+${plgSettings.referral_reward_credits} each) and social sharing rewards (+${plgSettings.share_reward_credits} each).`}>
+                  <div className="w-4 h-4 rounded-full bg-gray-300 text-white text-xs flex items-center justify-center cursor-help">
+                    ?
+                  </div>
+                </Tooltip>
+              </div>
+              <div className="text-3xl font-bold text-purple-600">{stats.totalCreditsAwarded}</div>
+              <div className="text-sm text-gray-500">Via PLG system</div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-lg font-medium text-gray-900">This Month</h3>
+                <Tooltip content="PLG activity in the last 30 days. Tracks monthly engagement trends and seasonal patterns in your viral growth systems.">
+                  <div className="w-4 h-4 rounded-full bg-gray-300 text-white text-xs flex items-center justify-center cursor-help">
+                    ?
+                  </div>
+                </Tooltip>
+              </div>
+              <div className="text-lg font-semibold text-gray-900">
+                {stats.thisMonth.referrals} referrals
+              </div>
+              <div className="text-sm text-gray-500">{stats.thisMonth.shares} shares</div>
+            </div>
           </div>
-        </div>
+
+          {/* Additional Analytics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-lg font-medium text-gray-900">Referral Conversion</h3>
+                <Tooltip content="Percentage of referrals that resulted in credited purchases. Calculated as: (Rewarded Referrals ÷ Total Referrals) × 100. Higher rates indicate more effective referral targeting.">
+                  <div className="w-4 h-4 rounded-full bg-gray-300 text-white text-xs flex items-center justify-center cursor-help">
+                    ?
+                  </div>
+                </Tooltip>
+              </div>
+              <div className="text-3xl font-bold text-indigo-600">{stats.referralConversionRate}%</div>
+              <div className="text-sm text-gray-500">Referrals that converted</div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-lg font-medium text-gray-900">Share Approval</h3>
+                <Tooltip content="Percentage of share submissions that were approved for credit rewards. Calculated as: (Approved Shares ÷ Total Shares) × 100. Currently auto-approved via screenshot verification.">
+                  <div className="w-4 h-4 rounded-full bg-gray-300 text-white text-xs flex items-center justify-center cursor-help">
+                    ?
+                  </div>
+                </Tooltip>
+              </div>
+              <div className="text-3xl font-bold text-teal-600">{stats.shareApprovalRate}%</div>
+              <div className="text-sm text-gray-500">Shares approved</div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-lg font-medium text-gray-900">This Week</h3>
+                <Tooltip content="Activity in the last 7 days. Shows recent engagement trends with your PLG system. Compare to monthly numbers to see growth patterns.">
+                  <div className="w-4 h-4 rounded-full bg-gray-300 text-white text-xs flex items-center justify-center cursor-help">
+                    ?
+                  </div>
+                </Tooltip>
+              </div>
+              <div className="text-lg font-semibold text-gray-900">
+                {stats.thisWeek.referrals} referrals
+              </div>
+              <div className="text-sm text-gray-500">{stats.thisWeek.shares} shares</div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-lg font-medium text-gray-900">Top Referrer</h3>
+                <Tooltip content="Highest number of successful referrals by any single user. Identifies your most valuable advocates who successfully bring in paying customers.">
+                  <div className="w-4 h-4 rounded-full bg-gray-300 text-white text-xs flex items-center justify-center cursor-help">
+                    ?
+                  </div>
+                </Tooltip>
+              </div>
+              <div className="text-lg font-semibold text-gray-900">
+                {stats.topReferrers.length > 0 ? stats.topReferrers[0].referralCount : 0}
+              </div>
+              <div className="text-sm text-gray-500">Successful referrals</div>
+            </div>
+          </div>
+        </>
       )}
-
-
 
       <div className="space-y-8">
         {/* PLG Reward Settings */}

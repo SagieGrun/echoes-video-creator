@@ -37,7 +37,10 @@ export function AdminAuth({ children }: AdminAuthProps) {
       })
 
       if (response.ok) {
+        // Store session token for API authentication
+        const sessionToken = Buffer.from(`admin:${password}`).toString('base64')
         sessionStorage.setItem('admin_authenticated', 'true')
+        sessionStorage.setItem('admin_session_token', sessionToken)
         setIsAuthenticated(true)
       } else {
         setError('Invalid password')
@@ -51,6 +54,7 @@ export function AdminAuth({ children }: AdminAuthProps) {
 
   const handleLogout = () => {
     sessionStorage.removeItem('admin_authenticated')
+    sessionStorage.removeItem('admin_session_token')
     setIsAuthenticated(false)
     setPassword('')
   }

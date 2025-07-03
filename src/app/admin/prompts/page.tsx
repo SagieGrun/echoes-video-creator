@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { adminApi } from '@/lib/admin-api'
 
 interface SystemPrompt {
   prompt: string
@@ -32,7 +33,7 @@ export default function PromptsPage() {
 
   const fetchSystemPrompt = async () => {
     try {
-      const response = await fetch('/api/admin/system-prompt')
+      const response = await adminApi.get('/api/admin/system-prompt')
       const data = await response.json()
       if (data.systemPrompt) {
         setSystemPrompt(data.systemPrompt)
@@ -52,13 +53,7 @@ export default function PromptsPage() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      const response = await fetch('/api/admin/system-prompt', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ prompt: editingPrompt }),
-      })
+      const response = await adminApi.post('/api/admin/system-prompt', { prompt: editingPrompt })
 
       if (response.ok) {
         const data = await response.json()

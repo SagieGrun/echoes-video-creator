@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { AdminAuth } from '@/components/admin/AdminAuth'
+import { adminApi } from '@/lib/admin-api'
 
 interface MusicTrack {
   id: string
@@ -23,7 +24,7 @@ export default function AdminMusicPage() {
     console.log("Attempting to load tracks...");
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/music')
+      const response = await adminApi.get('/api/admin/music')
       if (!response.ok) {
         throw new Error(`Failed to fetch tracks: ${response.statusText}`)
       }
@@ -49,10 +50,7 @@ export default function AdminMusicPage() {
         const formData = new FormData();
         formData.append('file', newTrackFile);
 
-      const response = await fetch('/api/admin/music', {
-        method: 'POST',
-        body: formData,
-      })
+      const response = await adminApi.post('/api/admin/music', formData)
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -89,9 +87,7 @@ export default function AdminMusicPage() {
     
     console.log("Attempting to delete track:", id);
     try {
-        const response = await fetch('/api/admin/music', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
+        const response = await adminApi.delete('/api/admin/music', {
             body: JSON.stringify({ id, file_path: filePath }),
         });
 

@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServiceRole } from '@/lib/supabase-server'
 import { DEFAULT_SOCIAL_CONFIG, SocialSharingConfig } from '@/types/social'
+import { requireAdminAuth } from '@/lib/admin-auth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Check admin authentication
+  const authError = await requireAdminAuth(request)
+  if (authError) return authError
+
   try {
     // Get both social sharing and PLG configurations
     const { data: configs, error } = await supabaseServiceRole
@@ -37,6 +42,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Check admin authentication
+  const authError = await requireAdminAuth(request)
+  if (authError) return authError
+
   try {
     const { socialConfig, plgSettings } = await request.json()
 
@@ -133,6 +142,23 @@ async function getPLGStatistics() {
       .slice(0, 5)
       .map(([userId, count]) => ({ userId, referralCount: count }))
 
+    // Calculate conversion rates
+    const referralConversionRate = totalReferrals > 0 ? 
+      ((rewardedReferrals / totalReferrals) * 100).toFixed(1) : '0'
+    const shareApprovalRate = totalShares > 0 ? 
+      ((approvedShares / totalShares) * 100).toFixed(1) : '0'
+
+    // Get this week's activity
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    const thisWeek = {
+      referrals: referralStats?.filter(r => 
+        new Date(r.created_at) > weekAgo
+      ).length || 0,
+      shares: shareStats?.filter(s => 
+        new Date(s.created_at) > weekAgo
+      ).length || 0
+    }
+
     return {
       totalReferrals,
       rewardedReferrals,
@@ -140,6 +166,8 @@ async function getPLGStatistics() {
       approvedShares,
       totalCreditsAwarded,
       topReferrers,
+      referralConversionRate,
+      shareApprovalRate,
       thisMonth: {
         referrals: referralStats?.filter(r => 
           new Date(r.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
@@ -147,7 +175,8 @@ async function getPLGStatistics() {
         shares: shareStats?.filter(s => 
           new Date(s.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
         ).length || 0
-      }
+      },
+      thisWeek
     }
   } catch (error) {
     console.error('Error calculating PLG statistics:', error)

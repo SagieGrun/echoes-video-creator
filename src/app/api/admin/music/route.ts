@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseServiceRole } from '@/lib/supabase-server'
+import { requireAdminAuth } from '@/lib/admin-auth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Check admin authentication
+  const authError = await requireAdminAuth(request)
+  if (authError) return authError
+
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseServiceRole
       .from('music_tracks')
       .select('*')
       .order('created_at', { ascending: false })
@@ -17,6 +22,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Check admin authentication
+  const authError = await requireAdminAuth(request)
+  if (authError) return authError
+
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
@@ -29,7 +38,7 @@ export async function POST(request: NextRequest) {
     const filePath = `music/${Date.now()}_${file.name}`
 
     // Upload to Supabase Storage
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabaseServiceRole.storage
       .from('music-tracks')
       .upload(filePath, fileBuffer, {
         contentType: file.type,
@@ -37,12 +46,12 @@ export async function POST(request: NextRequest) {
 
     if (uploadError) throw uploadError
 
-    const { data: urlData } = supabase.storage
+    const { data: urlData } = supabaseServiceRole.storage
       .from('music-tracks')
       .getPublicUrl(filePath)
 
     // Insert into database
-    const { data: dbData, error: dbError } = await supabase
+    const { data: dbData, error: dbError } = await supabaseServiceRole
       .from('music_tracks')
       .insert({
         name: file.name,
@@ -64,15 +73,19 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-    const { id, file_path } = await request.json()
-  
-    if (!id || !file_path) {
-      return NextResponse.json({ error: 'Track ID and file path are required' }, { status: 400 })
-    }
+  // Check admin authentication
+  const authError = await requireAdminAuth(request)
+  if (authError) return authError
+
+  const { id, file_path } = await request.json()
+
+  if (!id || !file_path) {
+    return NextResponse.json({ error: 'Track ID and file path are required' }, { status: 400 })
+  }
   
     try {
       // Delete from storage
-      const { error: storageError } = await supabase.storage
+      const { error: storageError } = await supabaseServiceRole.storage
         .from('music-tracks')
         .remove([file_path])
       
@@ -81,7 +94,7 @@ export async function DELETE(request: NextRequest) {
       }
   
       // Delete from database
-      const { error: dbError } = await supabase
+      const { error: dbError } = await supabaseServiceRole
         .from('music_tracks')
         .delete()
         .eq('id', id)

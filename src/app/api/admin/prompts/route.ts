@@ -1,19 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseServiceRole } from '@/lib/supabase-server'
+import { requireAdminAuth } from '@/lib/admin-auth'
 
 // Create admin_config table if it doesn't exist
 const ensureAdminConfigTable = async () => {
-  const { error } = await supabase.rpc('create_admin_config_table')
+  const { error } = await supabaseServiceRole.rpc('create_admin_config_table')
   if (error && !error.message.includes('already exists')) {
     console.error('Error creating admin_config table:', error)
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Check admin authentication
+  const authError = await requireAdminAuth(request)
+  if (authError) return authError
+
   try {
     await ensureAdminConfigTable()
     
-    const { data, error } = await supabase
+    const { data, error } = await supabaseServiceRole
       .from('admin_config')
       .select('*')
       .eq('key', 'prompts')
@@ -36,6 +41,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Check admin authentication
+  const authError = await requireAdminAuth(request)
+  if (authError) return authError
+
   try {
     const { name, prompt, is_default } = await request.json()
     
@@ -47,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get existing prompts
-    const { data: existingData } = await supabase
+    const { data: existingData } = await supabaseServiceRole
       .from('admin_config')
       .select('value')
       .eq('key', 'prompts')
@@ -71,7 +80,7 @@ export async function POST(request: NextRequest) {
     updatedPrompts.push(newPrompt)
 
     // Update the config
-    const { error } = await supabase
+    const { error } = await supabaseServiceRole
       .from('admin_config')
       .upsert({
         key: 'prompts',

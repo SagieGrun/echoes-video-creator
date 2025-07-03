@@ -184,7 +184,7 @@ def lambda_handler(event, context):
                 clip_path = temp_path / f"clip_{i:03d}.mp4"
                 download_from_supabase_storage(clip['video_file_path'], clip_path)
                 clip_files.append(str(clip_path))
-                
+            
                 # Log progress and check memory every 5 clips
                 if (i + 1) % 5 == 0 or i == len(valid_clips) - 1:
                     log_memory_usage("DOWNLOAD_PROGRESS", f"Downloaded {i+1}/{len(valid_clips)} clips")
@@ -510,7 +510,7 @@ def normalize_clips_streaming(clip_files: list, target_aspect: str, temp_dir: st
                 else:
                     logger.warning(f"Normalized file is too small or doesn't exist, using original: {clip_file}")
                     normalized_files.append(clip_file)
-            
+        
             # Force cleanup after each clip
             cleanup_and_gc(f"CLIP_{i+1}_COMPLETE")
             

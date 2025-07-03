@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseServiceRole } from '@/lib/supabase-server'
+import { requireAdminAuth } from '@/lib/admin-auth'
 
 const DEFAULT_PACKS = [
   {
@@ -32,54 +33,43 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  // Check admin authentication
+  const authError = await requireAdminAuth(request)
+  if (authError) return authError
+
   try {
     const id = params.id
     const updateData = await request.json()
-    
-    // Get existing packs
-    const { data: existingData } = await supabase
+
+    // Get existing config
+    const { data: existingData } = await supabaseServiceRole
       .from('admin_config')
       .select('value')
       .eq('key', 'credit_packs')
       .single()
 
-    const existingPacks = existingData?.value?.packs || DEFAULT_PACKS
-
-    // Find and update the pack
-    const packIndex = existingPacks.findIndex((pack: any) => pack.id === id)
+    const existingPacks = existingData?.value?.packs || []
     
-    if (packIndex === -1) {
-      return NextResponse.json(
-        { error: 'Credit pack not found' },
-        { status: 404 }
-      )
-    }
+    // Find and update the specific pack
+    const updatedPacks = existingPacks.map((pack: any) => 
+      pack.id === id ? { ...pack, ...updateData } : pack
+    )
 
-    // Update the pack
-    const updatedPack = {
-      ...existingPacks[packIndex],
-      ...updateData,
-      // Ensure proper types
-      credits: updateData.credits ? parseInt(String(updateData.credits)) : existingPacks[packIndex].credits,
-      price_cents: updateData.price_cents ? parseInt(String(updateData.price_cents)) : existingPacks[packIndex].price_cents,
-      is_active: updateData.is_active !== undefined ? updateData.is_active : existingPacks[packIndex].is_active,
-      updated_at: new Date().toISOString(),
-    }
-
-    existingPacks[packIndex] = updatedPack
-
-    // Save back to database
-    const { error } = await supabase
+    // Update the config
+    const { error } = await supabaseServiceRole
       .from('admin_config')
       .upsert({
         key: 'credit_packs',
-        value: { packs: existingPacks },
+        value: { packs: updatedPacks },
         updated_at: new Date().toISOString(),
       })
 
     if (error) throw error
 
-    return NextResponse.json({ success: true, pack: updatedPack })
+    return NextResponse.json({ 
+      success: true, 
+      pack: updatedPacks.find((p: any) => p.id === id) 
+    })
   } catch (error) {
     console.error('Error updating credit pack:', error)
     return NextResponse.json(
@@ -93,33 +83,27 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  // Check admin authentication
+  const authError = await requireAdminAuth(request)
+  if (authError) return authError
+
   try {
     const id = params.id
-    
-    // Get existing packs
-    const { data: existingData } = await supabase
+
+    // Get existing config
+    const { data: existingData } = await supabaseServiceRole
       .from('admin_config')
       .select('value')
       .eq('key', 'credit_packs')
       .single()
 
-    const existingPacks = existingData?.value?.packs || DEFAULT_PACKS
-
-    // Find the pack to delete
-    const packIndex = existingPacks.findIndex((pack: any) => pack.id === id)
+    const existingPacks = existingData?.value?.packs || []
     
-    if (packIndex === -1) {
-      return NextResponse.json(
-        { error: 'Credit pack not found' },
-        { status: 404 }
-      )
-    }
-
     // Remove the pack
     const updatedPacks = existingPacks.filter((pack: any) => pack.id !== id)
 
-    // Save back to database
-    const { error } = await supabase
+    // Update the config
+    const { error } = await supabaseServiceRole
       .from('admin_config')
       .upsert({
         key: 'credit_packs',

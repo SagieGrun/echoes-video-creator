@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { adminApi } from '@/lib/admin-api'
 
 interface ModelConfig {
   activeProvider: string
@@ -39,7 +40,7 @@ export default function ModelsPage() {
 
   const fetchModelConfig = async () => {
     try {
-      const response = await fetch('/api/admin/models')
+      const response = await adminApi.get('/api/admin/models')
       const data = await response.json()
       if (data.config) {
         setConfig(data.config)

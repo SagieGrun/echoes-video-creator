@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { adminApi } from '@/lib/admin-api'
 
 interface CreditPack {
   id: string
@@ -58,7 +59,7 @@ export default function CreditsPage() {
 
   const fetchCreditPacks = async () => {
     try {
-      const response = await fetch('/api/admin/credits')
+      const response = await adminApi.get('/api/admin/credits')
       const data = await response.json()
       if (data.packs) {
         setPacks(data.packs)
@@ -99,9 +100,7 @@ export default function CreditsPage() {
     if (!confirm('Are you sure you want to delete this credit pack?')) return
 
     try {
-      const response = await fetch(`/api/admin/credits/${id}`, {
-        method: 'DELETE',
-      })
+      const response = await adminApi.delete(`/api/admin/credits/${id}`)
 
       if (response.ok) {
         await fetchCreditPacks()
@@ -113,13 +112,7 @@ export default function CreditsPage() {
 
   const togglePackStatus = async (id: string, is_active: boolean) => {
     try {
-      const response = await fetch(`/api/admin/credits/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ is_active }),
-      })
+      const response = await adminApi.put(`/api/admin/credits/${id}`, { is_active })
 
       if (response.ok) {
         await fetchCreditPacks()

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseServiceRole } from '@/lib/supabase-server'
+import { requireAdminAuth } from '@/lib/admin-auth'
 
 const DEFAULT_SYSTEM_PROMPT = `You are an AI assistant that helps create cinematic, emotional video clips from static photos. 
 
@@ -13,9 +14,13 @@ When generating video clips:
 
 The goal is to transform static memories into living, breathing moments that evoke emotion and nostalgia.`
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Check admin authentication
+  const authError = await requireAdminAuth(request)
+  if (authError) return authError
+
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseServiceRole
       .from('admin_config')
       .select('value, updated_at')
       .eq('key', 'system_prompt')
@@ -40,6 +45,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Check admin authentication
+  const authError = await requireAdminAuth(request)
+  if (authError) return authError
+
   try {
     const { prompt } = await request.json()
     
@@ -53,7 +62,7 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString()
 
     // Update the system prompt
-    const { error } = await supabase
+    const { error } = await supabaseServiceRole
       .from('admin_config')
       .upsert({
         key: 'system_prompt',

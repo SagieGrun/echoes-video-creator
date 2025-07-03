@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseServiceRole } from '@/lib/supabase-server'
+import { requireAdminAuth } from '@/lib/admin-auth'
 
 const DEFAULT_MODEL_CONFIG = {
   activeProvider: 'runway',
@@ -16,9 +17,13 @@ const DEFAULT_MODEL_CONFIG = {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Check admin authentication
+  const authError = await requireAdminAuth(request)
+  if (authError) return authError
+
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseServiceRole
       .from('admin_config')
       .select('value')
       .eq('key', 'model_config')
@@ -41,6 +46,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Check admin authentication
+  const authError = await requireAdminAuth(request)
+  if (authError) return authError
+
   try {
     const { activeProvider, providers } = await request.json()
     
@@ -57,7 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update the config
-    const { error } = await supabase
+    const { error } = await supabaseServiceRole
       .from('admin_config')
       .upsert({
         key: 'model_config',
