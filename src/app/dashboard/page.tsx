@@ -72,9 +72,82 @@ function DashboardContent() {
   const [showDeleteClipConfirm, setShowDeleteClipConfirm] = useState<string | null>(null)
   const [showCreditPurchase, setShowCreditPurchase] = useState(false)
   const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false)
-  const [showConfetti, setShowConfetti] = useState(false)
   const [completedVideoId, setCompletedVideoId] = useState<string | null>(null)
   const [currentTime, setCurrentTime] = useState(Date.now())
+  const [creditsAnimations, setCreditsAnimations] = useState<{ amount: number; id: string; delay: number }[]>([])
+
+  // Force refresh user credits with polling for both purchase and referral waves
+  const refreshUserCredits = async () => {
+    if (!user) return
+    
+    let initialBalance = user.credit_balance
+    let totalCreditsAdded = 0
+    let pollCount = 0
+    
+    const pollForUpdates = async () => {
+      try {
+        const supabase = createSupabaseBrowserClient()
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('credit_balance')
+          .eq('id', user.id)
+          .single()
+        
+        if (userData && !error) {
+          const currentBalance = userData.credit_balance
+          
+          if (currentBalance > initialBalance) {
+            const newCreditsAdded = currentBalance - initialBalance
+            
+            if (newCreditsAdded > totalCreditsAdded) {
+              const incrementalCredits = newCreditsAdded - totalCreditsAdded
+              totalCreditsAdded = newCreditsAdded
+              
+              console.log(`Credits updated: ${initialBalance} → ${currentBalance} (+${incrementalCredits} this wave, +${totalCreditsAdded} total)`)
+              
+              // Update user state
+              setUser(prev => prev ? { ...prev, credit_balance: currentBalance } : null)
+              
+              // Add credit animation to the queue
+              const animationId = `credits-${Date.now()}-${pollCount}`
+              const delay = pollCount === 1 ? 0 : 500 // First wave immediate, second wave 0.5s delay
+              
+              setCreditsAnimations(prev => [...prev, { 
+                amount: incrementalCredits, 
+                id: animationId, 
+                delay: delay 
+              }])
+              
+              // Remove animation after 1.5 seconds (shorter duration)
+              setTimeout(() => {
+                setCreditsAnimations(prev => prev.filter(anim => anim.id !== animationId))
+              }, delay + 1500)
+            }
+          }
+        }
+        
+        pollCount++
+        
+        // Poll for up to 10 seconds to catch both purchase and referral waves
+        if (pollCount < 10) {
+          setTimeout(pollForUpdates, 1000)
+        }
+        
+      } catch (error) {
+        console.error('Error refreshing credits:', error)
+      }
+    }
+    
+    // Start polling immediately
+    pollForUpdates()
+  }
+
+  // Handle purchase success popup close
+  const handlePurchaseSuccessClose = () => {
+    setShowPurchaseSuccess(false)
+    // Immediately refresh credits when popup closes
+    refreshUserCredits()
+  }
 
   // Handle tab parameter from URL
   useEffect(() => {
@@ -87,26 +160,13 @@ function DashboardContent() {
     const purchaseSuccess = searchParams.get('purchased')
     console.log('Purchase success parameter:', purchaseSuccess)
     if (purchaseSuccess === 'true') {
-      console.log('🎉 Purchase success detected! Showing confetti...')
+      console.log('🎉 Purchase success detected! Showing success popup...')
       setShowPurchaseSuccess(true)
-      setShowConfetti(true)
       
       // Clear the URL parameter after showing success
       const url = new URL(window.location.href)
       url.searchParams.delete('purchased')
       window.history.replaceState({}, '', url.toString())
-      
-      // Hide confetti after 1 second
-      setTimeout(() => {
-        console.log('Hiding confetti after 1 second')
-        setShowConfetti(false)
-      }, 1000)
-      
-      // Hide success message after 15 seconds
-      setTimeout(() => {
-        console.log('Hiding success message after 15 seconds')
-        setShowPurchaseSuccess(false)
-      }, 15000)
     }
   }, [searchParams])
 
@@ -1452,65 +1512,51 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* Purchase Success Animation */}
+      {/* Purchase Success Modal */}
       {showPurchaseSuccess && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 pointer-events-none px-4">
-          <div className="relative max-w-sm w-full">
-            {/* Main success card - elevated above confetti */}
-            <div className="bg-white rounded-2xl p-6 shadow-2xl border border-green-200 pointer-events-auto relative z-10">
-              <div className="text-center">
-                {/* Success icon with glow */}
-                <div className="relative mb-4">
-                  <div className="w-16 h-16 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg">
-                    <span className="text-2xl">🎉</span>
-                  </div>
-                </div>
-
-                {/* Success message */}
-                <h2 className="text-xl font-bold text-gray-900 mb-2">
-                  Purchase Successful!
-                </h2>
-                <p className="text-gray-600 text-sm mb-4">
-                  Your credits have been added to your account.
-                </p>
-
-                {/* Close button */}
-                <button
-                  onClick={() => setShowPurchaseSuccess(false)}
-                  className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all duration-300 font-medium shadow-lg text-sm"
-                >
-                  Start Creating ✨
-                </button>
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl border border-green-200 max-w-sm w-full">
+            <div className="text-center">
+              {/* Success icon */}
+              <div className="w-16 h-16 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg mb-4">
+                <span className="text-2xl">✨</span>
               </div>
+
+              {/* Success message */}
+              <h2 className="text-xl font-bold text-gray-900 mb-2">
+                Purchase Successful!
+              </h2>
+              <p className="text-gray-600 text-sm mb-4">
+                Your credits are being added to your account.
+              </p>
+
+              {/* Close button */}
+              <button
+                onClick={handlePurchaseSuccessClose}
+                className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-2 rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all duration-300 font-medium shadow-lg text-sm"
+              >
+                Continue Creating ✨
+              </button>
             </div>
-
-            {/* Confetti burst - positioned around the modal, not over it */}
-            {showConfetti && (
-              <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-                {[...Array(25)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="absolute w-2 h-2 opacity-90"
-                    style={{
-                      backgroundColor: [
-                        '#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', 
-                        '#FFEAA7', '#A8E6CF', '#FFB6C1', '#87CEEB', '#DDA0DD',
-                        '#98FB98', '#F0E68C', '#FF69B4', '#00CED1', '#FFB347'
-                      ][i % 15],
-                      left: `${Math.random() * 100}%`,
-                      top: '-10px',
-                      borderRadius: Math.random() > 0.5 ? '50%' : '2px',
-                      animation: `confettiFall 1s ease-out forwards`,
-                      animationDelay: `${Math.random() * 0.3}s`,
-                      transform: `rotate(${Math.random() * 360}deg)`,
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-
-
           </div>
+        </div>
+      )}
+
+      {/* Sequential Credits Animations */}
+      {creditsAnimations.length > 0 && (
+        <div className="fixed top-20 right-6 z-50 pointer-events-none">
+          {creditsAnimations.map((animation, index) => (
+            <div 
+              key={animation.id}
+              className="bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg font-medium text-sm mb-2"
+              style={{
+                animation: `fadeInUp 0.5s ease-out ${animation.delay}ms, fadeOut 0.5s ease-out ${animation.delay + 1000}ms forwards`,
+                animationFillMode: 'both'
+              }}
+            >
+              +{animation.amount} Credits! 🎉
+            </div>
+          ))}
         </div>
       )}
 
