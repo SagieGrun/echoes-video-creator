@@ -68,18 +68,13 @@ export async function GET(request: Request) {
     // Check if user profile exists in our users table
     const { data: existingUser, error: fetchError } = await supabase
       .from('users')
-      .select('id, email, credit_balance')
+      .select('id, email, credit_balance, created_at')
       .eq('id', user.id)
       .single()
     
     if (fetchError && fetchError.code === 'PGRST116') {
       // User doesn't exist, create them with 1 free credit
       console.log('🔥🔥🔥 CREATING NEW USER PROFILE WITH 1 FREE CREDIT')
-      
-      // Check for referral cookie
-      const referralCode = cookieStore.get('referral_code')?.value
-      console.log('🔥🔥🔥 REFERRAL CODE FROM COOKIE:', referralCode)
-      console.log('🔥🔥🔥 REFERRAL COOKIE STATUS:', referralCode ? 'FOUND' : 'NOT FOUND')
       
       const { data: newUser, error: createError } = await supabase
         .from('users')
@@ -94,6 +89,7 @@ export async function GET(request: Request) {
       
       if (createError) {
         console.error('🔥🔥🔥 ERROR CREATING USER PROFILE:', createError)
+        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/auth-error`)
       } else {
         console.log('🔥🔥🔥 USER PROFILE CREATED SUCCESSFULLY:', newUser)
         
@@ -106,12 +102,32 @@ export async function GET(request: Request) {
             type: 'referral', // Using 'referral' type for signup bonus
             reference_id: 'signup_bonus'
           })
+      }
+    } else if (existingUser) {
+      console.log('🔥 EXISTING USER FOUND:', existingUser)
+    } else {
+      console.error('🔥 ERROR FETCHING USER:', fetchError)
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/auth-error`)
+    }
+    
+    // Process referral for recent signups (works with database trigger)
+    // The database trigger creates user profiles immediately, so we check if user was created recently
+    if (existingUser) {
+      const userAge = Date.now() - new Date(existingUser.created_at).getTime()
+      const isRecentSignup = userAge < 60000 // Less than 1 minute old
+      
+      if (isRecentSignup) {
+        console.log('🔥🔥🔥 RECENT SIGNUP DETECTED - CHECKING FOR REFERRAL')
+        
+        // Check for referral cookie
+        const referralCode = cookieStore.get('referral_code')?.value
+        console.log('🔥🔥🔥 REFERRAL CODE FROM COOKIE:', referralCode)
+        console.log('🔥🔥🔥 REFERRAL COOKIE STATUS:', referralCode ? 'FOUND' : 'NOT FOUND')
         
         // Process referral if cookie exists
         if (referralCode) {
           console.log('🔥🔥🔥 PROCESSING REFERRAL SIGNUP FOR CODE:', referralCode)
           try {
-            // Simple referral processing (just self-referral prevention)
             console.log('🔥🔥🔥 CALLING process_referral_signup FUNCTION...')
             const { data: referralResult, error: referralError } = await supabase.rpc('process_referral_signup', {
               new_user_id: user.id,
@@ -128,7 +144,6 @@ export async function GET(request: Request) {
               } else {
                 console.warn('🔥🔥🔥 ❌ REFERRAL SIGNUP BLOCKED:', referralResult.reason)
                 
-                // Only log self-referral attempts (simple abuse detection)
                 if (referralResult.reason === 'self_referral_blocked') {
                   console.warn('🔥🔥🔥 Self-referral attempt blocked for user:', user.id)
                 }
@@ -140,11 +155,9 @@ export async function GET(request: Request) {
         } else {
           console.log('🔥🔥🔥 NO REFERRAL CODE FOUND IN COOKIE')
         }
+      } else {
+        console.log('🔥 EXISTING LOGIN - SKIPPING REFERRAL CHECK')
       }
-    } else if (existingUser) {
-      console.log('🔥 EXISTING USER FOUND:', existingUser)
-    } else {
-      console.error('🔥 ERROR FETCHING USER:', fetchError)
     }
   }
   
