@@ -14,7 +14,8 @@ import { ArrowLeft, Download, Play, Calendar, Clock, Film, Upload, Plus, Image a
 import Link from 'next/link'
 import { AnimatedCreditBalance } from '@/components/ui/AnimatedCreditBalance'
 import { CreditPurchase } from '@/components/credits/CreditPurchase'
-import { ReferralBanner } from '@/components/credits/ReferralBanner'
+import { SmartBanner } from '@/components/ui/SmartBanner'
+import { Button } from '@/components/ui/button'
 
 interface Clip {
   id: string
@@ -672,19 +673,19 @@ function DashboardContent() {
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">Credits</span>
               <AnimatedCreditBalance userId={user?.id || null} />
-              <Link
-                href="/earn-credits"
-                className="text-sm bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-4 py-2 rounded-lg transition-all font-medium flex items-center space-x-2"
-              >
-                <Gift className="w-4 h-4" />
-                <span>Get Free Credits</span>
+              <Link href="/earn-credits">
+                <Button variant="success" size="sm">
+                  <Gift className="w-4 h-4 mr-2" />
+                  Get Free Credits
+                </Button>
               </Link>
-              <button
+              <Button 
+                variant="warning" 
+                size="sm"
                 onClick={() => setShowCreditPurchase(true)}
-                className="text-sm bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
               >
                 Buy Credits
-              </button>
+              </Button>
               
               {/* User Profile Dropdown */}
               <div className="relative" ref={dropdownRef}>
@@ -718,112 +719,16 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* Referral Banner - Show for referred users */}
-        <ReferralBanner user={user} />
-
-        {/* Welcome Message for First-Time Users vs Low Credits Warning */}
-        {user && user.credit_balance === 1 && clips.length === 0 ? (
-          <div className="mb-8">
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-4">
-              <div className="flex items-center space-x-4">
-                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">🎉</span>
-                </div>
-                
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-blue-900 mb-1">
-                    Welcome to Echoes!
-                  </h3>
-                  <p className="text-blue-700">
-                    You have 1 free credit to try creating your first AI video clip. Transform any photo into a cinematic moment!
-                  </p>
-                </div>
-                
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => setActiveTab('create')}
-                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors text-sm"
-                  >
-                    Start Creating
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : user && user.credit_balance <= 2 && clips.length > 0 ? (
-          <div className="mb-8">
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4">
-              <div className="flex items-center space-x-4">
-                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">{user.credit_balance}</span>
-                </div>
-                
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-amber-900 mb-1">
-                    Running low on credits!
-                  </h3>
-                  <p className="text-amber-700">
-                    You have {user.credit_balance} credit{user.credit_balance !== 1 ? 's' : ''} left. 
-                    Get more credits to keep creating amazing videos.
-                  </p>
-                </div>
-                
-                <div className="flex space-x-3">
-                  <Link
-                    href="/earn-credits"
-                    className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors text-sm flex items-center space-x-2"
-                  >
-                    <Gift className="w-4 h-4" />
-                    <span>Get Free Credits</span>
-                  </Link>
-                  <button
-                    onClick={() => setShowCreditPurchase(true)}
-                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm"
-                  >
-                    Buy Credits
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {/* Video Compilation Success Notification */}
-        {completedVideoId && (
-          <div className="mb-8">
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 animate-pulse">
-              <div className="flex items-center space-x-4">
-                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
-                  <Film className="w-5 h-5 text-white" />
-                </div>
-                
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-green-900 mb-1">
-                    🎉 Video Compilation Complete!
-                  </h3>
-                  <p className="text-green-700">
-                    Your final video is ready and has been added to your collection. Check it out in the Final Videos tab!
-                  </p>
-                </div>
-                
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => setActiveTab('videos')}
-                    className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors text-sm"
-                  >
-                    View Video
-                  </button>
-                  <button
-                    onClick={() => setCompletedVideoId(null)}
-                    className="px-4 py-2 bg-white border border-green-200 text-green-700 rounded-lg font-medium hover:bg-green-50 transition-colors text-sm"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Unified Smart Banner */}
+        <SmartBanner 
+          user={user}
+          completedVideoId={completedVideoId}
+          clips={clips}
+          onDismissVideo={() => setCompletedVideoId(null)}
+          onOpenCreditPurchase={() => setShowCreditPurchase(true)}
+          onStartCreating={() => setActiveTab('create')}
+          onViewVideo={() => setActiveTab('videos')}
+        />
 
         {/* Tab Navigation */}
         <div className="mb-8">
