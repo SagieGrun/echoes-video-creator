@@ -77,95 +77,69 @@ export default function AdminMusicPage() {
     setNewTrackFile(file)
   }
 
-  // Upload new track using direct upload to bypass Vercel's 4.5MB limit
+  // Simple upload that just works
   const uploadTrack = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTrackFile) return
 
     setUploading(true)
-    console.log("🚀 Starting direct upload for track:", newTrackFile.name);
+    console.log("🎵 Simple upload for:", newTrackFile.name);
+    
     try {
-      // Step 1: Get pre-signed upload URL
-      console.log("📋 Step 1: Getting pre-signed URL...");
-      const requestData = {
-        fileName: newTrackFile.name,
-        fileType: newTrackFile.type,
-        fileSize: newTrackFile.size
-      };
-      console.log("📋 Request data being sent:", requestData);
-      
-      const presignedResponse = await adminApi.post('/api/admin/music/presigned-url', {
-        body: JSON.stringify(requestData)
-      });
+      // Step 1: Get pre-signed URL using FormData
+      const formData = new FormData()
+      formData.append('fileName', newTrackFile.name)
+      formData.append('fileType', newTrackFile.type)
+      formData.append('fileSize', newTrackFile.size.toString())
 
-      if (!presignedResponse.ok) {
-        let errorMessage = 'Failed to get upload URL';
-        try {
-          const errorData = await presignedResponse.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch {
-          errorMessage = presignedResponse.statusText || errorMessage;
-        }
-        throw new Error(errorMessage);
+      const response1 = await adminApi.post('/api/admin/music/upload', formData)
+      if (!response1.ok) {
+        const error = await response1.json()
+        throw new Error(error.error || 'Failed to get upload URL')
       }
 
-      const { uploadUrl, filePath, fileName, fileSize } = await presignedResponse.json();
-      console.log("✅ Pre-signed URL obtained, uploading directly to Supabase...");
+      const { uploadUrl, filePath, fileName } = await response1.json()
+      console.log("✅ Got upload URL, uploading file...")
 
-      // Step 2: Upload file directly to Supabase using pre-signed URL
+      // Step 2: Upload directly to Supabase
       const uploadResponse = await fetch(uploadUrl, {
         method: 'PUT',
         body: newTrackFile,
-        headers: {
-          'Content-Type': newTrackFile.type,
-        },
-      });
+        headers: { 'Content-Type': newTrackFile.type }
+      })
 
       if (!uploadResponse.ok) {
-        throw new Error(`Direct upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
+        throw new Error(`Upload failed: ${uploadResponse.status}`)
       }
 
-      console.log("✅ File uploaded successfully to Supabase storage");
+      console.log("✅ File uploaded, saving to database...")
 
-      // Step 3: Complete the upload by creating database record
-      console.log("📝 Step 3: Creating database record...");
-      const completeResponse = await adminApi.post('/api/admin/music/complete-upload', {
+      // Step 3: Save to database
+      const response3 = await adminApi.post('/api/admin/music/complete-upload', {
         body: JSON.stringify({
           filePath: filePath,
           fileName: fileName,
-          fileSize: fileSize
+          fileSize: newTrackFile.size
         })
-      });
+      })
 
-      if (!completeResponse.ok) {
-        let errorMessage = 'Failed to save track information';
-        try {
-          const errorData = await completeResponse.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch {
-          errorMessage = completeResponse.statusText || errorMessage;
-        }
-        throw new Error(errorMessage);
+      if (!response3.ok) {
+        const error = await response3.json()
+        throw new Error(error.error || 'Failed to save to database')
       }
 
-      const data = await completeResponse.json();
-      console.log("🎉 Track upload completed successfully:", data.track);
-      alert(`✅ Successfully uploaded: ${fileName}`);
+      console.log("🎉 Upload complete!")
+      alert(`✅ Successfully uploaded: ${fileName}`)
 
-      // Reset form and reload
+      // Reset and reload
       setNewTrackFile(null)
-      // Clear the file input
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
       if (fileInput) fileInput.value = ''
+      loadTracks()
       
-      loadTracks() // This will now fetch the updated list
     } catch (error) {
-      console.error('❌ Error uploading track:', error)
-      if (error instanceof Error) {
-        alert(`Error uploading track: ${error.message}`)
-      } else {
-        alert('An unknown error occurred during upload.')
-      }
+      console.error('❌ Upload failed:', error)
+      alert(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setUploading(false)
     }
