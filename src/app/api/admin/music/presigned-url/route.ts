@@ -14,8 +14,19 @@ export async function POST(request: NextRequest) {
   console.log('🔗 [PRESIGNED URL] Admin auth passed')
 
   try {
-    const { fileName, fileType, fileSize } = await request.json()
-    console.log('🔗 [PRESIGNED URL] Request data:', { fileName, fileType, fileSize })
+    const requestBody = await request.json()
+    console.log('🔗 [PRESIGNED URL] Raw request body:', requestBody)
+    
+    const { fileName, fileType, fileSize } = requestBody
+    console.log('🔗 [PRESIGNED URL] Destructured data:', { fileName, fileType, fileSize })
+    
+    // Validate required fields
+    if (!fileName || !fileType || !fileSize) {
+      console.log('🔗 [PRESIGNED URL] Missing required fields:', { fileName, fileType, fileSize })
+      return NextResponse.json({ 
+        error: 'Missing required fields: fileName, fileType, and fileSize are required' 
+      }, { status: 400 })
+    }
 
     // Validate file size (50MB max)
     const maxSizeInBytes = 50 * 1024 * 1024; // 50MB
@@ -28,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     // Validate file type with better logging and more flexible validation
     const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/ogg', 'audio/m4a', 'audio/x-m4a'];
-    const fileExtension = fileName.toLowerCase().split('.').pop();
+    const fileExtension = fileName ? fileName.toLowerCase().split('.').pop() : undefined;
     const allowedExtensions = ['mp3', 'wav', 'ogg', 'm4a'];
     
     console.log('🔗 [PRESIGNED URL] File type validation:', {
@@ -53,7 +64,8 @@ export async function POST(request: NextRequest) {
 
     // Generate unique file path
     const timestamp = Date.now()
-    const filePath = `music/${timestamp}_${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+    const sanitizedFileName = fileName ? fileName.replace(/[^a-zA-Z0-9.-]/g, '_') : 'unknown_file'
+    const filePath = `music/${timestamp}_${sanitizedFileName}`
     
     console.log('🔗 [PRESIGNED URL] Generated file path:', filePath)
 

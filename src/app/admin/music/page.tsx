@@ -87,12 +87,15 @@ export default function AdminMusicPage() {
     try {
       // Step 1: Get pre-signed upload URL
       console.log("📋 Step 1: Getting pre-signed URL...");
+      const requestData = {
+        fileName: newTrackFile.name,
+        fileType: newTrackFile.type,
+        fileSize: newTrackFile.size
+      };
+      console.log("📋 Request data being sent:", requestData);
+      
       const presignedResponse = await adminApi.post('/api/admin/music/presigned-url', {
-        body: JSON.stringify({
-          fileName: newTrackFile.name,
-          fileType: newTrackFile.type,
-          fileSize: newTrackFile.size
-        })
+        body: JSON.stringify(requestData)
       });
 
       if (!presignedResponse.ok) {
