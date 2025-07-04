@@ -79,8 +79,8 @@ export default function PLGPage() {
     setIsSaving(true)
     try {
       const response = await adminApi.post('/api/admin/plg', { 
-        socialConfig: editingSocialConfig,
-        plgSettings: editingPLGSettings
+          socialConfig: editingSocialConfig,
+          plgSettings: editingPLGSettings
       })
 
       if (response.ok) {

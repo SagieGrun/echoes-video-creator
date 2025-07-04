@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServiceRole } from '@/lib/supabase-server'
 import { requireAdminAuth } from '@/lib/admin-auth'
 
-// Configure route for file uploads
+// Configure route for file uploads - App Router configuration
 export const maxDuration = 60 // 60 seconds for file uploads
+export const runtime = 'nodejs'
+export const preferredRegion = 'auto'
 
 export async function GET(request: NextRequest) {
   // Check admin authentication
@@ -30,7 +32,18 @@ export async function POST(request: NextRequest) {
   if (authError) return authError
 
   try {
-    const formData = await request.formData();
+    // Parse form data with better error handling
+    let formData: FormData
+    try {
+      formData = await request.formData()
+    } catch (error) {
+      console.error('Error parsing form data:', error)
+      // This is likely a body size limit issue
+      return NextResponse.json({ 
+        error: 'File too large or invalid form data. Maximum file size is 50MB. Please try with a smaller file.' 
+      }, { status: 413 })
+    }
+
     const file = formData.get('file') as File | null;
 
     if (!file) {
@@ -52,6 +65,8 @@ export async function POST(request: NextRequest) {
         error: `Invalid file type. Allowed types: ${allowedTypes.join(', ')}` 
       }, { status: 400 })
     }
+
+    console.log(`Processing file upload: ${file.name} (${Math.round(file.size / (1024 * 1024))}MB)`)
 
     const fileBuffer = await file.arrayBuffer();
     const filePath = `music/${Date.now()}_${file.name}`
@@ -94,6 +109,7 @@ export async function POST(request: NextRequest) {
       throw new Error(`Failed to save track to database: ${dbError.message}`)
     }
 
+    console.log(`Successfully uploaded track: ${file.name}`)
     return NextResponse.json({ success: true, track: dbData })
   } catch (error) {
     console.error('Error uploading music track:', error)
@@ -114,6 +130,19 @@ export async function DELETE(request: NextRequest) {
     if (!id || !file_path) {
       return NextResponse.json({ error: 'Track ID and file path are required' }, { status: 400 })
     }
+
+    // Check if any final_videos are using this music track
+    const { data: affectedVideos, error: checkError } = await supabaseServiceRole
+      .from('final_videos')
+      .select('id, created_at, status')
+      .eq('music_track_id', id)
+
+    if (checkError) {
+      console.error('Error checking affected videos:', checkError)
+      return NextResponse.json({ error: 'Failed to check affected videos' }, { status: 500 })
+    }
+
+    console.log(`Deleting music track ${id}. Affected videos: ${affectedVideos?.length || 0}`)
     
     // Delete from storage first
     const { error: storageError } = await supabaseServiceRole.storage
@@ -125,7 +154,7 @@ export async function DELETE(request: NextRequest) {
       // Continue with database deletion even if storage fails
     }
 
-    // Delete from database
+    // Delete from database (foreign key constraint will set music_track_id to NULL in final_videos)
     const { error: dbError } = await supabaseServiceRole
       .from('music_tracks')
       .delete()
@@ -136,7 +165,14 @@ export async function DELETE(request: NextRequest) {
       throw new Error(`Failed to delete track from database: ${dbError.message}`)
     }
 
-    return NextResponse.json({ success: true })
+    console.log(`Successfully deleted music track ${id}`)
+    
+    // Return success with information about affected videos
+    return NextResponse.json({ 
+      success: true, 
+      message: `Music track deleted successfully. ${affectedVideos?.length || 0} videos had their music removed.`,
+      affectedVideos: affectedVideos?.length || 0
+    })
   } catch (error) {
     console.error('Error deleting music track:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'

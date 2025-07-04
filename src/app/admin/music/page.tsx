@@ -119,7 +119,7 @@ export default function AdminMusicPage() {
 
   // Delete track
   const deleteTrack = async (id: string, filePath: string) => {
-    if (!confirm('Are you sure you want to delete this track?')) return
+    if (!confirm('Are you sure you want to delete this track? This action cannot be undone.')) return
     
     console.log("Attempting to delete track:", id);
     try {
@@ -139,7 +139,17 @@ export default function AdminMusicPage() {
             throw new Error(errorMessage);
         }
 
-        console.log("Track deleted successfully");
+        // Handle success response with enhanced information
+        const data = await response.json();
+        console.log("Track deleted successfully:", data);
+        
+        // Show success message with information about affected videos
+        if (data.affectedVideos && data.affectedVideos > 0) {
+          alert(`Track deleted successfully! ${data.affectedVideos} video(s) had their music removed.`);
+        } else {
+          alert('Track deleted successfully!');
+        }
+        
         loadTracks(); // Refresh the list
     } catch (error) {
         console.error('Error deleting track:', error);

@@ -40,7 +40,7 @@ export async function PUT(
   try {
     const id = params.id
     const updateData = await request.json()
-
+    
     // Get existing config
     const { data: existingData } = await supabaseServiceRole
       .from('admin_config')
@@ -49,7 +49,7 @@ export async function PUT(
       .single()
 
     const existingPacks = existingData?.value?.packs || []
-    
+
     // Find and update the specific pack
     const updatedPacks = existingPacks.map((pack: any) => 
       pack.id === id ? { ...pack, ...updateData } : pack
@@ -89,7 +89,7 @@ export async function DELETE(
 
   try {
     const id = params.id
-
+    
     // Get existing config
     const { data: existingData } = await supabaseServiceRole
       .from('admin_config')
@@ -98,7 +98,7 @@ export async function DELETE(
       .single()
 
     const existingPacks = existingData?.value?.packs || []
-    
+
     // Remove the pack
     const updatedPacks = existingPacks.filter((pack: any) => pack.id !== id)
 
