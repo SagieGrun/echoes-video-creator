@@ -26,12 +26,28 @@ export async function POST(request: NextRequest) {
       }, { status: 413 })
     }
 
-    // Validate file type
-    const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/ogg', 'audio/m4a'];
-    if (!allowedTypes.includes(fileType)) {
-      console.log('🔗 [PRESIGNED URL] Invalid file type:', fileType)
+    // Validate file type with better logging and more flexible validation
+    const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/ogg', 'audio/m4a', 'audio/x-m4a'];
+    const fileExtension = fileName.toLowerCase().split('.').pop();
+    const allowedExtensions = ['mp3', 'wav', 'ogg', 'm4a'];
+    
+    console.log('🔗 [PRESIGNED URL] File type validation:', {
+      fileName,
+      fileType,
+      fileExtension,
+      allowedTypes,
+      allowedExtensions,
+      typeAllowed: allowedTypes.includes(fileType),
+      extensionAllowed: allowedExtensions.includes(fileExtension || '')
+    })
+    
+    // Check both MIME type and file extension for better compatibility
+    const isValidType = allowedTypes.includes(fileType) || allowedExtensions.includes(fileExtension || '');
+    
+    if (!isValidType) {
+      console.log('🔗 [PRESIGNED URL] Invalid file type and extension:', { fileType, fileExtension })
       return NextResponse.json({ 
-        error: `Invalid file type. Allowed types: ${allowedTypes.join(', ')}` 
+        error: `Invalid file type. File type: "${fileType}", Extension: "${fileExtension}". Allowed types: ${allowedTypes.join(', ')}. Allowed extensions: ${allowedExtensions.join(', ')}` 
       }, { status: 400 })
     }
 

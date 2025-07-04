@@ -52,10 +52,23 @@ export default function AdminMusicPage() {
         return
       }
       
-      // Validate file type
-      const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/ogg', 'audio/m4a'];
-      if (!allowedTypes.includes(file.type)) {
-        alert(`Invalid file type. Please select an audio file (${allowedTypes.join(', ')})`)
+      // Validate file type with better compatibility
+      const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/ogg', 'audio/m4a', 'audio/x-m4a'];
+      const fileExtension = file.name.toLowerCase().split('.').pop();
+      const allowedExtensions = ['mp3', 'wav', 'ogg', 'm4a'];
+      
+      console.log('File validation:', {
+        fileName: file.name,
+        fileType: file.type,
+        fileExtension,
+        typeAllowed: allowedTypes.includes(file.type),
+        extensionAllowed: allowedExtensions.includes(fileExtension || '')
+      });
+      
+      const isValidType = allowedTypes.includes(file.type) || allowedExtensions.includes(fileExtension || '');
+      
+      if (!isValidType) {
+        alert(`Invalid file type. File type: "${file.type}", Extension: "${fileExtension}". Please select an audio file (${allowedTypes.join(', ')})`)
         e.target.value = '' // Clear the input
         return
       }
