@@ -49,10 +49,10 @@ export default function AdminMusicPage() {
     const file = e.target.files?.[0] || null
     
     if (file) {
-      // Validate file size (15MB max)
-      const maxSizeInBytes = 15 * 1024 * 1024; // 15MB
+      // Validate file size (4MB max)
+      const maxSizeInBytes = 4 * 1024 * 1024; // 4MB
       if (file.size > maxSizeInBytes) {
-        alert(`File size too large. Maximum allowed size is 15MB. Your file is ${Math.round(file.size / (1024 * 1024))}MB.`)
+        alert(`File size too large. Maximum allowed size is 4MB. Your file is ${Math.round(file.size / (1024 * 1024))}MB.`)
         e.target.value = '' // Clear the input
         return
       }
@@ -180,7 +180,7 @@ export default function AdminMusicPage() {
           <h2 className="text-xl font-semibold mb-4">Upload New Track</h2>
           <form onSubmit={uploadTrack} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Audio File * (Max 15MB)</label>
+              <label className="block text-sm font-medium mb-2">Audio File * (Max 4MB)</label>
               <input
                 type="file"
                 accept="audio/*"
