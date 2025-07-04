@@ -44,10 +44,10 @@ export default function AdminMusicPage() {
     const file = e.target.files?.[0] || null
     
     if (file) {
-      // Validate file size (50MB max)
-      const maxSizeInBytes = 50 * 1024 * 1024; // 50MB
+      // Validate file size (4MB max to stay under Vercel's 4.5MB limit)
+      const maxSizeInBytes = 4 * 1024 * 1024; // 4MB
       if (file.size > maxSizeInBytes) {
-        alert(`File size too large. Maximum allowed size is 50MB. Your file is ${Math.round(file.size / (1024 * 1024))}MB.`)
+        alert(`File size too large. Maximum allowed size is 4MB. Your file is ${Math.round(file.size / (1024 * 1024))}MB.`)
         e.target.value = '' // Clear the input
         return
       }
@@ -77,59 +77,25 @@ export default function AdminMusicPage() {
     setNewTrackFile(file)
   }
 
-  // Simple upload that just works
+  // Back to the simple working approach
   const uploadTrack = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTrackFile) return
 
     setUploading(true)
-    console.log("🎵 Simple upload for:", newTrackFile.name);
-    
     try {
-      // Step 1: Get pre-signed URL using FormData
       const formData = new FormData()
-      formData.append('fileName', newTrackFile.name)
-      formData.append('fileType', newTrackFile.type)
-      formData.append('fileSize', newTrackFile.size.toString())
+      formData.append('file', newTrackFile)
 
-      const response1 = await adminApi.post('/api/admin/music/upload', formData)
-      if (!response1.ok) {
-        const error = await response1.json()
-        throw new Error(error.error || 'Failed to get upload URL')
+      const response = await adminApi.post('/api/admin/music', formData)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Upload failed')
       }
 
-      const { uploadUrl, filePath, fileName } = await response1.json()
-      console.log("✅ Got upload URL, uploading file...")
-
-      // Step 2: Upload directly to Supabase
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: newTrackFile,
-        headers: { 'Content-Type': newTrackFile.type }
-      })
-
-      if (!uploadResponse.ok) {
-        throw new Error(`Upload failed: ${uploadResponse.status}`)
-      }
-
-      console.log("✅ File uploaded, saving to database...")
-
-      // Step 3: Save to database
-      const response3 = await adminApi.post('/api/admin/music/complete-upload', {
-        body: JSON.stringify({
-          filePath: filePath,
-          fileName: fileName,
-          fileSize: newTrackFile.size
-        })
-      })
-
-      if (!response3.ok) {
-        const error = await response3.json()
-        throw new Error(error.error || 'Failed to save to database')
-      }
-
-      console.log("🎉 Upload complete!")
-      alert(`✅ Successfully uploaded: ${fileName}`)
+      const data = await response.json()
+      alert(`✅ Successfully uploaded: ${newTrackFile.name}`)
 
       // Reset and reload
       setNewTrackFile(null)
@@ -138,7 +104,7 @@ export default function AdminMusicPage() {
       loadTracks()
       
     } catch (error) {
-      console.error('❌ Upload failed:', error)
+      console.error('Upload failed:', error)
       alert(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setUploading(false)
@@ -209,7 +175,7 @@ export default function AdminMusicPage() {
           <h2 className="text-xl font-semibold mb-4">Upload New Track</h2>
           <form onSubmit={uploadTrack} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Audio File * (Max 50MB)</label>
+              <label className="block text-sm font-medium mb-2">Audio File * (Max 4MB)</label>
               <input
                 type="file"
                 accept="audio/*"

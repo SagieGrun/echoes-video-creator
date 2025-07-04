@@ -26,8 +26,68 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST endpoint removed - music uploads now use direct client-to-Supabase uploads
-// via /api/admin/music/presigned-url and /api/admin/music/complete-upload endpoints
+export async function POST(request: NextRequest) {
+  // Check admin authentication
+  const authError = await requireAdminAuth(request)
+  if (authError) return authError
+
+  try {
+    const formData = await request.formData()
+    const file = formData.get('file') as File | null
+
+    if (!file) {
+      return NextResponse.json({ error: 'File is required' }, { status: 400 })
+    }
+
+    // Simple size check - limit to 4MB to stay under Vercel's 4.5MB limit
+    const maxSizeInBytes = 4 * 1024 * 1024; // 4MB
+    if (file.size > maxSizeInBytes) {
+      return NextResponse.json({ 
+        error: `File too large. Maximum size is 4MB. Your file is ${Math.round(file.size / (1024 * 1024))}MB.` 
+      }, { status: 413 })
+    }
+
+    // Upload to Supabase and save to database - exactly like it worked before
+    const fileBuffer = await file.arrayBuffer()
+    const filePath = `music/${Date.now()}_${file.name}`
+
+    const { error: uploadError } = await supabaseServiceRole.storage
+      .from('music-tracks')
+      .upload(filePath, fileBuffer, { contentType: file.type })
+
+    if (uploadError) {
+      throw new Error(`Upload failed: ${uploadError.message}`)
+    }
+
+    const { data: urlData } = supabaseServiceRole.storage
+      .from('music-tracks')
+      .getPublicUrl(filePath)
+
+    const { data: dbData, error: dbError } = await supabaseServiceRole
+      .from('music_tracks')
+      .insert({
+        name: file.name,
+        file_url: urlData.publicUrl,
+        file_path: filePath,
+        is_active: true,
+        file_size: file.size,
+      })
+      .select()
+      .single()
+
+    if (dbError) {
+      await supabaseServiceRole.storage.from('music-tracks').remove([filePath])
+      throw new Error(`Database save failed: ${dbError.message}`)
+    }
+
+    return NextResponse.json({ success: true, track: dbData })
+  } catch (error) {
+    console.error('Music upload error:', error)
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : 'Upload failed' 
+    }, { status: 500 })
+  }
+}
 
 export async function DELETE(request: NextRequest) {
   // Check admin authentication
