@@ -64,33 +64,77 @@ export default function AdminMusicPage() {
     setNewTrackFile(file)
   }
 
-  // Upload new track
+  // Upload new track using direct upload to bypass Vercel's 4.5MB limit
   const uploadTrack = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTrackFile) return
 
     setUploading(true)
-    console.log("Attempting to upload track:", newTrackFile.name);
+    console.log("🚀 Starting direct upload for track:", newTrackFile.name);
     try {
-        const formData = new FormData();
-        formData.append('file', newTrackFile);
+      // Step 1: Get pre-signed upload URL
+      console.log("📋 Step 1: Getting pre-signed URL...");
+      const presignedResponse = await adminApi.post('/api/admin/music/presigned-url', {
+        body: JSON.stringify({
+          fileName: newTrackFile.name,
+          fileType: newTrackFile.type,
+          fileSize: newTrackFile.size
+        })
+      });
 
-      const response = await adminApi.post('/api/admin/music', formData)
-
-      if (!response.ok) {
-        let errorMessage = 'Failed to upload track';
+      if (!presignedResponse.ok) {
+        let errorMessage = 'Failed to get upload URL';
         try {
-          const errorData = await response.json();
+          const errorData = await presignedResponse.json();
           errorMessage = errorData.error || errorMessage;
         } catch {
-          // If response is not JSON, use status text
-          errorMessage = response.statusText || errorMessage;
+          errorMessage = presignedResponse.statusText || errorMessage;
         }
         throw new Error(errorMessage);
       }
 
-      const data = await response.json()
-      console.log("Track uploaded successfully:", data.track);
+      const { uploadUrl, filePath, fileName, fileSize } = await presignedResponse.json();
+      console.log("✅ Pre-signed URL obtained, uploading directly to Supabase...");
+
+      // Step 2: Upload file directly to Supabase using pre-signed URL
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: newTrackFile,
+        headers: {
+          'Content-Type': newTrackFile.type,
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Direct upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
+      }
+
+      console.log("✅ File uploaded successfully to Supabase storage");
+
+      // Step 3: Complete the upload by creating database record
+      console.log("📝 Step 3: Creating database record...");
+      const completeResponse = await adminApi.post('/api/admin/music/complete-upload', {
+        body: JSON.stringify({
+          filePath: filePath,
+          fileName: fileName,
+          fileSize: fileSize
+        })
+      });
+
+      if (!completeResponse.ok) {
+        let errorMessage = 'Failed to save track information';
+        try {
+          const errorData = await completeResponse.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = completeResponse.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await completeResponse.json();
+      console.log("🎉 Track upload completed successfully:", data.track);
+      alert(`✅ Successfully uploaded: ${fileName}`);
 
       // Reset form and reload
       setNewTrackFile(null)
@@ -100,7 +144,7 @@ export default function AdminMusicPage() {
       
       loadTracks() // This will now fetch the updated list
     } catch (error) {
-      console.error('Error uploading track:', error)
+      console.error('❌ Error uploading track:', error)
       if (error instanceof Error) {
         alert(`Error uploading track: ${error.message}`)
       } else {

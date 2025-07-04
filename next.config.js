@@ -10,10 +10,6 @@ const nextConfig = {
   // Ignore Edge Functions directory
   experimental: {
     serverComponentsExternalPackages: ['@supabase/supabase-js'],
-    // Configure body size limit for API routes and Server Actions
-    serverActions: {
-      bodySizeLimit: '50mb',
-    },
   },
   transpilePackages: [],
   images: {
