@@ -24,13 +24,12 @@ export function PricingSection() {
 
   const fetchCreditPacks = async () => {
     try {
-      const response = await fetch('/api/admin/credits')
+      const response = await fetch('/api/credits')
       const data = await response.json()
       
       if (data.packs) {
-        // Filter only active packs
-        const activePacks = data.packs.filter((pack: CreditPack) => pack.is_active)
-        setCreditPacks(activePacks)
+        // Packs are already filtered to active ones by API
+        setCreditPacks(data.packs)
       }
     } catch (error) {
       console.error('Error fetching credit packs:', error)
