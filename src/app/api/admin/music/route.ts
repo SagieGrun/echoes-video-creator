@@ -39,11 +39,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File is required' }, { status: 400 })
     }
 
-    // Simple size check - limit to 4MB to stay under Vercel's 4.5MB limit
-    const maxSizeInBytes = 4 * 1024 * 1024; // 4MB
+    // Allow larger files - let's try 15MB and see what happens
+    const maxSizeInBytes = 15 * 1024 * 1024; // 15MB
     if (file.size > maxSizeInBytes) {
       return NextResponse.json({ 
-        error: `File too large. Maximum size is 4MB. Your file is ${Math.round(file.size / (1024 * 1024))}MB.` 
+        error: `File too large. Maximum size is 15MB. Your file is ${Math.round(file.size / (1024 * 1024))}MB.` 
       }, { status: 413 })
     }
 

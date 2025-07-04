@@ -19,6 +19,11 @@ export default function AdminMusicPage() {
   const [uploading, setUploading] = useState(false)
   const [newTrackFile, setNewTrackFile] = useState<File | null>(null)
 
+  // Helper function to clean up track names (remove file extensions)
+  const cleanTrackName = (filename: string) => {
+    return filename.replace(/\.(mp3|wav|ogg|m4a|flac|aac)$/i, '')
+  }
+
   // Load existing tracks
   const loadTracks = async () => {
     console.log("Attempting to load tracks...");
@@ -44,10 +49,10 @@ export default function AdminMusicPage() {
     const file = e.target.files?.[0] || null
     
     if (file) {
-      // Validate file size (4MB max to stay under Vercel's 4.5MB limit)
-      const maxSizeInBytes = 4 * 1024 * 1024; // 4MB
+      // Validate file size (15MB max)
+      const maxSizeInBytes = 15 * 1024 * 1024; // 15MB
       if (file.size > maxSizeInBytes) {
-        alert(`File size too large. Maximum allowed size is 4MB. Your file is ${Math.round(file.size / (1024 * 1024))}MB.`)
+        alert(`File size too large. Maximum allowed size is 15MB. Your file is ${Math.round(file.size / (1024 * 1024))}MB.`)
         e.target.value = '' // Clear the input
         return
       }
@@ -175,7 +180,7 @@ export default function AdminMusicPage() {
           <h2 className="text-xl font-semibold mb-4">Upload New Track</h2>
           <form onSubmit={uploadTrack} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Audio File * (Max 4MB)</label>
+              <label className="block text-sm font-medium mb-2">Audio File * (Max 15MB)</label>
               <input
                 type="file"
                 accept="audio/*"
@@ -209,7 +214,7 @@ export default function AdminMusicPage() {
               {tracks.map((track) => (
                 <div key={track.id} className="flex items-center justify-between border-b pb-4">
                   <div className="flex-1">
-                    <h3 className="font-medium">{track.name}</h3>
+                    <h3 className="font-medium">{cleanTrackName(track.name)}</h3>
                     <p className="text-sm text-gray-500">
                       Status: {track.is_active ? 'Active' : 'Inactive'}
                     </p>
