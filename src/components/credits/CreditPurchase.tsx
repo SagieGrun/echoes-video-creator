@@ -36,18 +36,16 @@ export function CreditPurchase({ onClose, onPurchaseComplete }: CreditPurchasePr
 
   const fetchCreditPacks = async () => {
     try {
-      const response = await fetch('/api/admin/credits')
+      const response = await fetch('/api/credits')
       const data = await response.json()
       
       if (data.packs) {
-        // Filter only active packs and add Gumroad permalinks
-        const activePacks = data.packs
-          .filter((pack: CreditPack) => pack.is_active)
-          .map((pack: CreditPack) => ({
-            ...pack,
-            gumroad_permalink: gumroadPermalinks[pack.id]
-          }))
-        setCreditPacks(activePacks)
+        // Add Gumroad permalinks (packs are already filtered to active ones by API)
+        const packsWithPermalinks = data.packs.map((pack: CreditPack) => ({
+          ...pack,
+          gumroad_permalink: gumroadPermalinks[pack.id]
+        }))
+        setCreditPacks(packsWithPermalinks)
       }
     } catch (error) {
       console.error('Error fetching credit packs:', error)
