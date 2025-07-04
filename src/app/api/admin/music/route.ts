@@ -7,37 +7,75 @@ export const maxDuration = 60 // 60 seconds for file uploads
 export const runtime = 'nodejs'
 export const preferredRegion = 'auto'
 
+// Add a simple test to verify configuration
 export async function GET(request: NextRequest) {
+  console.log('🎵 [MUSIC CONFIG] GET request received for config test')
+  
   // Check admin authentication
   const authError = await requireAdminAuth(request)
   if (authError) return authError
 
   try {
+    // Test endpoint to verify configuration
+    const configTest = {
+      maxDuration: 60,
+      runtime: 'nodejs',
+      preferredRegion: 'auto',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+      // Check if we can access the config
+      headers: Object.fromEntries(request.headers.entries())
+    }
+    
+    console.log('🎵 [MUSIC CONFIG] Configuration test:', configTest)
+
     const { data, error } = await supabaseServiceRole
       .from('music_tracks')
       .select('*')
       .order('created_at', { ascending: false })
 
     if (error) throw error
-    return NextResponse.json({ tracks: data })
+    
+    return NextResponse.json({ 
+      tracks: data, 
+      config: configTest,
+      message: 'Configuration loaded successfully'
+    })
   } catch (error) {
-    console.error('Error fetching music tracks:', error)
+    console.error('🎵 [MUSIC CONFIG] Error in config test:', error)
     return NextResponse.json({ error: 'Failed to fetch music tracks' }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
+  console.log('🎵 [MUSIC UPLOAD] POST request received')
+  console.log('🎵 [MUSIC UPLOAD] Request URL:', request.url)
+  console.log('🎵 [MUSIC UPLOAD] Request headers:', Object.fromEntries(request.headers.entries()))
+  console.log('🎵 [MUSIC UPLOAD] Content-Length header:', request.headers.get('content-length'))
+  console.log('🎵 [MUSIC UPLOAD] Content-Type header:', request.headers.get('content-type'))
+
   // Check admin authentication
   const authError = await requireAdminAuth(request)
-  if (authError) return authError
+  if (authError) {
+    console.log('🎵 [MUSIC UPLOAD] Admin auth failed')
+    return authError
+  }
+  console.log('🎵 [MUSIC UPLOAD] Admin auth passed')
 
   try {
     // Parse form data with better error handling
     let formData: FormData
     try {
+      console.log('🎵 [MUSIC UPLOAD] Attempting to parse form data...')
       formData = await request.formData()
+      console.log('🎵 [MUSIC UPLOAD] Form data parsed successfully')
     } catch (error) {
-      console.error('Error parsing form data:', error)
+      console.error('🎵 [MUSIC UPLOAD] Error parsing form data:', error)
+      console.error('🎵 [MUSIC UPLOAD] Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      })
       // This is likely a body size limit issue
       return NextResponse.json({ 
         error: 'File too large or invalid form data. Maximum file size is 50MB. Please try with a smaller file.' 
@@ -45,14 +83,29 @@ export async function POST(request: NextRequest) {
     }
 
     const file = formData.get('file') as File | null;
+    console.log('🎵 [MUSIC UPLOAD] File from form data:', file ? {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      lastModified: file.lastModified
+    } : 'No file found')
 
     if (!file) {
+      console.log('🎵 [MUSIC UPLOAD] No file in form data')
       return NextResponse.json({ error: 'File is required' }, { status: 400 })
     }
 
     // Validate file size (50MB max)
     const maxSizeInBytes = 50 * 1024 * 1024; // 50MB
+    console.log('🎵 [MUSIC UPLOAD] File size validation:', {
+      fileSize: file.size,
+      maxSize: maxSizeInBytes,
+      fileSizeMB: Math.round(file.size / (1024 * 1024)),
+      maxSizeMB: Math.round(maxSizeInBytes / (1024 * 1024))
+    })
+    
     if (file.size > maxSizeInBytes) {
+      console.log('🎵 [MUSIC UPLOAD] File size too large')
       return NextResponse.json({ 
         error: `File size too large. Maximum allowed size is 50MB. Your file is ${Math.round(file.size / (1024 * 1024))}MB.` 
       }, { status: 413 })
@@ -60,13 +113,20 @@ export async function POST(request: NextRequest) {
 
     // Validate file type
     const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/ogg', 'audio/m4a'];
+    console.log('🎵 [MUSIC UPLOAD] File type validation:', {
+      fileType: file.type,
+      allowedTypes: allowedTypes,
+      isAllowed: allowedTypes.includes(file.type)
+    })
+    
     if (!allowedTypes.includes(file.type)) {
+      console.log('🎵 [MUSIC UPLOAD] Invalid file type')
       return NextResponse.json({ 
         error: `Invalid file type. Allowed types: ${allowedTypes.join(', ')}` 
       }, { status: 400 })
     }
 
-    console.log(`Processing file upload: ${file.name} (${Math.round(file.size / (1024 * 1024))}MB)`)
+    console.log(`🎵 [MUSIC UPLOAD] Processing file upload: ${file.name} (${Math.round(file.size / (1024 * 1024))}MB)`)
 
     const fileBuffer = await file.arrayBuffer();
     const filePath = `music/${Date.now()}_${file.name}`
