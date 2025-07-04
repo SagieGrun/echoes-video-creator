@@ -1,86 +1,103 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { getAppUrl } from '@/lib/utils'
+import { useSmartLogin } from '@/hooks/useSmartLogin'
+import { Camera, Cpu, Video } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
 
 export function HowItWorks() {
-  const router = useRouter()
+  const { handleSmartLogin, isLoading } = useSmartLogin()
+  const [isVisible, setIsVisible] = useState(false)
+  const sectionRef = useRef<HTMLElement>(null)
 
-  const handleTryFree = () => {
-    const appUrl = getAppUrl()
-    router.push(`/login?redirect=${encodeURIComponent(appUrl)}`)
-  }
-  const steps = [
-    {
-      number: '01',
-      icon: '📸',
-      title: 'Upload Your Memory',
-      description: 'Choose any portrait photo from your phone or computer. Family photos, wedding moments, or precious memories work best.'
-    },
-    {
-      number: '02', 
-      icon: '🤖',
-      title: 'AI Magic Happens',
-      description: 'Our advanced AI creates natural, lifelike animation that brings your photo to life with gentle, realistic movement.'
-    },
-    {
-      number: '03',
-      icon: '🎬', 
-      title: 'Download & Share',
-      description: 'Get your magical video in minutes, ready to share with loved ones or save forever as a cherished memory.'
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+        }
+      },
+      { threshold: 0.2 }
+    )
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current)
     }
-  ]
+
+    return () => observer.disconnect()
+  }, [])
 
   return (
-    <section id="how-it-works" className="py-20 px-4 bg-gradient-to-br from-amber-100 to-rose-100">
+    <section ref={sectionRef} id="how-it-works" className="section-clean py-20 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-amber-900 mb-6">
+          <h2 className="text-4xl md:text-5xl font-bold text-primary mb-6">
             How It Works
           </h2>
-          <p className="text-xl text-rose-800 max-w-2xl mx-auto">
-            Transform your memories in three simple steps. No technical skills needed.
+          <p className="text-xl text-secondary max-w-2xl mx-auto">
+            Transform your memories in three simple steps
           </p>
         </div>
 
         {/* Steps */}
-        <div className="grid md:grid-cols-3 gap-8 lg:gap-12">
-          {steps.map((step, index) => (
-            <div key={index} className="text-center group">
-              {/* Step Number */}
-              <div className="relative mb-8">
-                <div className="w-20 h-20 bg-gradient-to-r from-orange-400 to-rose-300 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                  <span className="text-2xl">{step.icon}</span>
-                </div>
-                <div className="absolute -top-2 -right-2 w-8 h-8 bg-amber-700 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                  {step.number}
-                </div>
-                
-                {/* Connector Line (except for last item) */}
-                {index < steps.length - 1 && (
-                  <div className="hidden md:block absolute top-10 left-full w-full h-0.5 bg-gradient-to-r from-orange-400 to-rose-300 opacity-60 transform -translate-y-1/2"></div>
-                )}
+        <div className="grid md:grid-cols-3 gap-8 mb-12">
+          {/* Step 1 */}
+          <div className={`text-center transition-all duration-1000 transform ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-16 scale-95'}`}>
+            <div className="group relative w-24 h-24 bg-gradient-to-r from-accent-coral to-accent-teal rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl hover:shadow-accent-coral/25 transition-all duration-500 hover:scale-125 cursor-pointer hover:rotate-6">
+              <Camera className="w-10 h-10 text-white group-hover:scale-125 transition-transform duration-500" />
+              {/* Floating animation indicator */}
+              <div className="absolute -top-2 -right-2 w-6 h-6 bg-accent-coral rounded-full flex items-center justify-center text-white text-xs font-bold animate-bounce">
+                1
               </div>
-
-              {/* Content */}
-              <h3 className="text-2xl font-bold text-amber-900 mb-4">
-                {step.title}
-              </h3>
-              <p className="text-rose-800 leading-relaxed">
-                {step.description}
-              </p>
             </div>
-          ))}
+            <h3 className="text-2xl font-semibold text-primary mb-4">Upload Photos</h3>
+            <p className="text-subtle leading-relaxed">
+              Select your favorite nostalgic photos from your phone or computer. 
+              We support all common formats.
+            </p>
+          </div>
+
+          {/* Step 2 */}
+          <div className={`text-center transition-all duration-1000 delay-500 transform ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-16 scale-95'}`}>
+            <div className="group relative w-24 h-24 bg-gradient-to-r from-accent-coral to-accent-teal rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl hover:shadow-accent-teal/25 transition-all duration-500 hover:scale-125 cursor-pointer hover:rotate-6">
+              <Cpu className="w-10 h-10 text-white group-hover:scale-125 transition-transform duration-500 group-hover:animate-pulse" />
+              {/* Floating animation indicator */}
+              <div className="absolute -top-2 -right-2 w-6 h-6 bg-accent-teal rounded-full flex items-center justify-center text-white text-xs font-bold animate-bounce delay-150">
+                2
+              </div>
+            </div>
+            <h3 className="text-2xl font-semibold text-primary mb-4">AI Animation</h3>
+            <p className="text-subtle leading-relaxed">
+              Our AI analyzes your photos and creates smooth, natural animations 
+              that bring your memories to life.
+            </p>
+          </div>
+
+          {/* Step 3 */}
+          <div className={`text-center transition-all duration-1000 delay-1000 transform ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-16 scale-95'}`}>
+            <div className="group relative w-24 h-24 bg-gradient-to-r from-accent-coral to-accent-teal rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl hover:shadow-accent-coral/25 transition-all duration-500 hover:scale-125 cursor-pointer hover:rotate-6">
+              <Video className="w-10 h-10 text-white group-hover:scale-125 transition-transform duration-500" />
+              {/* Floating animation indicator */}
+              <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-accent-coral to-accent-teal rounded-full flex items-center justify-center text-white text-xs font-bold animate-bounce delay-300">
+                3
+              </div>
+            </div>
+            <h3 className="text-2xl font-semibold text-primary mb-4">Download & Share</h3>
+            <p className="text-subtle leading-relaxed">
+              Get your beautiful animated video in minutes and share it with 
+              family and friends across all platforms.
+            </p>
+          </div>
         </div>
 
         {/* CTA */}
-        <div className="text-center mt-16">
+        <div className={`text-center transition-all duration-1000 delay-1500 transform ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-16 scale-95'}`}>
           <button 
-            onClick={handleTryFree}
-            className="bg-gradient-to-r from-orange-500 to-rose-400 hover:from-orange-600 hover:to-rose-500 text-white font-semibold text-lg px-8 py-4 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+            onClick={handleSmartLogin}
+            disabled={isLoading}
+            className="btn-gradient text-lg px-8 py-4 hover:shadow-2xl hover:shadow-accent-coral/25 transition-all duration-500 hover:scale-110 transform"
           >
-            Start Creating Now
+            {isLoading ? 'Loading...' : 'Start Creating Now'}
           </button>
         </div>
       </div>

@@ -8,7 +8,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase'
 // Helper function to get app URL based on environment
 const getAppUrl = () => {
   const isDevelopment = process.env.NODE_ENV === 'development'
-  return isDevelopment ? '/create' : process.env.NEXT_PUBLIC_APP_URL || 'https://your-echoes.com'
+  return isDevelopment ? '/dashboard' : process.env.NEXT_PUBLIC_APP_URL || 'https://your-echoes.com'
 }
 
 type Clip = {

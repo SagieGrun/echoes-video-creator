@@ -38,20 +38,66 @@
   }
   
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-clean-white text-deep-charcoal;
   }
 }
 
 @layer components {
+  /* New Design System Components */
   .btn-primary {
-    @apply bg-primary-500 hover:bg-primary-600 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+    @apply bg-accent-coral hover:bg-accent-coral/90 text-white font-semibold py-3 px-6 rounded-full transition-all duration-300 transform hover:scale-105;
   }
   
   .btn-secondary {
+    @apply bg-soft-gray hover:bg-light-border text-deep-charcoal font-semibold py-3 px-6 rounded-full transition-all duration-300;
+  }
+  
+  .btn-gradient {
+    @apply bg-gradient-to-r from-accent-coral to-accent-teal text-white font-semibold py-3 px-6 rounded-full transition-all duration-300 transform hover:scale-105;
+  }
+  
+  .section-clean {
+    @apply bg-clean-white;
+  }
+  
+  .section-soft {
+    @apply bg-soft-gray;
+  }
+  
+  .text-primary {
+    @apply text-deep-charcoal;
+  }
+  
+  .text-secondary {
+    @apply text-medium-charcoal;
+  }
+  
+  .text-subtle {
+    @apply text-subtle-gray;
+  }
+  
+  .border-light {
+    @apply border-light-border;
+  }
+  
+  .card-clean {
+    @apply bg-white border border-light-border rounded-2xl shadow-lg;
+  }
+  
+  .card-accent {
+    @apply bg-white border-2 border-accent-coral rounded-2xl shadow-lg;
+  }
+  
+  /* Legacy components (for dashboard compatibility) */
+  .btn-legacy-primary {
+    @apply bg-primary-500 hover:bg-primary-600 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+  }
+  
+  .btn-legacy-secondary {
     @apply bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded-lg transition-colors;
   }
   
   .upload-zone {
-    @apply border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary-500 transition-colors;
+    @apply border-2 border-dashed border-light-border rounded-lg p-8 text-center hover:border-accent-coral transition-colors;
   }
 }

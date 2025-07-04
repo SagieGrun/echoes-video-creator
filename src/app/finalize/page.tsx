@@ -640,7 +640,7 @@ export default function FinalizePage() {
             You need to create some video clips first before you can finalize them
           </p>
           <Link
-            href="/create"
+            href="/dashboard"
             className="inline-flex items-center px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
           >
             Create Your First Clip

@@ -7,5 +7,5 @@ export function cn(...inputs: ClassValue[]) {
 
 export function getAppUrl(): string {
   const isDevelopment = process.env.NODE_ENV === 'development'
-  return isDevelopment ? '/create' : process.env.NEXT_PUBLIC_APP_URL || 'https://your-echoes.com'
+  return isDevelopment ? '/dashboard' : process.env.NEXT_PUBLIC_APP_URL || 'https://your-echoes.com'
 } 

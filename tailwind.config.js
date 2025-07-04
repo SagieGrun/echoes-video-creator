@@ -8,6 +8,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Legacy colors (keeping for dashboard compatibility)
         primary: {
           50: '#fef7ee',
           100: '#fdedd3',
@@ -27,6 +28,16 @@ module.exports = {
           800: '#a44444',
           900: '#7a3333',
         },
+        // New design system colors
+        'clean-white': '#fafafa',
+        'soft-gray': '#f5f5f5',
+        'light-gray': '#f8f8f8',
+        'deep-charcoal': '#1a1a1a',
+        'medium-charcoal': '#2c2c2c',
+        'subtle-gray': '#666666',
+        'light-border': '#cccccc',
+        'accent-coral': '#ff6b6b',
+        'accent-teal': '#4ecdc4',
       },
     },
   },

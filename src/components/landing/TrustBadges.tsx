@@ -1,75 +1,58 @@
+import { Award, Brain, Gift } from 'lucide-react'
+
 export function TrustBadges() {
-  const features = [
+  const badges = [
     {
-      icon: '🔒',
-      title: 'Privacy-First',
-      description: 'Your photos stay secure and are never shared'
+      icon: Award,
+      title: "Professional Quality",
+      description: "High-resolution output perfect for printing, sharing, or displaying on any screen."
     },
     {
-      icon: '⚡',
-      title: 'Lightning Fast',
-      description: 'Get your animated video in just 2 minutes'
+      icon: Brain,
+      title: "AI-Powered",
+      description: "Advanced machine learning creates natural, realistic animations that bring photos to life."
     },
     {
-      icon: '📱',
-      title: 'Works Everywhere',
-      description: 'Perfect on mobile, tablet, and desktop'
-    },
-    {
-      icon: '🎯',
-      title: 'Professional Quality',
-      description: 'High-resolution output ready for any use'
-    },
-    {
-      icon: '💝',
-      title: 'Perfect Gifts',
-      description: 'Create unforgettable presents for loved ones'
-    },
-    {
-      icon: '🌟',
-      title: 'No Experience Needed',
-      description: 'Simple enough for anyone to use'
+      icon: Gift,
+      title: "Perfect Gifts",
+      description: "Transform family memories into unforgettable presents that will be treasured forever."
     }
   ]
 
   return (
-    <section className="py-20 px-4 bg-gradient-to-br from-rose-50 to-orange-50">
+    <section className="section-soft py-20 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-orange-800 mb-6">
-            Why Families Trust Echoes
+          <h2 className="text-4xl md:text-5xl font-bold text-primary mb-6">
+            Why Choose Echoes?
           </h2>
-          <p className="text-xl text-rose-700 max-w-2xl mx-auto">
-            Everything you need to transform your memories safely and beautifully
+          <p className="text-xl text-secondary max-w-2xl mx-auto">
+            Trusted by families worldwide for bringing memories to life
           </p>
         </div>
 
-        {/* Features Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {features.map((feature, index) => (
-            <div key={index} className="bg-white/90 rounded-2xl p-6 border border-rose-100 hover:border-coral-300 hover:shadow-md transition-all duration-300">
-              <div className="text-4xl mb-4">{feature.icon}</div>
-              <h3 className="text-xl font-bold text-orange-800 mb-3">
-                {feature.title}
-              </h3>
-              <p className="text-rose-700 leading-relaxed">
-                {feature.description}
-              </p>
-            </div>
-          ))}
+        {/* Badges Grid */}
+        <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          {badges.map((badge, index) => {
+            const IconComponent = badge.icon
+            return (
+              <div key={index} className="text-center p-6 rounded-2xl bg-white border border-light-border hover:shadow-lg transition-shadow duration-300">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-accent-coral to-accent-teal rounded-full flex items-center justify-center">
+                  <IconComponent className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-semibold text-primary mb-3">
+                  {badge.title}
+                </h3>
+                <p className="text-secondary leading-relaxed">
+                  {badge.description}
+                </p>
+              </div>
+            )
+          })}
         </div>
 
-        {/* Security Note */}
-        <div className="text-center mt-16 p-8 bg-white/90 rounded-2xl border border-rose-100">
-          <div className="text-3xl mb-4">🛡️</div>
-          <h3 className="text-xl font-bold text-orange-800 mb-3">
-            Your Memories Are Safe
-          </h3>
-          <p className="text-rose-700 max-w-2xl mx-auto">
-            We use enterprise-grade security to protect your photos. Your images are processed securely and never stored permanently on our servers.
-          </p>
-        </div>
+
       </div>
     </section>
   )

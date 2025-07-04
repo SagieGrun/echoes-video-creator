@@ -1,56 +1,58 @@
 export function TestimonialSection() {
   const testimonials = [
     {
-      quote: "Turned my grandpa's old photo into a memory that made me cry happy tears. My whole family was amazed!",
-      author: "Sarah M.",
-      role: "Mother of 3"
+      name: "Sarah Johnson",
+      content: "This brought tears to my eyes! My grandmother's wedding photo came to life in the most beautiful way. It's like she's still with us."
     },
     {
-      quote: "The perfect gift for my mom's 70th birthday. She couldn't believe her wedding photo was moving!",
-      author: "David L.",
-      role: "Family Son"
+      name: "Michael Chen",
+      content: "I bought this as a birthday gift for my grandparents and they absolutely loved it. Seeing their old wedding photo come to life was magical for the whole family."
     },
     {
-      quote: "Brought our beloved dog back to life in the most beautiful way. Thank you for helping us remember him.",
-      author: "Emily R.",
-      role: "Pet Parent"
+      name: "Emma Williams",
+      content: "Finally, a way to preserve our family memories that feels magical. My kids were amazed when they saw their great-grandfather's photo animated."
     }
   ]
 
   return (
-    <section id="testimonials" className="py-20 px-4 bg-gradient-to-br from-rose-50 to-orange-50">
+    <section id="testimonials" className="section-clean py-20 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16">
-          <div className="flex justify-center items-center gap-1 mb-4">
-            {[1,2,3,4,5].map((star) => (
-              <span key={star} className="text-orange-400 text-2xl">★</span>
-            ))}
-          </div>
-          <h2 className="text-4xl md:text-5xl font-bold text-orange-800 mb-6">
-            Loved by Families Worldwide
+          <h2 className="text-4xl md:text-5xl font-bold text-primary mb-6">
+            What people are saying
           </h2>
-          <p className="text-xl text-rose-700">
-            Join thousands of families creating magical memories
+          <p className="text-xl text-secondary max-w-2xl mx-auto">
+            Join families who've already transformed their memories
           </p>
         </div>
 
         {/* Testimonials Grid */}
         <div className="grid md:grid-cols-3 gap-8">
           {testimonials.map((testimonial, index) => (
-            <div key={index} className="bg-white/80 rounded-2xl p-8 hover:shadow-lg transition-shadow duration-300 border border-rose-100">
-              <div className="text-4xl text-orange-400 mb-4">"</div>
-              <p className="text-rose-800 text-lg mb-6 leading-relaxed">
-                {testimonial.quote}
+            <div key={index} className="card-clean p-8 text-center">
+              <p className="text-secondary mb-6 italic leading-relaxed">
+                {testimonial.content}
               </p>
-              <div className="border-t border-rose-200 pt-4">
-                <p className="font-semibold text-orange-800">{testimonial.author}</p>
-                <p className="text-rose-600 text-base">{testimonial.role}</p>
+              <div className="border-t border-light-border pt-4">
+                <h4 className="text-primary font-semibold">{testimonial.name}</h4>
               </div>
             </div>
           ))}
         </div>
-      </div>
-    </section>
-  )
-} 
+
+        {/* Social Proof */}
+        <div className="text-center mt-16">
+          <div className="flex justify-center items-center gap-1 mb-3">
+            {[1,2,3,4,5].map((star) => (
+              <span key={star} className="text-accent-coral text-2xl">★</span>
+            ))}
+          </div>
+          <p className="text-secondary text-lg font-medium">
+            Loved by families worldwide
+          </p>
+        </div>
+              </div>
+      </section>
+    )
+  } 
