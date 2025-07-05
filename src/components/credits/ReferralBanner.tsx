@@ -68,33 +68,32 @@ export function ReferralBanner({ user }: Props) {
 
   return (
     <div className="mb-8">
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 relative">
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3 sm:p-4 relative">
         <button
           onClick={dismissBanner}
-          className="absolute top-4 right-4 text-blue-400 hover:text-blue-600 transition-colors"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 text-blue-400 hover:text-blue-600 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
         
-        <div className="flex items-center space-x-4">
-          <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
-            <Gift className="w-6 h-6 text-white" />
+        <div className="flex items-center space-x-3 sm:space-x-4 pr-8">
+          <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
+            <Gift className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
           
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-blue-900 mb-1">
-              🎁 You were referred by a friend!
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-1">
+              🎁 Friend Referred You!
             </h3>
-            <p className="text-blue-700">
-              Purchase credits and get a <strong>+5 credit bonus</strong> on top of your purchase. 
-              Your friend will also earn bonus credits when you make your first purchase!
+            <p className="text-blue-700 text-sm">
+              Get <strong>+5 bonus credits</strong> with purchase<span className="hidden sm:inline">. Your friend earns too!</span>
             </p>
           </div>
           
-          <div className="flex space-x-3">
+          <div className="flex space-x-2">
             <Link
               href="/earn-credits"
-              className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors text-sm"
+              className="px-3 sm:px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors text-xs sm:text-sm whitespace-nowrap hidden sm:block"
             >
               Learn More
             </Link>
@@ -104,7 +103,7 @@ export function ReferralBanner({ user }: Props) {
                 const event = new CustomEvent('openCreditPurchase')
                 window.dispatchEvent(event)
               }}
-              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors text-sm"
+              className="px-3 sm:px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors text-xs sm:text-sm whitespace-nowrap"
             >
               Buy Credits
             </button>

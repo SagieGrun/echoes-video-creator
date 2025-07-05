@@ -671,8 +671,7 @@ function DashboardContent() {
               </Link>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
-              <div className="flex items-center space-x-2">
-                <span className="text-xs sm:text-sm text-gray-600">Credits</span>
+              <div className="flex items-center">
                 <AnimatedCreditBalance userId={user?.id || null} />
               </div>
               
@@ -921,14 +920,11 @@ function DashboardContent() {
                         <Film className="h-5 w-5 text-purple-600" />
             </div>
                   <div>
-                        <h3 className="font-semibold text-gray-900">Ready to Create Your Final Video?</h3>
-                        <p className="text-sm text-gray-600">
-                          Combine your clips with music and transitions to create a professional video compilation
-                        </p>
+                        <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Ready to Create Your Final Video?</h3>
                       </div>
                   </div>
                   <Link href="/finalize">
-                    <Button variant="primary" size="sm">
+                    <Button variant="primary" size="sm" className="whitespace-nowrap px-4">
                       <Film className="h-4 w-4 mr-2" />
                       Create Final Video
                     </Button>

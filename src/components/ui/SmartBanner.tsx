@@ -125,23 +125,23 @@ export function SmartBanner({
     <div className="mb-8">
       {/* Video Completion Banner */}
       {bannerType === 'video-complete' && (
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
-          <div className="flex items-center space-x-4">
-            <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
-              <Film className="w-6 h-6 text-white" />
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-3 sm:p-4">
+          <div className="flex items-center space-x-3 sm:space-x-4">
+            <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
+              <Film className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-green-900 mb-1">
-                🎉 Video Compilation Complete!
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base sm:text-lg font-semibold text-green-900 mb-1">
+                🎉 Video Complete!
               </h3>
-              <p className="text-green-700">
-                Your final video is ready and has been added to your collection.
+              <p className="text-green-700 text-sm">
+                Ready to view and share.
               </p>
             </div>
             
-            <div className="flex items-center space-x-3">
-              <Button variant="success" size="sm" onClick={onViewVideo}>
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <Button variant="success" size="sm" onClick={onViewVideo} className="whitespace-nowrap">
                 View Video
               </Button>
               <Button variant="ghost" size="sm" onClick={onDismissVideo}>
@@ -154,37 +154,37 @@ export function SmartBanner({
 
       {/* Referrer Success Banner */}
       {bannerType === 'referrer-success' && (
-        <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-xl p-4 relative">
+        <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-xl p-3 sm:p-4 relative">
           <button
             onClick={() => {
               dismissBanner('referrer-success')
               setRecentReferrerSuccess(false)
             }}
-            className="absolute top-4 right-4 text-emerald-400 hover:text-emerald-600 transition-colors"
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 text-emerald-400 hover:text-emerald-600 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
           
-          <div className="flex items-center space-x-4">
-            <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-emerald-500 to-green-500 rounded-full flex items-center justify-center">
-              <Gift className="w-6 h-6 text-white" />
+          <div className="flex items-center space-x-3 sm:space-x-4 pr-8">
+            <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-emerald-500 to-green-500 rounded-full flex items-center justify-center">
+              <Gift className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-emerald-900 mb-1">
-                🎉 Referral Success! You earned credits!
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base sm:text-lg font-semibold text-emerald-900 mb-1">
+                🎉 Referral Success!
               </h3>
-              <p className="text-emerald-700">
-                One of your friends just purchased credits and you both earned bonus credits! 
-                Keep sharing to earn more <strong>free credits</strong>.
+              <p className="text-emerald-700 text-sm">
+                You earned credits! <span className="hidden sm:inline">Keep sharing for more.</span>
               </p>
             </div>
             
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center">
               <Link href="/earn-credits">
-                <Button variant="success" size="sm">
-                  <Gift className="w-4 h-4 mr-2" />
-                  Share More
+                <Button variant="success" size="sm" className="whitespace-nowrap">
+                  <Gift className="w-4 h-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">Share More</span>
+                  <span className="sm:hidden">Share</span>
                 </Button>
               </Link>
             </div>
@@ -194,37 +194,36 @@ export function SmartBanner({
 
       {/* Referral Banner */}
       {bannerType === 'referral' && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 relative">
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3 sm:p-4 relative">
           <button
             onClick={() => dismissBanner('referral')}
-            className="absolute top-4 right-4 text-blue-400 hover:text-blue-600 transition-colors"
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 text-blue-400 hover:text-blue-600 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
           
-          <div className="flex items-center space-x-4">
-            <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
-              <Gift className="w-6 h-6 text-white" />
+          <div className="flex items-center space-x-3 sm:space-x-4 pr-8">
+            <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
+              <Gift className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-blue-900 mb-1">
-                🎁 You were referred by a friend!
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-1">
+                🎁 Friend Referred You!
               </h3>
-              <p className="text-blue-700">
-                Purchase credits and get a <strong>+5 credit bonus</strong> on top of your purchase. 
-                Your friend will also earn bonus credits!
+              <p className="text-blue-700 text-sm">
+                Get <strong>+5 bonus credits</strong> with purchase<span className="hidden sm:inline">. Your friend earns too!</span>
               </p>
             </div>
             
-            <div className="flex items-center space-x-3">
-              <Link href="/earn-credits">
-                <Button variant="success" size="sm">
+            <div className="flex items-center space-x-2">
+              <Link href="/earn-credits" className="hidden sm:block">
+                <Button variant="success" size="sm" className="whitespace-nowrap">
                   <Gift className="w-4 h-4 mr-2" />
                   Learn More
                 </Button>
               </Link>
-              <Button variant="primary" size="sm" onClick={onOpenCreditPurchase}>
+              <Button variant="primary" size="sm" onClick={onOpenCreditPurchase} className="whitespace-nowrap">
                 Buy Credits
               </Button>
             </div>
@@ -234,23 +233,23 @@ export function SmartBanner({
 
       {/* Welcome Banner */}
       {bannerType === 'welcome' && (
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-4">
-          <div className="flex items-center space-x-4">
-            <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-3 sm:p-4">
+          <div className="flex items-center space-x-3 sm:space-x-4">
+            <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
               <span className="text-white font-bold text-lg">🎉</span>
             </div>
             
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-blue-900 mb-1">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-1">
                 Welcome to Echoes!
               </h3>
-              <p className="text-blue-700">
-                You have 1 free credit to try creating your first AI video clip. Transform any photo into a cinematic moment!
+              <p className="text-blue-700 text-sm">
+                You have 1 free credit to try<span className="hidden sm:inline"> creating your first AI video clip</span>.
               </p>
             </div>
             
-            <div className="flex items-center space-x-3">
-              <Button variant="primary" size="sm" onClick={onStartCreating}>
+            <div className="flex items-center">
+              <Button variant="primary" size="sm" onClick={onStartCreating} className="whitespace-nowrap">
                 Start Creating
               </Button>
             </div>
@@ -260,37 +259,36 @@ export function SmartBanner({
 
       {/* Low Credits Banner */}
       {bannerType === 'low-credits' && (
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 relative">
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-3 sm:p-4 relative">
           <button
             onClick={() => dismissBanner('low-credits')}
-            className="absolute top-4 right-4 text-amber-400 hover:text-amber-600 transition-colors"
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 text-amber-400 hover:text-amber-600 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
           
-          <div className="flex items-center space-x-4">
-            <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full flex items-center justify-center">
+          <div className="flex items-center space-x-3 sm:space-x-4 pr-8">
+            <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full flex items-center justify-center">
               <span className="text-white font-bold text-lg">{user?.credit_balance}</span>
             </div>
             
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-amber-900 mb-1">
-                Running low on credits!
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base sm:text-lg font-semibold text-amber-900 mb-1">
+                Running low!
               </h3>
-              <p className="text-amber-700">
-                You have {user?.credit_balance} credit{user?.credit_balance !== 1 ? 's' : ''} left. 
-                Get more credits to keep creating amazing videos.
+              <p className="text-amber-700 text-sm">
+                {user?.credit_balance} credit{user?.credit_balance !== 1 ? 's' : ''} left<span className="hidden sm:inline">. Get more to keep creating</span>.
               </p>
             </div>
             
-            <div className="flex items-center space-x-3">
-              <Link href="/earn-credits">
-                <Button variant="success" size="sm">
+            <div className="flex items-center space-x-2">
+              <Link href="/earn-credits" className="hidden sm:block">
+                <Button variant="success" size="sm" className="whitespace-nowrap">
                   <Gift className="w-4 h-4 mr-2" />
-                  Get Free Credits
+                  Free Credits
                 </Button>
               </Link>
-              <Button variant="warning" size="sm" onClick={onOpenCreditPurchase}>
+              <Button variant="warning" size="sm" onClick={onOpenCreditPurchase} className="whitespace-nowrap">
                 Buy Credits
               </Button>
             </div>
