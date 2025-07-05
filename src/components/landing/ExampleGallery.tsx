@@ -10,11 +10,9 @@ export function ExampleGallery() {
   const sectionRef = useRef<HTMLElement>(null)
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
 
-  // Individual video intersection observer for mobile autoplay
+  // Individual video intersection observer for autoplay when visible
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const isMobile = window.innerWidth < 768;
-    if (!isMobile) return;
+    if (!isVisible) return;
 
     const videoObserver = new IntersectionObserver(
       (entries) => {
@@ -24,6 +22,7 @@ export function ExampleGallery() {
           
           if (entry.isIntersecting && video) {
             setVideoVisibility(prev => ({ ...prev, [videoIndex]: true }));
+            // Autoplay when video comes into view
             video.play().catch(() => {
               // Silently fail if autoplay is blocked
             });
@@ -34,16 +33,21 @@ export function ExampleGallery() {
           }
         });
       },
-      { threshold: 0.5 }
+      { threshold: 0.3 }
     );
 
-    // Observe all video containers
-    const videoContainers = document.querySelectorAll('[data-video-index]');
-    videoContainers.forEach(container => {
-      videoObserver.observe(container);
-    });
+    // Observe all video containers after they're rendered
+    const timeoutId = setTimeout(() => {
+      const videoContainers = document.querySelectorAll('[data-video-index]');
+      videoContainers.forEach(container => {
+        videoObserver.observe(container);
+      });
+    }, 100);
 
-    return () => videoObserver.disconnect();
+    return () => {
+      clearTimeout(timeoutId);
+      videoObserver.disconnect();
+    };
   }, [isVisible])
 
   useEffect(() => {
@@ -150,9 +154,7 @@ export function ExampleGallery() {
                   />
                   <video
                     className={`w-full h-full object-cover absolute inset-0 transition-opacity duration-300 ${
-                      videoVisibility[index] || (typeof window !== 'undefined' && window.innerWidth >= 768)
-                        ? 'opacity-0 group-hover:opacity-100' 
-                        : 'opacity-0'
+                      videoVisibility[index] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                     }`}
                     loop
                     muted

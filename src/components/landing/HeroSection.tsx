@@ -324,9 +324,10 @@ export function HeroSection() {
                 {isLoading ? 'Loading...' : 'Try Your First Clip FREE'}
               </button>
               
-              <p className="text-secondary text-base font-medium">
-                💳 No credit card required
-              </p>
+              <div className="text-secondary text-base font-medium space-y-1">
+                <p>💳 No credit card required</p>
+                <p>🚀 Ready in 2 minutes</p>
+              </div>
             </div>
 
             {/* Trust indicators - simplified on mobile */}
@@ -454,8 +455,8 @@ export function HeroSection() {
 
       </div>
 
-      {/* Social Proof - moved down to fill the space left by removed scroll indicator */}
-      <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 text-center">
+      {/* Social Proof - hidden on mobile, visible on desktop */}
+      <div className="hidden md:block absolute bottom-12 left-1/2 transform -translate-x-1/2 text-center">
         <div className="flex justify-center items-center gap-1 mb-3">
           {[1,2,3,4,5].map((star) => (
             <span key={star} className="text-accent-coral text-xl">★</span>

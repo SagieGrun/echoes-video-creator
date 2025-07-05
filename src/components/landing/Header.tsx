@@ -66,16 +66,16 @@ export function Header() {
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t border-light-border">
             <div className="flex flex-col space-y-4">
-              <a href="#how-it-works" className="text-deep-charcoal hover:text-accent-coral transition-colors">
+              <a href="#how-it-works" className="text-deep-charcoal hover:text-accent-coral transition-colors" onClick={() => setIsMenuOpen(false)}>
                 How It Works
               </a>
-              <a href="#examples" className="text-deep-charcoal hover:text-accent-coral transition-colors">
+              <a href="#examples" className="text-deep-charcoal hover:text-accent-coral transition-colors" onClick={() => setIsMenuOpen(false)}>
                 Examples
               </a>
-              <a href="#pricing" className="text-deep-charcoal hover:text-accent-coral transition-colors">
+              <a href="#pricing" className="text-deep-charcoal hover:text-accent-coral transition-colors" onClick={() => setIsMenuOpen(false)}>
                 Pricing
               </a>
-              <a href="#testimonials" className="text-deep-charcoal hover:text-accent-coral transition-colors">
+              <a href="#testimonials" className="text-deep-charcoal hover:text-accent-coral transition-colors" onClick={() => setIsMenuOpen(false)}>
                 Reviews
               </a>
               <button 

@@ -45,15 +45,15 @@
 @layer components {
   /* New Design System Components */
   .btn-primary {
-    @apply bg-accent-coral hover:bg-accent-coral/90 text-white font-semibold py-3 px-6 rounded-full transition-all duration-300 transform hover:scale-105;
+    @apply bg-accent-coral hover:bg-accent-coral/90 text-white font-semibold py-3 px-6 md:py-3 md:px-6 rounded-full transition-all duration-300 transform hover:scale-105 min-h-[44px] flex items-center justify-center;
   }
   
   .btn-secondary {
-    @apply bg-soft-gray hover:bg-light-border text-deep-charcoal font-semibold py-3 px-6 rounded-full transition-all duration-300;
+    @apply bg-soft-gray hover:bg-light-border text-deep-charcoal font-semibold py-3 px-6 md:py-3 md:px-6 rounded-full transition-all duration-300 min-h-[44px] flex items-center justify-center;
   }
   
   .btn-gradient {
-    @apply bg-gradient-to-r from-accent-coral to-accent-teal text-white font-semibold py-3 px-6 rounded-full transition-all duration-300 transform hover:scale-105;
+    @apply bg-gradient-to-r from-accent-coral to-accent-teal text-white font-semibold py-3 px-6 md:py-3 md:px-6 rounded-full transition-all duration-300 transform hover:scale-105 min-h-[44px] flex items-center justify-center;
   }
   
   .section-clean {
