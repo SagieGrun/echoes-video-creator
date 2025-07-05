@@ -4,6 +4,15 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 // Kling V2 API service for AI/ML API platform
 // Uses direct URL passing - no local image processing needed
 
+interface VideoGenerationResult {
+  task_id: string
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  progress: number
+  video_url?: string
+  error_message?: string
+  estimated_time?: number
+}
+
 class KlingService {
   private readonly apiKey: string
   private readonly baseUrl = 'https://api.aimlapi.com/v2/generate/video/kling'
@@ -16,7 +25,7 @@ class KlingService {
     image_url: string
     prompt: string
     duration?: number
-  }): Promise<{ generation_id: string }> {
+  }): Promise<VideoGenerationResult> {
     const requestId = Math.random().toString(36).substring(2, 15)
     
     try {
@@ -68,12 +77,22 @@ class KlingService {
         directUrl: true
       })
 
-      return { generation_id: result.id }
+      return {
+        task_id: result.id,
+        status: 'pending',
+        progress: 0,
+        estimated_time: 30 // Kling is usually faster than Runway
+      }
     } catch (error) {
       console.error(`[KLING-EDGE-${requestId}] Generation failed:`, {
         error: error instanceof Error ? error.message : String(error)
       })
-      throw error
+      return {
+        task_id: '',
+        status: 'failed',
+        progress: 0,
+        error_message: error instanceof Error ? error.message : 'Unknown error'
+      }
     }
   }
 
