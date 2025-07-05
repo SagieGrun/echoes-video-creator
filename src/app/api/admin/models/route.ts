@@ -9,8 +9,15 @@ const DEFAULT_MODEL_CONFIG = {
       name: 'Runway ML',
       status: 'active',
       config: {
-        model: 'gen3',
-        resolution: '1280x768',
+        model: 'gen4_turbo',
+        duration: 5,
+      }
+    },
+    kling: {
+      name: 'Kling V2',
+      status: 'inactive',
+      config: {
+        modelId: 'klingai/v2-master-image-to-video',
         duration: 5,
       }
     }
@@ -65,6 +72,12 @@ export async function POST(request: NextRequest) {
       providers,
     }
 
+    console.log('Saving model configuration:', {
+      activeProvider,
+      providerNames: Object.keys(providers),
+      activeProviderConfig: providers[activeProvider]?.config
+    })
+
     // Update the config
     const { error } = await supabaseServiceRole
       .from('admin_config')
@@ -76,6 +89,7 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error
 
+    console.log('Model configuration saved successfully')
     return NextResponse.json({ success: true, config })
   } catch (error) {
     console.error('Error updating model config:', error)

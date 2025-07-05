@@ -5,6 +5,7 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createRunwayService } from '../_shared/runway.ts'
+import { createKlingService } from '../_shared/kling.ts'
 import { getAuthenticatedUser, createAuthenticatedSupabaseClient, createServiceSupabaseClient } from '../_shared/auth.ts'
 
 // Declare Deno environment for TypeScript
@@ -21,25 +22,52 @@ interface GenerateClipRequest {
   project_id?: string
 }
 
-async function getSystemPrompt(): Promise<string> {
+console.log("Hello from Functions!")
+
+/**
+ * Get active video generation provider from admin configuration
+ */
+async function getActiveProvider() {
   try {
-    const supabase = createServiceSupabaseClient()
-    
-    const { data, error } = await supabase
+    const serviceSupabase = createServiceSupabaseClient()
+    const { data, error } = await serviceSupabase
       .from('admin_config')
       .select('value')
-      .eq('key', 'system_prompt')
+      .eq('key', 'model_config')
       .single()
 
-    if (error || !data) {
-      console.log('Using default system prompt, config not found:', error)
-      return 'Create a beautiful animated clip from this photo with subtle, natural movements that bring the image to life.'
+    if (error || !data?.value) {
+      console.warn('No model configuration found, defaulting to Runway')
+      return { provider: 'runway', config: { duration: 5 } }
     }
 
-    return data.value.prompt || 'Create a beautiful animated clip from this photo with subtle, natural movements that bring the image to life.'
+    const config = data.value
+    const activeProvider = config.activeProvider || 'runway'
+    const providerConfig = config.providers?.[activeProvider]?.config || { duration: 5 }
+
+    console.log('Loaded provider configuration:', {
+      activeProvider,
+      providerName: config.providers?.[activeProvider]?.name,
+      config: providerConfig
+    })
+
+    return { provider: activeProvider, config: providerConfig }
   } catch (error) {
-    console.error('Error fetching system prompt:', error)
-    return 'Create a beautiful animated clip from this photo with subtle, natural movements that bring the image to life.'
+    console.error('Error loading provider configuration:', error)
+    return { provider: 'runway', config: { duration: 5 } }
+  }
+}
+
+/**
+ * Create video generation service based on provider
+ */
+function createVideoService(provider: string) {
+  switch (provider) {
+    case 'kling':
+      return createKlingService()
+    case 'runway':
+    default:
+      return createRunwayService()
   }
 }
 
@@ -79,11 +107,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Check authentication
-    console.log(`[API-${requestId}] Step 1: Checking authentication`)
-    const user = await getAuthenticatedUser(req)
-    if (!user) {
-      console.log(`[API-${requestId}] Authentication failed - no user`)
+    // Get and validate user authentication
+    const authUser = await getAuthenticatedUser(req)
+    if (!authUser) {
+      console.error(`[API-${requestId}] Authentication failed`)
       return new Response(
         JSON.stringify({ error: 'Authentication required' }),
         { 
@@ -95,65 +122,11 @@ Deno.serve(async (req) => {
         }
       )
     }
-    
-    console.log(`[API-${requestId}] User authenticated:`, { 
-      userId: user.id, 
-      email: user.email 
-    })
 
-    // Parse request body
-    console.log(`[API-${requestId}] Step 2: Parsing request body`)
-    const body: GenerateClipRequest = await req.json()
-    const { image_url, image_file_path, project_id } = body
-    
-    console.log(`[API-${requestId}] Request parameters:`, {
-      hasImageUrl: !!image_url,
-      imageUrlLength: image_url?.length || 0,
-      imageUrlPrefix: image_url ? image_url.substring(0, 50) + '...' : 'none',
-      hasImageFilePath: !!image_file_path,
-      imageFilePathLength: image_file_path?.length || 0,
-      imageFilePathPrefix: image_file_path ? image_file_path.substring(0, 50) + '...' : 'none',
-      hasProjectId: !!project_id,
-      projectId: project_id
+    console.log(`[API-${requestId}] Step 1: User authenticated:`, { 
+      userId: authUser.id,
+      email: authUser.email 
     })
-    
-    if (!image_url || !image_file_path) {
-      console.error(`[API-${requestId}] Missing required parameters:`, {
-        hasImageUrl: !!image_url,
-        hasImageFilePath: !!image_file_path
-      })
-      return new Response(
-        JSON.stringify({ error: 'Both image_url and image_file_path are required' }),
-        { 
-          status: 400,
-          headers: { 
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      )
-    }
-
-    // Check user's credit balance
-    console.log(`[API-${requestId}] Step 3: Checking user credit balance`)
-    console.log(`[API-${requestId}] User credit balance:`, { 
-      creditBalance: user.credit_balance,
-      hasEnoughCredits: user.credit_balance >= 1
-    })
-
-    if (user.credit_balance < 1) {
-      console.log(`[API-${requestId}] Insufficient credits - rejecting request`)
-      return new Response(
-        JSON.stringify({ error: 'Insufficient credits' }),
-        { 
-          status: 400,
-          headers: { 
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      )
-    }
 
     // Get the authorization token for authenticated requests
     const authToken = req.headers.get('Authorization')?.substring(7) // Remove 'Bearer ' prefix
@@ -162,28 +135,71 @@ Deno.serve(async (req) => {
     }
 
     const authenticatedSupabase = createAuthenticatedSupabaseClient(authToken)
-    let finalProjectId = project_id
+    console.log(`[API-${requestId}] Step 2: User profile loaded:`, { 
+      creditBalance: authUser.credit_balance,
+      userId: authUser.id 
+    })
 
-    // If no project_id provided, create a new project
+    // Check if user has enough credits
+    if (authUser.credit_balance < 1) {
+      console.log(`[API-${requestId}] Insufficient credits:`, { 
+        creditBalance: authUser.credit_balance 
+      })
+      return new Response(
+        JSON.stringify({ error: 'Insufficient credits' }),
+        { 
+          status: 402,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      )
+    }
+
+    // Parse request body
+    const body: GenerateClipRequest = await req.json()
+    const { image_url, image_file_path, project_id } = body
+
+    if (!image_url || !image_file_path) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields: image_url, image_file_path' }),
+        { 
+          status: 400,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      )
+    }
+
+    console.log(`[API-${requestId}] Step 3: Request validated:`, {
+      hasImageUrl: !!image_url,
+      hasImageFilePath: !!image_file_path,
+      hasProjectId: !!project_id,
+      imageUrl: image_url.substring(0, 100) + '...',
+      imageFilePath: image_file_path
+    })
+
+    // Handle project creation/retrieval
+    let finalProjectId = project_id
+    
     if (!finalProjectId) {
-      const { data: newProject, error: projectError } = await authenticatedSupabase
+      console.log(`[API-${requestId}] Step 4a: Creating new project`)
+      const serviceSupabase = createServiceSupabaseClient()
+      const { data: newProject, error: projectError } = await serviceSupabase
         .from('projects')
         .insert({
-          user_id: user.id,
-          title: 'New Clip Project',
-          status: 'processing'
+          user_id: authUser.id,
+          title: 'Untitled Project',
+          status: 'in_progress'
         })
         .select()
         .single()
 
       if (projectError || !newProject) {
-        console.error(`[API-${requestId}] Failed to create project:`, {
-          error: projectError,
-          details: projectError?.details,
-          hint: projectError?.hint,
-          code: projectError?.code,
-          message: projectError?.message
-        })
+        console.error(`[API-${requestId}] Error creating project:`, projectError)
         return new Response(
           JSON.stringify({ error: 'Failed to create project' }),
           { 
@@ -195,54 +211,47 @@ Deno.serve(async (req) => {
           }
         )
       }
-      
-      console.log(`[API-${requestId}] Created new project:`, { projectId: newProject.id })
+
       finalProjectId = newProject.id
+      console.log(`[API-${requestId}] New project created:`, { projectId: finalProjectId })
+    } else {
+      console.log(`[API-${requestId}] Step 4b: Using existing project:`, { projectId: finalProjectId })
     }
 
-    // Get the next order number for this project
-    console.log(`[API-${requestId}] Step 4: Getting next clip order for project`)
-    const { data: existingClips, error: orderError } = await authenticatedSupabase
-      .from('clips')
-      .select('clip_order')
-      .eq('project_id', finalProjectId)
-      .order('clip_order', { ascending: false })
-      .limit(1)
+    // Get system prompt
+    const serviceSupabase = createServiceSupabaseClient()
+    const { data: systemPromptData, error: promptError } = await serviceSupabase
+      .from('admin_config')
+      .select('value')
+      .eq('key', 'system_prompt')
+      .single()
 
-    const nextOrder = existingClips && existingClips.length > 0 
-      ? existingClips[0].clip_order + 1 
-      : 1
+    const systemPrompt = systemPromptData?.value?.prompt || 'Create a beautiful, cinematic animated clip from this photo. Add subtle movement and depth while maintaining the original character and mood of the image.'
 
-    console.log(`[API-${requestId}] Next clip order will be:`, { nextOrder })
+    console.log(`[API-${requestId}] Step 5: System prompt loaded:`, {
+      promptLength: systemPrompt.length,
+      promptPreview: systemPrompt.substring(0, 100) + '...'
+    })
 
-    // Get the system prompt from admin configuration
-    const systemPrompt = await getSystemPrompt()
-
-    // Create clip record
-    const { data: clip, error: clipError } = await authenticatedSupabase
+    // Create clip record first
+    const { data: clip, error: clipError } = await serviceSupabase
       .from('clips')
       .insert({
         project_id: finalProjectId,
-        image_url,
-        image_file_path,
+        image_url: image_url,
+        image_file_path: image_file_path,
         status: 'pending',
-        prompt: systemPrompt,
-        regen_count: 0,
-        clip_order: nextOrder
+        clip_order: 1,
+        approved: false,
+        prompt: systemPrompt
       })
       .select()
       .single()
 
     if (clipError || !clip) {
-      console.error(`[API-${requestId}] Failed to create clip:`, {
-        error: clipError,
-        details: clipError?.details,
-        hint: clipError?.hint,
-        code: clipError?.code,
-        message: clipError?.message
-      })
+      console.error(`[API-${requestId}] Error creating clip:`, clipError)
       return new Response(
-        JSON.stringify({ error: 'Failed to create clip' }),
+        JSON.stringify({ error: 'Failed to create clip record' }),
         { 
           status: 500,
           headers: { 
@@ -252,26 +261,26 @@ Deno.serve(async (req) => {
         }
       )
     }
-    
-    console.log(`[API-${requestId}] Step 5: Clip created successfully`, {
-      clipId: clip.id,
-      projectId: finalProjectId,
-      status: clip.status,
-      clipOrder: clip.clip_order
-    })
 
-    // Start Runway generation job
+    console.log(`[API-${requestId}] Clip record created:`, { clipId: clip.id })
+
+    // Get active provider configuration
+    const { provider, config } = await getActiveProvider()
+    
+    // Start video generation with appropriate service
     try {
-      console.log(`[API-${requestId}] Step 6: Starting Runway generation`)
+      console.log(`[API-${requestId}] Step 6: Starting ${provider} generation`)
       console.log(`[API-${requestId}] Using signed URL directly:`, {
-        signedUrl: image_url.substring(0, 100) + '...'
+        signedUrl: image_url.substring(0, 100) + '...',
+        provider,
+        config
       })
       
-      const runwayService = createRunwayService()
-      const result = await runwayService.generateVideo({
+      const videoService = createVideoService(provider)
+      const result = await videoService.generateVideo({
         image_url: image_url, // Use the signed URL directly
         prompt: systemPrompt,
-        duration: 5
+        duration: config.duration || 5
       })
 
       if (result.status === 'failed') {
@@ -288,7 +297,6 @@ Deno.serve(async (req) => {
       }
 
       // Update clip with generation task ID and set status to processing
-      const serviceSupabase = createServiceSupabaseClient()
       const { error: updateError } = await serviceSupabase
         .from('clips')
         .update({
@@ -306,9 +314,9 @@ Deno.serve(async (req) => {
       const { error: creditError } = await authenticatedSupabase
         .from('users')
         .update({ 
-          credit_balance: user.credit_balance - 1 
+          credit_balance: authUser.credit_balance - 1 
         })
-        .eq('id', user.id)
+        .eq('id', authUser.id)
 
       if (creditError) {
         console.error('Error deducting credit:', creditError)
@@ -318,18 +326,19 @@ Deno.serve(async (req) => {
       await serviceSupabase
         .from('credit_transactions')
         .insert({
-          user_id: user.id,
+          user_id: authUser.id,
           amount: -1,
           type: 'generation',
           reference_id: clip.id
         })
 
-      console.log(`[API-${requestId}] Generation started successfully`)
+      console.log(`[API-${requestId}] Generation started successfully with ${provider}`)
 
       // Return success response
       const totalDuration = Date.now() - startTime
       console.log(`[API-${requestId}] === GENERATE REQUEST SUCCESS ===`, {
         totalDuration_ms: totalDuration,
+        provider,
         timestamp: new Date().toISOString()
       })
 
@@ -337,8 +346,9 @@ Deno.serve(async (req) => {
         clipId: clip.id, // Changed from clip_id to match frontend expectation
         project_id: finalProjectId,
         status: 'processing',
-        credits_remaining: user.credit_balance - 1,
-        estimated_time: 25 // seconds
+        credits_remaining: authUser.credit_balance - 1,
+        estimated_time: result.estimated_time || 25, // seconds
+        provider: provider // Include provider info for debugging
       }
 
       console.log(`[API-${requestId}] SENDING RESPONSE:`, {
@@ -357,16 +367,15 @@ Deno.serve(async (req) => {
         }
       )
 
-    } catch (runwayError) {
-      console.error('Error starting Runway generation:', runwayError)
+    } catch (generationError) {
+      console.error(`[API-${requestId}] Error starting video generation:`, generationError)
       
       // Update clip status to failed
-      const serviceSupabase = createServiceSupabaseClient()
       await serviceSupabase
         .from('clips')
         .update({
           status: 'failed',
-          error_message: runwayError instanceof Error ? runwayError.message : 'Unknown error'
+          error_message: generationError instanceof Error ? generationError.message : 'Unknown error'
         })
         .eq('id', clip.id)
 
@@ -383,16 +392,8 @@ Deno.serve(async (req) => {
     }
 
   } catch (error) {
-    const totalDuration = Date.now() - startTime
-    
-    console.error(`[API-${requestId}] === GENERATE REQUEST FAILED ===`, {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      totalDuration_ms: totalDuration,
-      timestamp: new Date().toISOString()
-    })
-
-  return new Response(
+    console.error(`[API-${requestId}] Unexpected error:`, error)
+    return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { 
         status: 500,
@@ -401,7 +402,7 @@ Deno.serve(async (req) => {
           'Access-Control-Allow-Origin': '*'
         }
       }
-  )
+    )
   }
 })
 

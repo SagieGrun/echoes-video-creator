@@ -5,6 +5,7 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createRunwayService } from '../_shared/runway.ts'
+import { createKlingService } from '../_shared/kling.ts'
 import { getAuthenticatedUser, createServiceSupabaseClient } from '../_shared/auth.ts'
 
 // Declare Deno environment for TypeScript
@@ -17,11 +18,58 @@ declare const Deno: {
 
 console.log("Hello from Functions!")
 
+/**
+ * Get active video generation provider from admin configuration
+ */
+async function getActiveProvider() {
+  try {
+    const serviceSupabase = createServiceSupabaseClient()
+    const { data, error } = await serviceSupabase
+      .from('admin_config')
+      .select('value')
+      .eq('key', 'model_config')
+      .single()
+
+    if (error || !data?.value) {
+      console.warn('No model configuration found, defaulting to Runway')
+      return 'runway'
+    }
+
+    const config = data.value
+    const activeProvider = config.activeProvider || 'runway'
+
+    console.log('Loaded provider configuration:', {
+      activeProvider,
+      providerName: config.providers?.[activeProvider]?.name
+    })
+
+    return activeProvider
+  } catch (error) {
+    console.error('Error loading provider configuration:', error)
+    return 'runway'
+  }
+}
+
+/**
+ * Create video generation service based on provider
+ */
+function createVideoService(provider: string) {
+  switch (provider) {
+    case 'kling':
+      return createKlingService()
+    case 'runway':
+    default:
+      return createRunwayService()
+  }
+}
+
 Deno.serve(async (req) => {
   const requestId = Math.random().toString(36).substring(2, 15)
+  
   console.log(`[STATUS-${requestId}] === STATUS REQUEST START ===`, {
     timestamp: new Date().toISOString(),
-    method: req.method
+    method: req.method,
+    url: req.url
   })
 
   // Handle CORS preflight
@@ -50,19 +98,29 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Check authentication
-    const user = await getAuthenticatedUser(req)
-    if (!user) {
-      return new Response(JSON.stringify({ error: 'Authentication required' }), { status: 401, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }})
+    // Get and validate user authentication
+    const authUser = await getAuthenticatedUser(req)
+    if (!authUser) {
+      console.error(`[STATUS-${requestId}] Authentication failed`)
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { 
+          status: 401,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      )
     }
-    console.log(`[STATUS-${requestId}] User authenticated: ${user.id}`)
 
-    // Get clipId from the request BODY
-    const { clipId } = await req.json()
+    // Parse request body to get clip ID
+    const requestBody = await req.json()
+    const clipId = requestBody.clipId
 
     if (!clipId) {
       return new Response(
-        JSON.stringify({ error: 'clipId is required in the request body' }),
+        JSON.stringify({ error: 'Missing clip_id parameter' }),
         { 
           status: 400,
           headers: { 
@@ -72,23 +130,26 @@ Deno.serve(async (req) => {
         }
       )
     }
-    console.log(`[STATUS-${requestId}] Step 1: Received request for clipId: ${clipId}`)
 
-    // Get clip details
+    console.log(`[STATUS-${requestId}] Step 1: Checking status for clip:`, { clipId })
+
+    // Get clip from database
     const serviceSupabase = createServiceSupabaseClient()
-
-    // Get the clip from database
-    console.log(`[STATUS-${requestId}] Step 2: Getting clip from database`)
-    const { data: clip, error: clipError } = await serviceSupabase
+    const { data: clips, error: clipError } = await serviceSupabase
       .from('clips')
-      .select('*')
+      .select(`
+        *,
+        projects!inner(
+          user_id
+        )
+      `)
       .eq('id', clipId)
-      .single()
+      .eq('projects.user_id', authUser.id)
 
-    if (clipError || !clip) {
-      console.error(`[STATUS-${requestId}] Clip not found:`, clipError)
+    if (clipError || !clips || clips.length === 0) {
+      console.error(`[STATUS-${requestId}] Clip not found or access denied:`, clipError)
       return new Response(
-        JSON.stringify({ error: 'Clip not found' }),
+        JSON.stringify({ error: 'Clip not found or access denied' }),
         { 
           status: 404,
           headers: { 
@@ -99,74 +160,53 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Verify user has access to this clip
-    const { data: project, error: projectError } = await serviceSupabase
-      .from('projects')
-      .select('user_id')
-      .eq('id', clip.project_id)
-      .single()
+    const clip = clips[0]
+    const project = clip.projects
 
-    if (projectError || !project || project.user_id !== user.id) {
-      console.error(`[STATUS-${requestId}] User doesn't have access to clip:`, { 
-        projectError, 
-        projectUserId: project?.user_id, 
-        userId: user.id 
-      })
-      return new Response(
-        JSON.stringify({ error: 'Access denied' }),
-        { 
-          status: 403,
-          headers: { 
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      )
-    }
-
-    console.log(`[STATUS-${requestId}] Clip found:`, {
+    console.log(`[STATUS-${requestId}] Step 2: Clip found:`, { 
       clipId: clip.id,
       status: clip.status,
-      hasGenerationJobId: !!clip.generation_job_id,
-      hasVideoUrl: !!clip.video_url
+      hasJobId: !!clip.generation_job_id,
+      hasVideoPath: !!clip.video_file_path
     })
 
-    // If clip is already completed or failed, return current status
-    if (clip.status === 'completed' || clip.status === 'failed') {
-      console.log(`[STATUS-${requestId}] Clip is in final state:`, { status: clip.status })
+    // If clip is already completed and has a video file, generate fresh signed URL
+    if (clip.status === 'completed' && clip.video_file_path) {
+      console.log(`[STATUS-${requestId}] Clip completed, generating fresh signed URL`)
       
-      let videoUrl = clip.video_url
-      
-      // If we have a video_file_path, generate a fresh signed URL
-      if (clip.status === 'completed' && clip.video_file_path) {
-        try {
-          const { data: signedUrlData, error: urlError } = await serviceSupabase.storage
-            .from('private-photos')
-            .createSignedUrl(clip.video_file_path, 3600) // 1 hour expiry
-          
-          if (!urlError && signedUrlData?.signedUrl) {
-            videoUrl = signedUrlData.signedUrl
-            console.log(`[STATUS-${requestId}] Generated fresh signed URL for completed clip`)
-          }
-        } catch (error) {
-          console.error(`[STATUS-${requestId}] Error generating signed URL:`, error)
-          // Fall back to stored video_url
+      try {
+        const { data: signedUrlData, error: urlError } = await serviceSupabase.storage
+          .from('private-photos')
+          .createSignedUrl(clip.video_file_path, 3600) // 1 hour expiry
+        
+        let videoUrl = clip.video_url
+        if (!urlError && signedUrlData?.signedUrl) {
+          videoUrl = signedUrlData.signedUrl
+          console.log(`[STATUS-${requestId}] Fresh signed URL generated`)
+        } else {
+          console.warn(`[STATUS-${requestId}] Failed to generate signed URL:`, urlError)
         }
-      } else if (clip.status === 'completed' && clip.video_url && !clip.video_url.startsWith('http')) {
-        // Handle case where video_url contains a file path instead of a URL
-        try {
-          const { data: signedUrlData, error: urlError } = await serviceSupabase.storage
-            .from('private-photos')
-            .createSignedUrl(clip.video_url, 3600) // 1 hour expiry
-          
-          if (!urlError && signedUrlData?.signedUrl) {
-            videoUrl = signedUrlData.signedUrl
-            console.log(`[STATUS-${requestId}] Generated fresh signed URL from video_url path`)
+        
+        return new Response(
+          JSON.stringify({
+            clip_id: clip.id,
+            status: clip.status,
+            progress: clip.status === 'completed' ? 100 : 0,
+            video_url: videoUrl,
+            error_message: clip.error_message,
+            estimated_time: 0
+          }),
+          { 
+            status: 200,
+            headers: { 
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            }
           }
-        } catch (error) {
-          console.error(`[STATUS-${requestId}] Error generating signed URL from video_url:`, error)
-          // Fall back to stored video_url
-        }
+        )
+      } catch (error) {
+        console.error(`[STATUS-${requestId}] Error generating signed URL:`, error)
+        // Continue with existing video_url
       }
       
       return new Response(
@@ -174,7 +214,7 @@ Deno.serve(async (req) => {
           clip_id: clip.id,
           status: clip.status,
           progress: clip.status === 'completed' ? 100 : 0,
-          video_url: videoUrl,
+          video_url: clip.video_url,
           error_message: clip.error_message,
           estimated_time: 0
         }),
@@ -188,17 +228,23 @@ Deno.serve(async (req) => {
       )
     }
 
-    // If we have a generation job ID, check Runway status
+    // If we have a generation job ID, check provider status
     if (clip.generation_job_id) {
-      console.log(`[STATUS-${requestId}] Step 3: Checking Runway status for job:`, { 
+      console.log(`[STATUS-${requestId}] Step 3: Checking provider status for job:`, { 
         jobId: clip.generation_job_id 
       })
       
       try {
-        const runwayService = createRunwayService()
-        const result = await runwayService.getJobStatus(clip.generation_job_id)
+        // Get active provider
+        const activeProvider = await getActiveProvider()
+        const videoService = createVideoService(activeProvider)
         
-        console.log(`[STATUS-${requestId}] Runway status result:`, {
+        console.log(`[STATUS-${requestId}] Using ${activeProvider} service for status check`)
+        
+        const result = await videoService.getJobStatus(clip.generation_job_id)
+        
+        console.log(`[STATUS-${requestId}] Provider status result:`, {
+          provider: activeProvider,
           taskId: result.task_id,
           status: result.status,
           progress: result.progress,
@@ -212,9 +258,9 @@ Deno.serve(async (req) => {
         }
 
         if (result.status === 'completed' && result.video_url) {
-          // Download video from Runway's temporary URL and store permanently
+          // Download video from provider's temporary URL and store permanently
           try {
-            console.log(`[STATUS-${requestId}] Downloading video from Runway URL`)
+            console.log(`[STATUS-${requestId}] Downloading video from ${activeProvider} URL`)
             const videoResponse = await fetch(result.video_url)
             if (!videoResponse.ok) {
               throw new Error(`Failed to download video: ${videoResponse.status}`)
@@ -266,7 +312,7 @@ Deno.serve(async (req) => {
 
         if (updateError) {
           console.error(`[STATUS-${requestId}] Error updating clip:`, updateError)
-          // Continue anyway, return the status we got from Runway
+          // Continue anyway, return the status we got from provider
         }
 
         // Generate signed URL for the stored video
@@ -294,7 +340,8 @@ Deno.serve(async (req) => {
             progress: result.progress,
             video_url: finalVideoUrl,
             error_message: result.error_message,
-            estimated_time: result.estimated_time || 0
+            estimated_time: result.estimated_time || 0,
+            provider: activeProvider // Include provider info for debugging
           }),
           { 
             status: 200,
@@ -305,8 +352,8 @@ Deno.serve(async (req) => {
           }
         )
 
-      } catch (runwayError) {
-        console.error(`[STATUS-${requestId}] Error checking Runway status:`, runwayError)
+      } catch (providerError) {
+        console.error(`[STATUS-${requestId}] Error checking provider status:`, providerError)
         
         // Update clip to failed status
         await serviceSupabase
@@ -357,13 +404,8 @@ Deno.serve(async (req) => {
     )
 
   } catch (error) {
-    console.error(`[STATUS-${requestId}] === STATUS CHECK FAILED ===`, {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString()
-    })
-
-  return new Response(
+    console.error(`[STATUS-${requestId}] Unexpected error:`, error)
+    return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { 
         status: 500,
@@ -372,7 +414,7 @@ Deno.serve(async (req) => {
           'Access-Control-Allow-Origin': '*'
         }
       }
-  )
+    )
   }
 })
 
