@@ -659,7 +659,7 @@ function DashboardContent() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
                 <img 
@@ -670,26 +670,10 @@ function DashboardContent() {
                 <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Your Dashboard</h1>
               </Link>
             </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-              <div className="flex items-center justify-between sm:justify-start space-x-4">
-                <span className="text-sm text-gray-600">Credits</span>
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <div className="flex items-center space-x-2">
+                <span className="text-xs sm:text-sm text-gray-600">Credits</span>
                 <AnimatedCreditBalance userId={user?.id || null} />
-              </div>
-              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-                <Link href="/earn-credits" className="flex-1 sm:flex-none">
-                  <Button variant="success" size="sm" className="w-full sm:w-auto justify-center">
-                    <Gift className="w-4 h-4 mr-2" />
-                    Get Free Credits
-                  </Button>
-                </Link>
-                <Button 
-                  variant="warning" 
-                  size="sm"
-                  onClick={() => setShowCreditPurchase(true)}
-                  className="w-full sm:w-auto justify-center"
-                >
-                  Buy Credits
-                </Button>
               </div>
               
               {/* User Profile Dropdown */}
@@ -698,12 +682,12 @@ function DashboardContent() {
                   variant="secondary"
                   size="sm"
                   onClick={() => setShowUserDropdown(!showUserDropdown)}
-                  className="flex items-center justify-center space-x-2 w-full sm:w-auto"
+                  className="flex items-center space-x-2"
                 >
                   <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
                     <User className="h-3 w-3 text-blue-600" />
                   </div>
-                  <span className="truncate max-w-[120px] sm:max-w-none">{user?.email}</span>
+                  <span className="hidden sm:inline truncate max-w-[120px]">{user?.email}</span>
                   <ChevronDown className="h-4 w-4 text-gray-600" />
                 </Button>
                 
@@ -725,6 +709,24 @@ function DashboardContent() {
               </div>
             </div>
           </div>
+          
+          {/* Action Buttons Row */}
+          <div className="flex space-x-2 mt-4">
+            <Link href="/earn-credits" className="flex-1">
+              <Button variant="success" size="sm" className="w-full text-xs sm:text-sm">
+                <Gift className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                Free Credits
+              </Button>
+            </Link>
+            <Button 
+              variant="warning" 
+              size="sm"
+              onClick={() => setShowCreditPurchase(true)}
+              className="flex-1 text-xs sm:text-sm"
+            >
+              Buy Credits
+            </Button>
+          </div>
         </div>
 
         {/* Unified Smart Banner */}
@@ -740,23 +742,23 @@ function DashboardContent() {
 
         {/* Tab Navigation */}
         <div className="mb-8">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-1">
+            <nav className="flex space-x-1">
               {tabs.map((tab) => {
                 const Icon = tab.icon
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center space-x-1 sm:space-x-2 transition-colors whitespace-nowrap ${
+                    className={`flex-1 py-3 px-3 rounded-md font-medium text-sm flex items-center justify-center space-x-2 transition-all duration-200 ${
                       activeTab === tab.id
-                        ? 'border-orange-500 text-orange-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        ? 'bg-orange-500 text-white shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                     }`}
                   >
                     <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                     <span className="hidden sm:inline">{tab.label}</span>
-                    <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                    <span className="sm:hidden text-xs">{tab.label.split(' ')[0]}</span>
                   </button>
                 )
               })}
@@ -1058,19 +1060,18 @@ function DashboardContent() {
 
             {/* Create Another Final Video CTA */}
             {completedClips.length > 0 && (
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-100">
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-3 border border-purple-100">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                      <Film className="h-5 w-5 text-purple-600" />
+                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                      <Film className="h-4 w-4 text-purple-600" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">Ready to Create Another Final Video?</h3>
-                      <p className="text-sm text-gray-600">Combine your clips with music and transitions to create a professional video compilation</p>
+                      <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Ready to Create Final Video?</h3>
                     </div>
                   </div>
                   <Link href="/finalize">
-                    <Button variant="primary" size="sm">
+                    <Button variant="primary" size="sm" className="whitespace-nowrap">
                       <Film className="h-4 w-4 mr-2" />
                       Create Final Video
                     </Button>
@@ -1277,21 +1278,18 @@ function DashboardContent() {
 
             {/* Empty State */}
             {completedFinalVideos.length === 0 && (
-              <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-gray-100">
+              <div className="bg-white rounded-xl p-6 text-center shadow-sm border border-gray-100">
                 <div className="text-gray-400 mb-4">
-                  <Film className="h-16 w-16 mx-auto" />
-        </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No final videos yet</h3>
-                <p className="text-gray-600 mb-6">
-                  Combine your clips with music to create professional video compilations
-                </p>
+                  <Film className="h-12 w-12 mx-auto" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">No final videos yet</h3>
                 {completedClips.length > 0 ? (
-          <Link href="/finalize">
-            <Button variant="primary" size="lg">
-              <Film className="h-5 w-5 mr-2" />
-              Create Final Video
-            </Button>
-          </Link>
+                  <Link href="/finalize">
+                    <Button variant="primary" size="lg">
+                      <Film className="h-5 w-5 mr-2" />
+                      Create Final Video
+                    </Button>
+                  </Link>
                 ) : (
                   <div className="text-sm text-gray-500">
                     Upload photos and create clips first
