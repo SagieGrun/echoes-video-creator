@@ -31,6 +31,35 @@ interface ClipGenerationProps {
   onClipCompleted?: () => void  // Add callback for when clip generation completes
 }
 
+// Provider-specific configuration
+type ProviderConfig = {
+  pollingInterval: number
+  timeout: number
+  expectedDuration: number
+  message: string
+}
+
+const PROVIDER_CONFIG: Record<string, ProviderConfig> = {
+  runway: {
+    pollingInterval: 5000,    // 5 seconds
+    timeout: 180000,          // 3 minutes
+    expectedDuration: 45,     // 45 seconds
+    message: 'AI is working on your clip... (usually takes ~1 minute)'
+  },
+  kling: {
+    pollingInterval: 15000,   // 15 seconds  
+    timeout: 480000,          // 8 minutes
+    expectedDuration: 240,    // 4 minutes
+    message: 'Creating high-quality video... (usually takes 3-5 minutes)'
+  },
+  default: {
+    pollingInterval: 5000,    // 5 seconds
+    timeout: 180000,          // 3 minutes
+    expectedDuration: 45,     // 45 seconds
+    message: 'AI is working on your clip...'
+  }
+}
+
 // For the completion preview, we'll let the video determine its own aspect ratio
 // The VideoPlayer component will automatically adapt to the video's dimensions
 
@@ -48,12 +77,13 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
   const [uploadProgress, setUploadProgress] = useState(0)
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
   const [showCreditPurchase, setShowCreditPurchase] = useState(false)
+  const [currentProvider, setCurrentProvider] = useState<string | null>(null)
   
   // Time-based progress tracking (like final video compilation)
   const [generationStartTime, setGenerationStartTime] = useState<number | null>(null)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [currentPhase, setCurrentPhase] = useState<'starting' | 'processing' | 'finishing'>('starting')
-  const [expectedDuration] = useState(45) // Average clip generation time in seconds
+  const [expectedDuration, setExpectedDuration] = useState(45) // Dynamic duration based on provider
 
   // Update user state when prop changes
   useEffect(() => {
@@ -294,8 +324,14 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
         clipId: result.clipId
       })
 
-      // Poll for status updates
-      const statusInterval = setInterval(async () => {
+      // Dynamic polling configuration based on provider
+      let pollingConfig = PROVIDER_CONFIG.default
+      let pollingStarted = false
+      let currentInterval: NodeJS.Timeout | null = null
+      let timeoutId: NodeJS.Timeout | null = null
+      
+      // Create polling function
+      const pollStatus = async () => {
         try {
           console.log(`[FRONTEND-${requestId}] POLLING: Checking clip status`)
           const statusResponse = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/clip-status`, {
@@ -312,6 +348,33 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
             const statusData = await statusResponse.json()
             console.log(`[FRONTEND-${requestId}] POLLING: Status update`, statusData)
             
+            // Detect provider and update configuration on first response
+            if (!pollingStarted && statusData.provider) {
+              const provider = statusData.provider.toLowerCase()
+              const newConfig = PROVIDER_CONFIG[provider] || PROVIDER_CONFIG.default
+              pollingConfig = newConfig
+              setCurrentProvider(provider)
+              setExpectedDuration(newConfig.expectedDuration)
+              console.log(`[FRONTEND-${requestId}] PROVIDER: Detected ${provider}, updating config:`, newConfig)
+              pollingStarted = true
+              
+              // Restart interval and timeout with correct timing
+              if (currentInterval) clearInterval(currentInterval)
+              if (timeoutId) clearTimeout(timeoutId)
+              
+              currentInterval = setInterval(pollStatus, newConfig.pollingInterval)
+              timeoutId = setTimeout(() => {
+                if (currentInterval) clearInterval(currentInterval)
+                console.log(`[FRONTEND-${requestId}] TIMEOUT: Provider-specific polling timeout reached`)
+                setState({
+                  phase: 'completed',
+                  progress: 100,
+                  message: 'Generation started! Check your dashboard for results.',
+                  clipId: result.clipId
+                })
+              }, newConfig.timeout)
+            }
+            
             // ADD DETAILED LOGGING OF STATUS DATA
             console.log(`[FRONTEND-${requestId}] POLLING: Detailed status analysis`, {
               status: statusData.status,
@@ -319,19 +382,23 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
               hasErrorMessage: !!statusData.error_message,
               errorMessage: statusData.error_message,
               hasVideoUrl: !!statusData.video_url,
+              provider: statusData.provider,
               allKeys: Object.keys(statusData)
             })
             
             setState({
               phase: 'generating',
               progress: Math.min(statusData.progress || 0, 95),
-              message: `AI generation ${statusData.progress || 0}% complete...`,
+              message: statusData.provider 
+                ? (PROVIDER_CONFIG[statusData.provider.toLowerCase()] || PROVIDER_CONFIG.default).message
+                : `AI generation ${statusData.progress || 0}% complete...`,
               clipId: result.clipId
             })
 
             if (statusData.status === 'completed') {
               console.log(`[FRONTEND-${requestId}] POLLING: Generation completed!`)
-              clearInterval(statusInterval)
+              if (currentInterval) clearInterval(currentInterval)
+              if (timeoutId) clearTimeout(timeoutId)
               setState({
                 phase: 'completed',
                 progress: 100,
@@ -347,7 +414,8 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
               onClipCompleted?.()
             } else if (statusData.status === 'failed') {
               console.error(`[FRONTEND-${requestId}] POLLING: Generation failed`, statusData)
-              clearInterval(statusInterval)
+              if (currentInterval) clearInterval(currentInterval)
+              if (timeoutId) clearTimeout(timeoutId)
               
               // Create user-friendly error message based on the specific error
               let userErrorMessage = 'Generation failed'
@@ -389,19 +457,23 @@ export function ClipGeneration({ user: propUser, onClipCompleted }: ClipGenerati
         } catch (error) {
           console.error(`[FRONTEND-${requestId}] POLLING ERROR:`, error)
         }
-      }, 5000)
+      }
 
-      // Set timeout for polling
-      setTimeout(() => {
-        clearInterval(statusInterval)
-        console.log(`[FRONTEND-${requestId}] TIMEOUT: Polling timeout reached`)
+      // Start initial polling with default config
+      pollStatus()
+      currentInterval = setInterval(pollStatus, pollingConfig.pollingInterval)
+      
+      // Set initial timeout (will be updated when provider is detected)
+      timeoutId = setTimeout(() => {
+        if (currentInterval) clearInterval(currentInterval)
+        console.log(`[FRONTEND-${requestId}] TIMEOUT: Initial polling timeout reached`)
         setState({
           phase: 'completed',
           progress: 100,
           message: 'Generation started! Check your dashboard for results.',
           clipId: result.clipId
         })
-      }, 180000) // 3 minutes timeout
+      }, pollingConfig.timeout)
 
     } catch (error) {
       const errorEndTime = Date.now()
