@@ -42,7 +42,7 @@ export function ExampleGallery() {
         <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
           {[
             { title: 'Family Portrait', desc: 'Beautiful family portraits coming to life', video: '/examples/family-portrait-example.mp4', thumbnail: '/examples/family-portrait-example.jpg' },
-            { title: 'Baby\'s First Smile', desc: 'Old memories now experienced in video', video: '/examples/baby-smile-example.mp4', thumbnail: '/examples/baby-smile-example.jpg?v=1' },
+            { title: 'Baby\'s First Smile', desc: 'Old memories now experienced in video', video: '/examples/baby-smile-example.mp4', thumbnail: '/examples/baby-smile-example.jpg' },
             { title: 'Wedding Day', desc: 'Old memories now experienced in video', video: '/examples/wedding-day-example.mp4', thumbnail: '/examples/wedding-day-example.jpg' }
           ].map((example, index) => (
             <div key={index} className={`group cursor-pointer transition-all duration-1000 transform ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`} style={{ transitionDelay: `${index * 200}ms` }}>
@@ -55,9 +55,11 @@ export function ExampleGallery() {
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       console.error('Image failed to load:', example.thumbnail);
-                      // Fallback to video poster if image fails
+                      // Try without leading slash
                       const img = e.target as HTMLImageElement;
-                      img.src = example.video.replace('.mp4', '.jpg');
+                      if (img.src.includes('/examples/')) {
+                        img.src = example.thumbnail.replace('/examples/', 'examples/');
+                      }
                     }}
                   />
                   <video
@@ -68,19 +70,29 @@ export function ExampleGallery() {
                     preload="metadata"
                     onMouseEnter={(e) => {
                       const video = e.target as HTMLVideoElement;
-                      video.play().catch(console.error);
+                      video.play().catch(() => {
+                        // Silently fail if autoplay is blocked
+                      });
                     }}
                     onMouseLeave={(e) => {
                       const video = e.target as HTMLVideoElement;
                       video.pause();
                       video.currentTime = 0;
                     }}
+                    onClick={(e) => {
+                      const video = e.target as HTMLVideoElement;
+                      if (video.paused) {
+                        video.play().catch(console.error);
+                      } else {
+                        video.pause();
+                      }
+                    }}
                   >
                     <source src={example.video} type="video/mp4" />
                   </video>
                   
                   {/* Play button overlay */}
-                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center group-hover:opacity-0 transition-opacity duration-300">
                     <div className="bg-white/90 rounded-full p-4 shadow-lg">
                       <svg className="w-8 h-8 text-deep-charcoal" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z"/>

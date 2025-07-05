@@ -175,12 +175,17 @@ export function HeroSection() {
         setShowPlayButton(false)
         setVideoPlaying(true)
       } catch (error) {
-                 console.error('[Autoplay] FAILED:', {
-           error,
-           errorName: (error as any)?.name,
-           errorMessage: (error as any)?.message,
-           errorCode: (error as any)?.code
-         })
+        const errorName = (error as any)?.name || 'Unknown';
+        if (errorName === 'NotAllowedError') {
+          console.log('[Autoplay] Blocked by browser policy - showing play button')
+        } else {
+          console.error('[Autoplay] FAILED:', {
+            error,
+            errorName,
+            errorMessage: (error as any)?.message,
+            errorCode: (error as any)?.code
+          })
+        }
         logVideoState('AutoplayFailed')
         setShowPlayButton(true)
         setVideoPlaying(false)
@@ -386,7 +391,10 @@ export function HeroSection() {
                         onLoadedData={() => {
                           const video = videoRef.current;
                           if (video) {
-                            video.play().catch(console.error);
+                            video.play().catch(() => {
+                              // Autoplay failed, show play button
+                              setShowPlayButton(true);
+                            });
                           }
                         }}
                       />
