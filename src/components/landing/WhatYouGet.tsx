@@ -31,7 +31,7 @@ export function WhatYouGet() {
         </div>
 
         {/* Section Titles */}
-        <div className="grid lg:grid-cols-5 gap-8 mb-8">
+        <div className="grid lg:grid-cols-5 gap-4 lg:gap-8 mb-6 lg:mb-8">
           <div className="lg:col-span-2">
             <h3 className="text-2xl font-semibold text-primary text-center">
               Upload your desired pictures
@@ -46,7 +46,7 @@ export function WhatYouGet() {
         </div>
 
         {/* Main Content - Aligned */}
-        <div className="grid lg:grid-cols-5 gap-8 items-start">
+        <div className="grid lg:grid-cols-5 gap-6 lg:gap-8 items-start">
           {/* Left Side - Photo Grid */}
           <div className="lg:col-span-2">
             {/* 8 Photo Grid */}
@@ -82,11 +82,15 @@ export function WhatYouGet() {
           </div>
 
           {/* Arrow */}
-          <div className="lg:col-span-1 flex justify-center items-center min-h-[300px]">
+          <div className="lg:col-span-1 flex justify-center items-center min-h-[100px] lg:min-h-[300px]">
             <div className="relative">
               <div className="w-16 h-16 bg-gradient-to-r from-accent-coral to-accent-teal rounded-full flex items-center justify-center shadow-lg animate-pulse">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {/* Desktop: horizontal arrow, Mobile: vertical arrow */}
+                <svg className="w-8 h-8 text-white hidden lg:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+                <svg className="w-8 h-8 text-white lg:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M7 10l5 5 5-5" />
                 </svg>
               </div>
               <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-accent-coral to-accent-teal rounded-full flex items-center justify-center">

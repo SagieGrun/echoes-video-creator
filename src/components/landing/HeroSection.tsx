@@ -276,7 +276,7 @@ export function HeroSection() {
   }
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center px-4 overflow-hidden pt-16">
+    <section className="relative min-h-screen flex items-center justify-center px-4 overflow-hidden pt-24 md:pt-16">
       {/* Background with new color scheme */}
       <div className="absolute inset-0 section-soft">
         <div className="absolute inset-0 opacity-20">
@@ -329,8 +329,8 @@ export function HeroSection() {
               </p>
             </div>
 
-            {/* Trust indicators */}
-            <div className="flex flex-wrap justify-center lg:justify-start items-center gap-8 text-primary text-base">
+            {/* Trust indicators - simplified on mobile */}
+            <div className="hidden md:flex flex-wrap justify-center lg:justify-start items-center gap-8 text-primary text-base">
               <div className="flex items-center gap-3">
                 <span className="text-accent-teal text-lg">🔒</span>
                 <span className="font-medium">Privacy-first</span>

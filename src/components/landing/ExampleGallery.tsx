@@ -6,7 +6,45 @@ import { useState, useEffect, useRef } from 'react'
 export function ExampleGallery() {
   const { handleSmartLogin, isLoading } = useSmartLogin()
   const [isVisible, setIsVisible] = useState(false)
+  const [videoVisibility, setVideoVisibility] = useState<Record<number, boolean>>({})
   const sectionRef = useRef<HTMLElement>(null)
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
+
+  // Individual video intersection observer for mobile autoplay
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const isMobile = window.innerWidth < 768;
+    if (!isMobile) return;
+
+    const videoObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const videoIndex = parseInt(entry.target.getAttribute('data-video-index') || '0');
+          const video = entry.target.querySelector('video') as HTMLVideoElement;
+          
+          if (entry.isIntersecting && video) {
+            setVideoVisibility(prev => ({ ...prev, [videoIndex]: true }));
+            video.play().catch(() => {
+              // Silently fail if autoplay is blocked
+            });
+          } else if (video) {
+            setVideoVisibility(prev => ({ ...prev, [videoIndex]: false }));
+            video.pause();
+            video.currentTime = 0;
+          }
+        });
+      },
+      { threshold: 0.5 }
+    );
+
+    // Observe all video containers
+    const videoContainers = document.querySelectorAll('[data-video-index]');
+    videoContainers.forEach(container => {
+      videoObserver.observe(container);
+    });
+
+    return () => videoObserver.disconnect();
+  }, [isVisible])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -50,28 +88,49 @@ export function ExampleGallery() {
                 {/* Video preview with thumbnail */}
                 <div 
                   className="aspect-square relative overflow-hidden"
+                  data-video-index={index}
                   onMouseEnter={(e) => {
-                    const video = e.currentTarget.querySelector('video') as HTMLVideoElement;
-                    if (video) {
-                      video.play().catch(() => {
-                        // Silently fail if autoplay is blocked
-                      });
+                    // Only use hover on desktop
+                    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+                      const video = e.currentTarget.querySelector('video') as HTMLVideoElement;
+                      if (video) {
+                        video.play().catch(() => {
+                          // Silently fail if autoplay is blocked
+                        });
+                      }
                     }
                   }}
                   onMouseLeave={(e) => {
-                    const video = e.currentTarget.querySelector('video') as HTMLVideoElement;
-                    if (video) {
-                      video.pause();
-                      video.currentTime = 0;
+                    // Only use hover on desktop
+                    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+                      const video = e.currentTarget.querySelector('video') as HTMLVideoElement;
+                      if (video) {
+                        video.pause();
+                        video.currentTime = 0;
+                      }
                     }
                   }}
-                  onClick={(e) => {
+                  onTouchStart={(e) => {
+                    // Mobile touch handling
                     const video = e.currentTarget.querySelector('video') as HTMLVideoElement;
                     if (video) {
                       if (video.paused) {
                         video.play().catch(console.error);
                       } else {
                         video.pause();
+                      }
+                    }
+                  }}
+                  onClick={(e) => {
+                    // Desktop click handling
+                    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+                      const video = e.currentTarget.querySelector('video') as HTMLVideoElement;
+                      if (video) {
+                        if (video.paused) {
+                          video.play().catch(console.error);
+                        } else {
+                          video.pause();
+                        }
                       }
                     }
                   }}
@@ -90,7 +149,11 @@ export function ExampleGallery() {
                     }}
                   />
                   <video
-                    className="w-full h-full object-cover absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                    className={`w-full h-full object-cover absolute inset-0 transition-opacity duration-300 ${
+                      videoVisibility[index] || (typeof window !== 'undefined' && window.innerWidth >= 768)
+                        ? 'opacity-0 group-hover:opacity-100' 
+                        : 'opacity-0'
+                    }`}
                     loop
                     muted
                     playsInline
