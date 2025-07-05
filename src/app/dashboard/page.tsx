@@ -667,7 +667,7 @@ function DashboardContent() {
                   alt="Echoes Logo" 
                   className="h-6 w-6 sm:h-8 sm:w-8"
                 />
-                <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Your Dashboard</h1>
+                <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
               </Link>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
