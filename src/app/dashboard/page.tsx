@@ -656,36 +656,41 @@ function DashboardContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-100 via-orange-50 to-purple-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+            <div className="flex items-center space-x-3">
               <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
                 <img 
                   src="echoes-logo.png" 
                   alt="Echoes Logo" 
-                  className="h-8 w-8"
+                  className="h-6 w-6 sm:h-8 sm:w-8"
                 />
-                <h1 className="text-3xl font-bold text-gray-900">Your Dashboard</h1>
+                <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Your Dashboard</h1>
               </Link>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">Credits</span>
-              <AnimatedCreditBalance userId={user?.id || null} />
-              <Link href="/earn-credits">
-                <Button variant="success" size="sm">
-                  <Gift className="w-4 h-4 mr-2" />
-                  Get Free Credits
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+              <div className="flex items-center justify-between sm:justify-start space-x-4">
+                <span className="text-sm text-gray-600">Credits</span>
+                <AnimatedCreditBalance userId={user?.id || null} />
+              </div>
+              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                <Link href="/earn-credits" className="flex-1 sm:flex-none">
+                  <Button variant="success" size="sm" className="w-full sm:w-auto justify-center">
+                    <Gift className="w-4 h-4 mr-2" />
+                    Get Free Credits
+                  </Button>
+                </Link>
+                <Button 
+                  variant="warning" 
+                  size="sm"
+                  onClick={() => setShowCreditPurchase(true)}
+                  className="w-full sm:w-auto justify-center"
+                >
+                  Buy Credits
                 </Button>
-              </Link>
-              <Button 
-                variant="warning" 
-                size="sm"
-                onClick={() => setShowCreditPurchase(true)}
-              >
-                Buy Credits
-              </Button>
+              </div>
               
               {/* User Profile Dropdown */}
               <div className="relative" ref={dropdownRef}>
@@ -693,11 +698,12 @@ function DashboardContent() {
                   variant="secondary"
                   size="sm"
                   onClick={() => setShowUserDropdown(!showUserDropdown)}
-                  className="flex items-center space-x-2"
+                  className="flex items-center justify-center space-x-2 w-full sm:w-auto"
                 >
                   <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
                     <User className="h-3 w-3 text-blue-600" />
                   </div>
+                  <span className="truncate max-w-[120px] sm:max-w-none">{user?.email}</span>
                   <ChevronDown className="h-4 w-4 text-gray-600" />
                 </Button>
                 
@@ -715,7 +721,7 @@ function DashboardContent() {
                       Logout
                     </button>
                   </div>
-              )}
+                )}
               </div>
             </div>
           </div>
@@ -735,21 +741,22 @@ function DashboardContent() {
         {/* Tab Navigation */}
         <div className="mb-8">
           <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
+            <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
               {tabs.map((tab) => {
                 const Icon = tab.icon
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 transition-colors ${
+                    className={`py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center space-x-1 sm:space-x-2 transition-colors whitespace-nowrap ${
                       activeTab === tab.id
                         ? 'border-orange-500 text-orange-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    <Icon className="h-5 w-5" />
-                    <span>{tab.label}</span>
+                    <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="hidden sm:inline">{tab.label}</span>
+                    <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
                   </button>
                 )
               })}
@@ -762,7 +769,7 @@ function DashboardContent() {
           <div className="space-y-8">
             {/* Embedded Create Page Content */}
             <div className="max-w-2xl mx-auto">
-              <div className="bg-gradient-to-br from-orange-50 via-orange-25 to-purple-50 rounded-2xl shadow-xl p-6 border border-orange-100">
+              <div className="bg-gradient-to-br from-orange-50 via-orange-25 to-purple-50 rounded-2xl shadow-xl p-4 sm:p-6 border border-orange-100">
                 <div className="flex items-center justify-center mb-4">
                   <Link href="/" className="flex items-center mr-2 hover:opacity-80 transition-opacity">
                     <img 
@@ -792,7 +799,7 @@ function DashboardContent() {
               </div>
 
               {/* Improved Tips Section */}
-              <div className="mt-8 bg-gradient-to-br from-orange-50 via-purple-25 to-purple-50 rounded-2xl shadow-sm border border-orange-100 p-6">
+              <div className="mt-8 bg-gradient-to-br from-orange-50 via-purple-25 to-purple-50 rounded-2xl shadow-sm border border-orange-100 p-4 sm:p-6">
                 <div className="text-center mb-6">
                   <h3 className="text-lg font-semibold bg-gradient-to-r from-orange-600 to-purple-600 bg-clip-text text-transparent mb-2">
                     💡 Quick Tips for Best Results
