@@ -91,7 +91,7 @@ export function HowItWorks() {
         </div>
 
         {/* CTA */}
-        <div className={`text-center transition-all duration-1000 delay-1500 transform ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-16 scale-95'}`}>
+        <div className={`flex justify-center transition-all duration-1000 delay-1500 transform ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-16 scale-95'}`}>
           <button 
             onClick={handleSmartLogin}
             disabled={isLoading}

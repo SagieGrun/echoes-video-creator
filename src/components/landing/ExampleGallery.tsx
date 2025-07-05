@@ -165,7 +165,9 @@ export function ExampleGallery() {
                   </video>
                   
                   {/* Play button overlay */}
-                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center group-hover:opacity-0 transition-opacity duration-300 pointer-events-none">
+                  <div className={`absolute inset-0 bg-black/20 flex items-center justify-center transition-opacity duration-300 pointer-events-none ${
+                    videoVisibility[index] ? 'opacity-0' : 'opacity-100 group-hover:opacity-0'
+                  }`}>
                     <div className="bg-white/90 rounded-full p-4 shadow-lg">
                       <svg className="w-8 h-8 text-deep-charcoal" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z"/>
@@ -187,7 +189,7 @@ export function ExampleGallery() {
         </div>
 
         {/* CTA */}
-        <div className="text-center mt-16">
+        <div className="flex flex-col items-center mt-16">
           <p className="text-secondary mb-6">Ready to bring your memories to life?</p>
           <button 
             onClick={handleSmartLogin}
