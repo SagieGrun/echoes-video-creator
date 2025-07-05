@@ -675,6 +675,24 @@ function DashboardContent() {
                 <AnimatedCreditBalance userId={user?.id || null} />
               </div>
               
+              {/* Desktop Action Buttons - Inline with header */}
+              <div className="hidden sm:flex items-center space-x-3">
+                <Link href="/earn-credits">
+                  <Button variant="secondary" size="sm">
+                    <Gift className="w-4 h-4 mr-2" />
+                    Earn Free Credits
+                  </Button>
+                </Link>
+                <Button 
+                  variant="primary" 
+                  size="sm"
+                  onClick={() => setShowCreditPurchase(true)}
+                >
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Buy Credits
+                </Button>
+              </div>
+              
               {/* User Profile Dropdown */}
               <div className="relative" ref={dropdownRef}>
                 <Button
@@ -709,16 +727,16 @@ function DashboardContent() {
             </div>
           </div>
           
-          {/* Action Buttons Row */}
-          <div className="flex space-x-2 mt-4">
+          {/* Mobile Action Buttons - Stacked below header */}
+          <div className="sm:hidden flex space-x-2 mt-4">
             <Link href="/earn-credits" className="flex-1">
-              <Button variant="success" size="sm" className="w-full text-xs sm:text-sm">
+              <Button variant="secondary" size="sm" className="w-full text-xs sm:text-sm">
                 <Gift className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                 Free Credits
               </Button>
             </Link>
             <Button 
-              variant="warning" 
+              variant="primary" 
               size="sm"
               onClick={() => setShowCreditPurchase(true)}
               className="flex-1 text-xs sm:text-sm"

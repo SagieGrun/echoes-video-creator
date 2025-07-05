@@ -27,13 +27,13 @@ export function Button({
           'px-6 py-3 text-base': size === 'lg',
         },
         
-        // Color variants - Professional blue-based theme
+        // Color variants - Professional muted slate theme
           {
-          'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 shadow-sm hover:shadow-md': variant === 'primary',
-          'bg-gray-50 text-gray-700 hover:bg-gray-100 focus:ring-gray-500 border border-gray-200 hover:border-gray-300': variant === 'secondary',
-          'bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500 shadow-sm hover:shadow-md': variant === 'success',
-          'bg-amber-600 text-white hover:bg-amber-700 focus:ring-amber-500 shadow-sm hover:shadow-md': variant === 'warning',
-          'bg-transparent text-gray-600 hover:bg-gray-50 focus:ring-gray-500': variant === 'ghost',
+          'bg-slate-700 text-white hover:bg-slate-800 focus:ring-slate-500 shadow-sm hover:shadow-md': variant === 'primary',
+          'bg-slate-100 text-slate-700 hover:bg-slate-200 focus:ring-slate-400 border border-slate-200 hover:border-slate-300': variant === 'secondary',
+          'bg-slate-600 text-white hover:bg-slate-700 focus:ring-slate-500 shadow-sm hover:shadow-md': variant === 'success',
+          'bg-slate-500 text-white hover:bg-slate-600 focus:ring-slate-400 shadow-sm hover:shadow-md': variant === 'warning',
+          'bg-transparent text-slate-600 hover:bg-slate-50 focus:ring-slate-400': variant === 'ghost',
           },
         
           className
@@ -66,13 +66,13 @@ export function ButtonLink({
           'px-6 py-3 text-base': size === 'lg',
         },
         
-        // Color variants - Professional blue-based theme
+        // Color variants - Professional muted slate theme
         {
-          'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 shadow-sm hover:shadow-md': variant === 'primary',
-          'bg-gray-50 text-gray-700 hover:bg-gray-100 focus:ring-gray-500 border border-gray-200 hover:border-gray-300': variant === 'secondary',
-          'bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500 shadow-sm hover:shadow-md': variant === 'success',
-          'bg-amber-600 text-white hover:bg-amber-700 focus:ring-amber-500 shadow-sm hover:shadow-md': variant === 'warning',
-          'bg-transparent text-gray-600 hover:bg-gray-50 focus:ring-gray-500': variant === 'ghost',
+          'bg-slate-700 text-white hover:bg-slate-800 focus:ring-slate-500 shadow-sm hover:shadow-md': variant === 'primary',
+          'bg-slate-100 text-slate-700 hover:bg-slate-200 focus:ring-slate-400 border border-slate-200 hover:border-slate-300': variant === 'secondary',
+          'bg-slate-600 text-white hover:bg-slate-700 focus:ring-slate-500 shadow-sm hover:shadow-md': variant === 'success',
+          'bg-slate-500 text-white hover:bg-slate-600 focus:ring-slate-400 shadow-sm hover:shadow-md': variant === 'warning',
+          'bg-transparent text-slate-600 hover:bg-slate-50 focus:ring-slate-400': variant === 'ghost',
         },
         
         className
