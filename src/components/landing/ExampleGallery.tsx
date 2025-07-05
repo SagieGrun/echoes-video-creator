@@ -42,13 +42,40 @@ export function ExampleGallery() {
         <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
           {[
             { title: 'Family Portrait', desc: 'Beautiful family portraits coming to life', video: '/examples/family-portrait-example.mp4', thumbnail: '/examples/family-portrait-example.jpg' },
-            { title: 'Baby\'s First Smile', desc: 'Old memories now experienced in video', video: '/examples/baby-smile-example.mp4', thumbnail: '/examples/baby-smile-example.jpg' },
+            { title: 'Baby\'s First Smile', desc: 'Old memories now experienced in video', video: '/examples/baby-smile-example.mp4', thumbnail: '/examples/baby-smile-example.JPG' },
             { title: 'Wedding Day', desc: 'Old memories now experienced in video', video: '/examples/wedding-day-example.mp4', thumbnail: '/examples/wedding-day-example.jpg' }
           ].map((example, index) => (
             <div key={index} className={`group cursor-pointer transition-all duration-1000 transform ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`} style={{ transitionDelay: `${index * 200}ms` }}>
               <div className="card-clean overflow-hidden hover:shadow-lg transition-all duration-300 group-hover:scale-105">
                 {/* Video preview with thumbnail */}
-                <div className="aspect-square relative overflow-hidden">
+                <div 
+                  className="aspect-square relative overflow-hidden"
+                  onMouseEnter={(e) => {
+                    const video = e.currentTarget.querySelector('video') as HTMLVideoElement;
+                    if (video) {
+                      video.play().catch(() => {
+                        // Silently fail if autoplay is blocked
+                      });
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    const video = e.currentTarget.querySelector('video') as HTMLVideoElement;
+                    if (video) {
+                      video.pause();
+                      video.currentTime = 0;
+                    }
+                  }}
+                  onClick={(e) => {
+                    const video = e.currentTarget.querySelector('video') as HTMLVideoElement;
+                    if (video) {
+                      if (video.paused) {
+                        video.play().catch(console.error);
+                      } else {
+                        video.pause();
+                      }
+                    }
+                  }}
+                >
                   <img
                     src={example.thumbnail}
                     alt={example.title}
@@ -68,31 +95,12 @@ export function ExampleGallery() {
                     muted
                     playsInline
                     preload="metadata"
-                    onMouseEnter={(e) => {
-                      const video = e.target as HTMLVideoElement;
-                      video.play().catch(() => {
-                        // Silently fail if autoplay is blocked
-                      });
-                    }}
-                    onMouseLeave={(e) => {
-                      const video = e.target as HTMLVideoElement;
-                      video.pause();
-                      video.currentTime = 0;
-                    }}
-                    onClick={(e) => {
-                      const video = e.target as HTMLVideoElement;
-                      if (video.paused) {
-                        video.play().catch(console.error);
-                      } else {
-                        video.pause();
-                      }
-                    }}
                   >
                     <source src={example.video} type="video/mp4" />
                   </video>
                   
                   {/* Play button overlay */}
-                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center group-hover:opacity-0 transition-opacity duration-300">
+                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center group-hover:opacity-0 transition-opacity duration-300 pointer-events-none">
                     <div className="bg-white/90 rounded-full p-4 shadow-lg">
                       <svg className="w-8 h-8 text-deep-charcoal" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z"/>
@@ -101,7 +109,7 @@ export function ExampleGallery() {
                   </div>
                   
                   {/* Title overlay */}
-                  <div className="absolute bottom-4 left-4 right-4">
+                  <div className="absolute bottom-4 left-4 right-4 pointer-events-none">
                     <h3 className="font-semibold text-lg text-white drop-shadow-lg">{example.title}</h3>
                   </div>
                 </div>
