@@ -42,7 +42,7 @@ export function ExampleGallery() {
         <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
           {[
             { title: 'Family Portrait', desc: 'Beautiful family portraits coming to life', video: '/examples/family-portrait-example.mp4', thumbnail: '/examples/family-portrait-example.jpg' },
-            { title: 'Baby\'s First Smile', desc: 'Old memories now experienced in video', video: '/examples/baby-smile-example.mp4', thumbnail: '/examples/baby-smile-example.jpg' },
+            { title: 'Baby\'s First Smile', desc: 'Old memories now experienced in video', video: '/examples/baby-smile-example.mp4', thumbnail: '/examples/baby-smile-example.jpg?v=1' },
             { title: 'Wedding Day', desc: 'Old memories now experienced in video', video: '/examples/wedding-day-example.mp4', thumbnail: '/examples/wedding-day-example.jpg' }
           ].map((example, index) => (
             <div key={index} className={`group cursor-pointer transition-all duration-1000 transform ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`} style={{ transitionDelay: `${index * 200}ms` }}>
@@ -53,14 +53,28 @@ export function ExampleGallery() {
                     src={example.thumbnail}
                     alt={example.title}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      console.error('Image failed to load:', example.thumbnail);
+                      // Fallback to video poster if image fails
+                      const img = e.target as HTMLImageElement;
+                      img.src = example.video.replace('.mp4', '.jpg');
+                    }}
                   />
                   <video
                     className="w-full h-full object-cover absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    autoPlay
                     loop
                     muted
                     playsInline
                     preload="metadata"
+                    onMouseEnter={(e) => {
+                      const video = e.target as HTMLVideoElement;
+                      video.play().catch(console.error);
+                    }}
+                    onMouseLeave={(e) => {
+                      const video = e.target as HTMLVideoElement;
+                      video.pause();
+                      video.currentTime = 0;
+                    }}
                   >
                     <source src={example.video} type="video/mp4" />
                   </video>

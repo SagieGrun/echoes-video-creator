@@ -128,6 +128,239 @@ flowchart TD
 - Platform-optimized deployment (Vercel/Netlify)
 - Best of both worlds: speed + functionality
 
+## Design System Patterns ✅ NEW - PROFESSIONAL HOMEPAGE
+
+### 1. Coral-Teal Design System ✅ NEW - UNIFIED BRANDING
+```typescript
+// Unified color palette established in tailwind.config.js
+const designSystem = {
+  colors: {
+    // Primary Background Colors
+    primary: {
+      clean: '#fafafa',    // Clean white
+      soft: '#f5f5f5',     // Soft gray
+      card: '#f8f8f8',     // Card background
+    },
+    
+    // Text Colors
+    text: {
+      primary: '#1a1a1a',  // Deep charcoal
+      secondary: '#2c2c2c', // Elegant charcoal
+      muted: '#666666',     // Light gray
+      subtle: '#cccccc',    // Subtle gray
+    },
+    
+    // Accent Colors
+    accent: {
+      coral: '#ff6b6b',     // Coral for emotional connection
+      teal: '#4ecdc4',      // Teal for life moments
+      coralLight: '#ff8e8e', // Light coral
+      tealLight: '#7dd5ce',  // Light teal
+    }
+  },
+  
+  // Gradient Patterns
+  gradients: {
+    coralTeal: 'bg-gradient-to-r from-coral to-teal',
+    coralTealLight: 'bg-gradient-to-r from-coral-light to-teal-light',
+    textCoral: 'bg-gradient-to-r from-coral to-coral-light bg-clip-text text-transparent',
+    textTeal: 'bg-gradient-to-r from-teal to-teal-light bg-clip-text text-transparent',
+  }
+}
+
+// Component design patterns
+const componentPatterns = {
+  // Card styling
+  card: 'bg-white rounded-lg shadow-sm border border-gray-100',
+  cardHover: 'hover:shadow-md transition-shadow duration-200',
+  
+  // Button patterns
+  primaryButton: 'bg-coral text-white hover:bg-coral-light transition-colors',
+  secondaryButton: 'bg-teal text-white hover:bg-teal-light transition-colors',
+  
+  // Icon containers
+  iconContainer: 'w-16 h-16 rounded-full bg-gradient-to-r from-coral to-teal flex items-center justify-center shadow-md',
+  
+  // Text gradients
+  gradientText: 'bg-gradient-to-r from-coral to-teal bg-clip-text text-transparent font-bold'
+}
+```
+
+### 2. Professional Icon System ✅ NEW - LUCIDE INTEGRATION
+```typescript
+// Replaced emoji icons with professional Lucide React icons
+import { Camera, Cpu, Video, Award, Brain, Gift } from 'lucide-react'
+
+// Icon usage pattern with gradient backgrounds
+const IconComponent = ({ IconType, size = 24, className = '' }) => (
+  <div className={`
+    w-16 h-16 rounded-full 
+    bg-gradient-to-r from-coral to-teal 
+    flex items-center justify-center 
+    shadow-md hover:shadow-lg 
+    transition-all duration-300
+    ${className}
+  `}>
+    <IconType size={size} className="text-white" />
+  </div>
+)
+
+// How It Works icons
+const howItWorksIcons = {
+  upload: { icon: Camera, label: 'Upload Photos' },
+  process: { icon: Cpu, label: 'AI Processing' },
+  create: { icon: Video, label: 'Create Video' }
+}
+
+// Trust Badges icons
+const trustBadgeIcons = {
+  quality: { icon: Award, label: 'Professional Quality' },
+  ai: { icon: Brain, label: 'AI-Powered' },
+  gift: { icon: Gift, label: 'Perfect Gifts' }
+}
+```
+
+### 3. Animation System ✅ NEW - SCROLL INTERACTIONS
+```typescript
+// Intersection Observer pattern for scroll animations
+const useScrollAnimation = (threshold = 0.1) => {
+  const [isVisible, setIsVisible] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+        }
+      },
+      { threshold }
+    )
+
+    if (ref.current) {
+      observer.observe(ref.current)
+    }
+
+    return () => observer.disconnect()
+  }, [threshold])
+
+  return [ref, isVisible]
+}
+
+// Staggered animation pattern
+const staggeredAnimation = {
+  container: {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.2
+      }
+    }
+  },
+  item: {
+    hidden: { y: 20, opacity: 0 },
+    visible: { 
+      y: 0, 
+      opacity: 1,
+      transition: { duration: 0.6 }
+    }
+  }
+}
+
+// How It Works enhanced animation
+const howItWorksAnimation = {
+  initial: { opacity: 0, y: 50, scale: 0.8 },
+  animate: { 
+    opacity: 1, 
+    y: 0, 
+    scale: 1,
+    transition: { 
+      duration: 1,
+      ease: "easeOut"
+    }
+  },
+  hover: { 
+    scale: 1.05,
+    rotate: 2,
+    transition: { duration: 0.3 }
+  }
+}
+```
+
+### 4. Responsive Layout Patterns ✅ NEW - MOBILE-FIRST
+```typescript
+// Mobile-first responsive design system
+const responsivePatterns = {
+  // Grid systems
+  threeColumnGrid: 'grid grid-cols-1 md:grid-cols-3 gap-6',
+  twoColumnGrid: 'grid grid-cols-1 lg:grid-cols-2 gap-8',
+  
+  // Container patterns
+  sectionContainer: 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8',
+  sectionPadding: 'py-12 sm:py-16 lg:py-20',
+  
+  // Text sizing
+  heroTitle: 'text-4xl sm:text-5xl lg:text-6xl font-bold',
+  sectionTitle: 'text-3xl sm:text-4xl lg:text-5xl font-bold',
+  cardTitle: 'text-xl sm:text-2xl font-semibold',
+  
+  // Spacing
+  cardSpacing: 'space-y-6 sm:space-y-8',
+  sectionSpacing: 'space-y-12 sm:space-y-16 lg:space-y-20'
+}
+
+// Component-specific responsive patterns
+const componentResponsive = {
+  // Hero section
+  heroLayout: 'grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center',
+  heroContent: 'text-center lg:text-left',
+  
+  // Pricing cards
+  pricingGrid: 'grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8',
+  pricingCard: 'relative bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:p-8',
+  
+  // Example gallery
+  galleryGrid: 'grid grid-cols-1 md:grid-cols-3 gap-6',
+  galleryCard: 'bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow'
+}
+```
+
+### 5. Content Optimization Patterns ✅ NEW - PROFESSIONAL MESSAGING
+```typescript
+// Professional messaging patterns
+const contentPatterns = {
+  // Social proof
+  socialProof: {
+    simplified: 'loved by families worldwide',
+    credible: 'trusted by creative professionals',
+    focused: 'perfect for milestone moments'
+  },
+  
+  // Call-to-action messaging
+  cta: {
+    primary: 'Start Your First Video',
+    secondary: 'No credit card required',
+    trust: 'Ready in 2 minutes',
+    value: 'Try Your First Clip FREE'
+  },
+  
+  // Feature descriptions
+  features: {
+    concise: 'Upload photos → AI magic → Beautiful video',
+    emotional: 'Turn memories into magical moments',
+    technical: 'Professional quality with zero effort'
+  },
+  
+  // Testimonial patterns
+  testimonials: {
+    authentic: 'Real stories from real families',
+    specific: 'Detailed use cases and outcomes',
+    emotional: 'Focus on meaningful moments'
+  }
+}
+```
+
 ## Core Design Patterns
 
 ### 1. Admin Security Pattern ✅ NEW - ENTERPRISE-GRADE PROTECTION

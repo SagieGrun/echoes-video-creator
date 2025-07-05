@@ -379,10 +379,16 @@ export function HeroSection() {
                         loop
                         muted
                         playsInline
-                        preload="metadata"
+                        preload="auto"
                         controls={false}
                         disablePictureInPicture
                         className="w-full h-full object-cover"
+                        onLoadedData={() => {
+                          const video = videoRef.current;
+                          if (video) {
+                            video.play().catch(console.error);
+                          }
+                        }}
                       />
                       
                       {/* Play button overlay for when autoplay fails */}
